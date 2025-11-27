@@ -11,7 +11,7 @@ from Utils import load_wav
 
 if __name__ == "__main__":
     import argparse
-    from Tokenizer import AudioTokenizer
+    from AudioTokenizer import AudioTokenizer
 
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
