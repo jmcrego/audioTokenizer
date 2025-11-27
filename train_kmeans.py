@@ -21,7 +21,7 @@ from AudioProcessor import AudioProcessor
 from Utils import list_audio_files, secs2human
 
 
-def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None, device: str = 'cpu'):
+def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None):
     # ---------- Find audio files ----------
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
@@ -116,8 +116,8 @@ if __name__ == "__main__":
 
     audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
-    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total, device=args.device) #[N, D]    
-    kmeans = train_kmeans(embeddings, k=args.k, n_iter=args.n_iter, batch_size=args.batch_size, device=args.device) # [k, D]
+    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
+    kmeans = train_kmeans(embeddings, k=args.k, n_iter=args.n_iter, batch_size=args.batch_size, device='cpu') #args.device) # [k, D]
 
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}.n_iter{args.n_iter}.bs{args.batch_size}"
     faiss.write_index(kmeans.index, f"{args.output}.kmeans_faiss.index")
