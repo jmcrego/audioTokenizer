@@ -61,8 +61,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy")
-    parser.add_argument("--duration", type=float, default=None, help="Duration of each audio chunk in seconds (when streaming)")
-    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (when tokenizing a file)")
+    parser.add_argument("--duration", type=float, default=None, help="Duration of each audio chunk in seconds (if streaming)")
+    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (if tokenizing a file)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
