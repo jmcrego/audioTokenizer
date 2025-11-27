@@ -78,7 +78,12 @@ class AudioEmbedder:
 
         #L2-normalize embeddings for better clustering
         if self.l2_norm:
-            embeddings = embeddings / (np.linalg.norm(embeddings, axis=-1, keepdims=True) + 1e-8) 
+            # Compute the L2 norm along the last dimension
+            norm = torch.norm(embeddings, dim=-1, keepdim=True)
+            # Avoid division by zero
+            norm = torch.clamp(norm, min=1e-8)
+            # Normalize the embeddings
+            embeddings = embeddings / norm
 
         logger.info(f"embeddings size={embeddings.shape}")
         return embeddings
