@@ -42,11 +42,6 @@ python -c "import torch; import torchaudio; import numpy; import sounddevice; im
 ## Use
 
 ### Building centroids from audio files:
-
-In general, speech tokenizers (a.k.a. “audio codebooks”) typically use between:
-
-* For training, you must find as much data as possible representing the audio to tokenize in inference.
-
 ```
 python train_kmeans.py --model utter-project/mhubert-147 --data data --k 512 --max-iter 1000
 ```
