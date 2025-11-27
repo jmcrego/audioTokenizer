@@ -1,6 +1,17 @@
 # audioTokenizer
 Build discrete tokens from speech
 
+## Create conda environment and install dependencies
+```
+conda create -n hubert_tokenizer python=3.11 -y
+conda activate hubert_tokenizer
+
+pip install -r requirements.txt
+# Test everything
+python -c "import torch; import torchaudio; import numpy; import sounddevice; import transformers; print('All OK')"
+
+```
+
 ## Building centroids from audio files:
 ```
 python train_kmeans.py --model utter-project/mhubert-147 --data data --k 512 --max-iter 1000
