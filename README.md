@@ -1,7 +1,7 @@
 # audioTokenizer
 Build discrete tokens from speech
 
-Diagram:
+Workflow diagram:
 ```
 numpy WAV (float32, 16 kHz)                       → [samples]
         ↓
@@ -15,7 +15,16 @@ K-means tokenizer                                 → Discrete tokens [bs, seq_l
 ```
 
 Caveats:
-* One embedding = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
+* One embedding/token = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
+* CNN feature encoder extracts audio features representing the audio. A stack of strided conv layers that downsample the input.
+* Transformer encoder refines features. It applies global context, self-attention across the entire sequence.
+* K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid.
+* D depends on the model used. Ex:
+* * mHuBERT base: 768
+* * mHuBERT large: 1024
+* * wav2vec2 base: 768
+* * wav2vec2 large: 1024
+
 
 ## Create conda environment and install dependencies
 ```
