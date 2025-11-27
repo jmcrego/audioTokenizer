@@ -96,10 +96,10 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
+    args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
 
     audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
+    audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
 
     embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
     centroids = train_kmeans(embeddings, args.k, args.max_iter, args.batch_size) # [k, D]
