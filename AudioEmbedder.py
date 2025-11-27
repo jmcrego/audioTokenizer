@@ -18,10 +18,9 @@ class AudioEmbedder:
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
+    def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", device: str = "cpu"):
         logger.info(f"Initialing {arguments(locals())}")
         self.processor = audio_processor
-        self.l2_norm = l2_norm
         self.device = torch.device(device)
         self.model = model.lower()
 
@@ -75,10 +74,6 @@ class AudioEmbedder:
         input_features = input_features.to(self.device)
         with torch.no_grad():
             embeddings = self.embedder(input_features).last_hidden_state.squeeze(0)  # [T, emb_dim]
-
-        #L2-normalize embeddings for better clustering
-        if self.l2_norm:
-            embeddings = embeddings / (np.linalg.norm(embeddings, axis=-1, keepdims=True) + 1e-8) 
 
         logger.info(f"embeddings size={embeddings.shape}")
         return embeddings

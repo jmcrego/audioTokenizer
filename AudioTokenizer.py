@@ -26,7 +26,7 @@ class AudioTokenizer:
     """
     Audio Tokenizer: converts embedding frames into discrete token IDs.
     """
-    def __init__(self, audio_embedder, centroid_file: str, device: str = "cpu"):
+    def __init__(self, audio_embedder, centroid_file: str, l2_norm: bool=True, device: str = "cpu"):
         """
         Load pretrained centroids and initializes the audio embedder.
         Args:
@@ -37,6 +37,7 @@ class AudioTokenizer:
         logger.info(f"Initializing {arguments(locals())}")
         self.device = torch.device(device)
         self.embedder = audio_embedder
+        self.l2_norm = l2_norm
         if not os.path.exists(centroid_file):
             raise FileNotFoundError(f"Centroid file not found: {centroid_file}")
         self.centroids = np.load(centroid_file)
@@ -52,6 +53,10 @@ class AudioTokenizer:
             token_ids: numpy array [T]
         """
         embeddings = self.embedder(audio_input)  # [T, D]
+
+        #L2-normalize embeddings for better clustering
+        if self.l2_norm:
+            embeddings = embeddings / (np.linalg.norm(embeddings, axis=-1, keepdims=True) + 1e-8) 
 
         # nearest centroid → token IDs
         tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
