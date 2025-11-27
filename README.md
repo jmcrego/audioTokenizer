@@ -14,6 +14,9 @@ Transformer encoder                               → Hidden states [bs, seq_len
 K-means tokenizer                                 → Discrete tokens [bs, seq_len]
 ```
 
+Caveats:
+* One embedding = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
+
 ## Create conda environment and install dependencies
 ```
 conda create -n audio_tokenizer python=3.11 -y
