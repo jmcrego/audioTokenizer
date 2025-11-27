@@ -24,11 +24,13 @@ from Utils import list_audio_files, secs2human
 def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None, device: str = 'cpu'):
     # ---------- Find audio files ----------
     audio_files = list_audio_files(data_path)
+    logging.info(f"Found {len(audio_files)} audio files.")
     if not audio_files:
         raise RuntimeError("No audio files found!")
     random.shuffle(audio_files)
+    logging.info(f"Shuffle {len(audio_files)} audio files.")
     audio_files = audio_files[: max_audio_files] if max_audio_files is not None else audio_files
-    logging.info(f"Found {len(audio_files)} audio files.")
+    logging.info(f"Kept {len(audio_files)} audio files.")
 
     # ---------- Extract embeddings ----------
     all_embeddings = []
