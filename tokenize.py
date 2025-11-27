@@ -3,6 +3,7 @@
 import time
 import queue
 import logging
+import argparse
 import numpy as np
 import sounddevice as sd
 
@@ -10,8 +11,6 @@ from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
 from AudioTokenizer import AudioTokenizer
 from Utils import secs2human
-
-logger = logging.getLogger("record_mic_stream")
 
 def record_mic_stream(chunk_duration=5., sample_rate=16000):
     """
@@ -36,7 +35,7 @@ def record_mic_stream(chunk_duration=5., sample_rate=16000):
             print("Warning: audio buffer irregularity")
         if status:
             print(f"Microphone status: {status}")
-        logger.info(f"sample_rate={sample_rate} Hz, "
+        logging.info(f"sample_rate={sample_rate} Hz, "
                     f"frames={frames}, "
                     f"time=[{secs2human(nchunks*frames/sample_rate)}, {secs2human((nchunks+1)*frames/sample_rate)}], "
                     f"chunk_latency={time.currentTime - time.inputBufferAdcTime:.6f} sec"
@@ -59,13 +58,11 @@ def record_mic_stream(chunk_duration=5., sample_rate=16000):
             yield chunk.flatten()
 
 if __name__ == "__main__":
-    import argparse
-    from AudioTokenizer import AudioTokenizer
-
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy")
-    parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds")
+    parser.add_argument("--duration", type=float, default=None, help="Duration of each audio chunk in seconds (when streaming)")
+    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (when tokenizing a file)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
@@ -74,11 +71,16 @@ if __name__ == "__main__":
     audio_embedder = AudioEmbedder(audio_processor, model=args.model)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
 
-    try:
-        for i, chunk in enumerate(record_mic_stream(chunk_duration=args.duration, sample_rate=16000)):
-            t = time.time()
-            tokens = audio_tokenizer(chunk)
-            logging.info(f"Chunk {i+1}, process took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
-    except KeyboardInterrupt:
-        print("\nStreaming stopped.")
+    if args.duration is not None:
+        try:
+            for i, chunk in enumerate(record_mic_stream(chunk_duration=args.duration, sample_rate=16000)):
+                t = time.time()
+                tokens = audio_tokenizer(chunk)
+                logging.info(f"Chunk {i+1}, process took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
+        except KeyboardInterrupt:
+            print("\nStreaming stopped.")
 
+    elif args.wav is not None:
+        t = time.time()
+        tokens = audio_tokenizer(args.wav)
+        logging.info(f"Tokenization took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
