@@ -1,6 +1,18 @@
 # audioTokenizer
 Build discrete tokens from speech
 
+Diagram:
+
+numpy WAV (float32, 16 kHz)
+        ↓
+processor: normalization + tensor
+        ↓
+CNN feature encoder (7 conv layers, stride=320)
+        ↓
+Transformer encoder (12 layers)
+        ↓
+last_hidden_state[:, :, 768]
+
 ## Create conda environment and install dependencies
 ```
 conda create -n audio_tokenizer python=3.11 -y
@@ -12,8 +24,14 @@ python -c "import torch; import torchaudio; import numpy; import sounddevice; im
 
 ```
 
-## Use:
+## Use
+
 ### Building centroids from audio files:
+
+In general, speech tokenizers (a.k.a. “audio codebooks”) typically use between:
+
+* For training, you must find as much data as possible representing the audio to tokenize in inference.
+
 ```
 python train_kmeans.py --model utter-project/mhubert-147 --data data --k 512 --max-iter 1000
 ```
