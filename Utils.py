@@ -1,0 +1,47 @@
+import os
+import soxr
+import numpy as np
+import soundfile as sf
+
+SUPPORTED_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
+
+def load_wav(file_path: str, channel: int = 0, sample_rate: int = 16000) -> np.ndarray:
+    wav, sr = sf.read(file_path)
+    # stereo (multi-channel)
+    if len(wav.shape) > 1: 
+        if channel < -1 or channel >= wav.shape[1]:
+            raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
+        elif wav.shape[1] > 1:
+            # select channel or average channels
+            if channel == 0:
+                wav = wav[:, 0]
+            elif channel == 1:
+                wav = wav[:, 1]
+            else:
+                wav = np.mean(wav, axis=1)
+    # resample if needed 
+    if sr != sample_rate:
+        wav = soxr.resample(wav, sr, sample_rate)
+    # Ensure float32 dtype
+    wav = wav.astype(np.float32)
+
+    return wav
+
+
+def secs2human(t):
+    sec = int(t)
+    ms = int((t - sec) * 1000)
+    return f"{sec // 3600:02d}:{(sec % 3600) // 60:02d}:{sec % 60:02d}.{ms:03d}"
+
+
+def list_audio_files(path: str):
+    """Return list of audio files from a file or directory."""
+    if os.path.isfile(path):
+        return [path]
+
+    files = []
+    for root, _, fs in os.walk(path):
+        for f in fs:
+            if f.lower().endswith(SUPPORTED_EXT):
+                files.append(os.path.join(root, f))
+    return sorted(files)
