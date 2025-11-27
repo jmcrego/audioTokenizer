@@ -80,7 +80,7 @@ class AudioEmbedder:
         else:
             raise ValueError("audio_input must be a path or np.ndarray")
 
-        logger.info(f"wav size is {wav.shape}")
+        logger.info(f"wav size is {wav.shape}, {wav.shape[0]/self.sample_rate:.2f} sec")
 
         # --- REMOVE SILENCE ---
         if self.remove_silence:
