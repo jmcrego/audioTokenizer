@@ -20,10 +20,10 @@ Caveats:
 * Transformer encoder refines features. It applies global context, self-attention across the entire sequence.
 * K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid.
 * D depends on the model used. Ex:
-* * mHuBERT base: 768
-* * mHuBERT large: 1024
-* * wav2vec2 base: 768
-* * wav2vec2 large: 1024
+ * mHuBERT base: 768
+ * mHuBERT large: 1024
+ * wav2vec2 base: 768
+ * wav2vec2 large: 1024
 
 
 ## Create conda environment and install dependencies
