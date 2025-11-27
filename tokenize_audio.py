@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
     parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
     parser.add_argument("--stride", type=int, default=320, help="Stride to apply (with hubert/wav2vec models)")
-    parser.add_argument("--receptive_field", type=int, default=400, help="Receptive_field to apply (with hubert/wav2vec models)")
+    parser.add_argument("--rf", type=int, default=400, help="Receptive_field to apply (with hubert/wav2vec models)")
     parser.add_argument("--top_db", type=int, default=30, help="Remove silence when under this threshold")
     parser.add_argument("--channel", type=int, default=0, help="Use this channel if multiple exist in audio")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.receptive_field, channel=args.channel)
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf, channel=args.channel)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids, device=args.device)
 

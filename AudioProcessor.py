@@ -89,10 +89,10 @@ if __name__ == "__main__":
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
     parser.add_argument("--top_db", type=int, default=30, help="Silence top_db (0 if no silence removal)")
     parser.add_argument("--stride", type=int, default=320, help="Stride (0 for whisper)")
-    parser.add_argument("--receptive_field", type=int, default=400, help="Receptive field (0 for whisper)")
+    parser.add_argument("--rf", type=int, default=400, help="Receptive field (0 for whisper)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.receptive_field)
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     wav = audio_processor(args.wav)
