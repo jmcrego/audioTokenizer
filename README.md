@@ -3,15 +3,15 @@ Build discrete tokens from speech
 
 Diagram:
 ```
-numpy WAV (float32, 16 kHz)
+numpy WAV (float32, 16 kHz)                       → [samples]
         ↓
-processor: normalization + tensor
+processor: normalization                          → tensor [bs=1, samples]
         ↓
-CNN feature encoder (7 conv layers, stride=320)
+CNN feature encoder (stride=320, RF≈400)          → Latent features [bs, seq_len, D]
         ↓
-Transformer encoder (12 layers)
+Transformer encoder                               → Hidden states [bs, seq_len, D] 
         ↓
-last_hidden_state[:, :, 768]
+K-means tokenizer                                 → Discrete tokens [bs, seq_len]
 ```
 
 ## Create conda environment and install dependencies
