@@ -11,15 +11,15 @@ CNN feature encoder (stride=320, RF≈400)          → Latent features [bs, seq
         ↓
 Transformer encoder                               → Hidden states [bs, seq_len, D] 
         ↓
-K-means tokenizer                                 → Discrete tokens [bs, seq_len]
+K-means tokenizer (l2_norm)                       → Discrete tokens [bs, seq_len]
 ```
 
 Caveats:
-* Processor handles resampling, channel handling (mono), amplitude normalization, Silence removal and padding. Returns torch.Tensor. For Whisper it may produce log-mel features instead.
+* Processor handles resampling, channel handling (mono), silence removal and padding. Returns torch.Tensor. For Whisper it may produce log-mel features instead.
 * Backbone model:
   * CNN feature encoder extracts acoustic patterns from audio chunks. A stack of strided conv layers that downsample the input. [use pretrain model FROZEN]
   * Transformer encoder refines features. It applies global context, self-attention across the entire sequence. [use pretrain model FROZEN]
-* K-means tokenizer creates discrete acoustic units (tokens) by mapping each embedding to the nearest centroid. [must be TRAINED FROM SCRATCH using speech files]
+* K-means tokenizer creates discrete acoustic units (tokens) by mapping each embedding to the nearest centroid. Performs L2-norm on embeddings. [must be TRAINED FROM SCRATCH using speech files]
 * D depends on the model used (Ex: mHuBERT base: 768, mHuBERT large: 1024, wav2vec2 base: 768, wav2vec2 large: 1024).
 * One embedding/token = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
 
