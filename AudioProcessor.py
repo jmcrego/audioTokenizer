@@ -17,20 +17,20 @@ logger = logging.getLogger("audio_processor")
 
 class AudioProcessor:
 
-    def __init__(self, top_db: int = 30, stride: int = 320, receptive_field: int = 400):
+    def __init__(self, top_db: int = 30, stride: int = 320, receptive_field: int = 400, channel: int = 0):
         logger.info(f"Initializing {arguments(locals())}")
         self.sample_rate = 16000  # default for all considered models
         self.top_db = top_db # to remove silence
         self.stride = stride #to pad the audio chunk unless whisper
         self.receptive_field = receptive_field #to pad the audio chunk unless whisper
+        self.channel = channel
 
-    def __call__(self, audio_input, channel: int = 0, sr=16000) -> torch.Tensor:
+    def __call__(self, audio_input, sr=16000) -> torch.Tensor:
         """
         Preprocess from a WAV file path or numpy array.
         Args:
             audio_input: str path to WAV file or np.ndarray (float32)
-            channel: channel/s to keep
-            sr: original sr of audio chunk (audio files update this value)
+            sr: original sr of audio chunk (not used with audio files as the value is loaded)
         Returns:
             embeddings: torch.Tensor [T, emb_dim]
         """
@@ -45,13 +45,13 @@ class AudioProcessor:
 
         #  CHANNEL handling (mono)
         if len(wav.shape) > 1: 
-            if channel < -1 or channel >= wav.shape[1]:
-                raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
+            if self.channel < -1 or self.channel >= wav.shape[1]:
+                raise ValueError(f"Invalid channel {self.channel} for audio with {wav.shape[1]} channels")
             elif wav.shape[1] > 1:
                 # select channel or average channels
-                if channel == 0:
+                if self.channel == 0:
                     wav = wav[:, 0]
-                elif channel == 1:
+                elif self.channel == 1:
                     wav = wav[:, 1]
                 else:
                     wav = np.mean(wav, axis=1)

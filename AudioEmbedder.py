@@ -18,7 +18,7 @@ class AudioEmbedder:
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm=True, device: str = "cpu"):
+    def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
         logger.info(f"Initialing {arguments(locals())}")
         self.processor = audio_processor
         self.l2_norm = l2_norm
@@ -46,12 +46,11 @@ class AudioEmbedder:
         self.embedder.to(self.device)
         self.embedder.eval()
 
-    def __call__(self, audio_input, channel: int = 0) -> torch.Tensor:
+    def __call__(self, audio_input) -> torch.Tensor:
         """
         Extract embeddings from a WAV numpy array.
         Args:
             audio_input: str path to WAV file or np.ndarray (float32)
-            channel: always keeps the first channel if stereo
         Returns:
             embeddings: torch.Tensor [T, emb_dim]
         """
