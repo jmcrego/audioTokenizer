@@ -3,3 +3,5 @@ audio/
 centroids/
 *.sh
 *.png
+*.npy
+*.index
