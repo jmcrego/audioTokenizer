@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""
+Class to Preprocess audio files.
+Supports WAV/MP3 files or raw numpy audio arrays.
+"""
+
+import soxr
+import torch
+import logging
+import numpy as np
+import soundfile as sf
+import librosa
+
+from Utils import arguments
+
+logger = logging.getLogger("audio_processor")
+
+class AudioProcessor:
+
+    def __init__(self, top_db: int = 30, stride: int = 320, receptive_field: int = 400):
+        logger.info(f"Initializing {arguments(locals())}")
+        self.sample_rate = 16000  # default for all considered models
+        self.top_db = top_db # to remove silence
+        self.stride = stride #to pad the audio chunk unless whisper
+        self.receptive_field = receptive_field #to pad the audio chunk unless whisper
+
+    def __call__(self, audio_input, channel: int = 0, sr=16000) -> torch.Tensor:
+        """
+        Preprocess from a WAV file path or numpy array.
+        Args:
+            audio_input: str path to WAV file or np.ndarray (float32)
+            channel: channel/s to keep
+            sr: original sr of audio chunk (audio files update this value)
+        Returns:
+            embeddings: torch.Tensor [T, emb_dim]
+        """
+
+        if isinstance(audio_input, str):
+            wav, sr = sf.read(audio_input)
+        elif isinstance(audio_input, np.ndarray):
+            wav = audio_input
+        else:
+            raise ValueError("audio_input must be a path or np.ndarray")
+        logger.info(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+
+        #  CHANNEL handling (mono)
+        if len(wav.shape) > 1: 
+            if channel < -1 or channel >= wav.shape[1]:
+                raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
+            elif wav.shape[1] > 1:
+                # select channel or average channels
+                if channel == 0:
+                    wav = wav[:, 0]
+                elif channel == 1:
+                    wav = wav[:, 1]
+                else:
+                    wav = np.mean(wav, axis=1)
+            logger.info(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
+
+        # RESAMPLE
+        if sr != self.sample_rate:
+            wav = soxr.resample(wav, sr, self.sample_rate)
+            logger.info(f"resampled, wav size={wav.shape} sr={self.sample_rate} time={wav.shape[0]/self.sample_rate:.2f} sec")
+        # Ensure float32 dtype
+        wav = wav.astype(np.float32)
+
+        # --- REMOVE SILENCE ---
+        if self.top_db:
+            wav, _ = librosa.effects.trim(wav, top_db=self.top_db)
+            logger.info(f"removed silence, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+
+        # --- PAD THE AUDIO TO MATCH THE STRIDE ---
+        if self.stride: #mHuBERT / wav2vec2
+            remainder = (len(wav) - self.receptive_field) % self.stride
+            if remainder != 0:
+                pad_len = self.stride - remainder
+                wav = np.pad(wav, (0, pad_len), mode='constant') 
+                logger.info(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+
+        return wav 
+
+# -----------------------------
+# Example usage
+# -----------------------------
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Preprocess audio from file or array.")
+    parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
+    parser.add_argument("--top_db", type=int, default=30, help="Silence top_db (0 if no silence removal)")
+    parser.add_argument("--stride", type=int, default=320, help="Stride (0 for whisper)")
+    parser.add_argument("--receptive_field", type=int, default=400, help="Receptive field (0 for whisper)")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.receptive_field)
+    wav = audio_processor(args.wav)
