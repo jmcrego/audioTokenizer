@@ -15,7 +15,7 @@ K-means tokenizer                                 → Discrete tokens [bs, seq_l
 ```
 
 Caveats:
-* Processor handles resampling, channel handling (mono), silence removal and padding. Returns torch.Tensor. For Whisper it may produce log-mel features instead.
+* Processor handles: resampling, channel handling (mono), silence removal and padding. Returns torch.Tensor. For Whisper it may produce log-mel features instead.
 * Backbone model:
   * CNN feature encoder extracts acoustic patterns from audio chunks. A stack of strided conv layers that downsample the input. [use pretrain model FROZEN]
   * Transformer encoder refines features with global context, self-attention across the entire sequence. L2-norm applied on final embeddings. [use pretrain model FROZEN]
