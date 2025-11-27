@@ -2,7 +2,7 @@
 Build discrete tokens from speech
 
 Diagram:
-
+```
 numpy WAV (float32, 16 kHz)
         ↓
 processor: normalization + tensor
@@ -12,6 +12,7 @@ CNN feature encoder (7 conv layers, stride=320)
 Transformer encoder (12 layers)
         ↓
 last_hidden_state[:, :, 768]
+```
 
 ## Create conda environment and install dependencies
 ```
