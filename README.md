@@ -26,7 +26,9 @@ Caveats:
   * wav2vec2 large: 1024
 
 
-## Create conda environment and install dependencies
+## Install
+
+### Create conda environment and install dependencies
 ```
 conda create -n audio_tokenizer python=3.11 -y
 conda activate audio_tokenizer
