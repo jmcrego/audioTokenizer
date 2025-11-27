@@ -15,15 +15,15 @@ K-means tokenizer                                 → Discrete tokens [bs, seq_l
 ```
 
 Caveats:
-* One embedding/token = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
-* CNN feature encoder extracts audio features representing the audio. A stack of strided conv layers that downsample the input.
-* Transformer encoder refines features. It applies global context, self-attention across the entire sequence.
-* K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid.
+* CNN feature encoder extracts audio features from audio chunks. A stack of strided conv layers that downsample the input. [use pretrain model, FROZEN]
+* Transformer encoder refines features. It applies global context, self-attention across the entire sequence. [use pretrain model, FROZEN]
+* K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid. [MUST be trained from speech files]
 * D depends on the model used. Ex:
   * mHuBERT base: 768
   * mHuBERT large: 1024
   * wav2vec2 base: 768
   * wav2vec2 large: 1024
+* One embedding/token = 20 ms of audio (stride = 320 samples / 16000 = 0.02 sec = 20 ms)
 
 
 ## Install
