@@ -18,7 +18,7 @@ import logging
 import numpy as np
 from typing import Union
 
-from Embedder import AudioEmbedder
+from AudioEmbedder import AudioEmbedder
 from Utils import load_wav
 
 logger = logging.getLogger("record_mic_stream")

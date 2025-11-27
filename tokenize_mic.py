@@ -58,7 +58,7 @@ def record_mic_stream(chunk_duration=5., sample_rate=16000):
 
 if __name__ == "__main__":
     import argparse
-    from Tokenizer import AudioTokenizer
+    from AudioTokenizer import AudioTokenizer
 
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
