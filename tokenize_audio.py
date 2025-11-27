@@ -20,7 +20,7 @@ from AudioProcessor import AudioProcessor
 from AudioTokenizer import AudioTokenizer
 from Utils import secs2human
 
-def record_mic_stream(chunk_duration=5., sample_rate=16000):
+def mic_stream(chunk_duration=5., sample_rate=16000):
     """
     Generator that yields consecutive audio chunks from the microphone.
     Uses a background callback to ensure no audio is lost.
@@ -76,10 +76,8 @@ if __name__ == "__main__":
     parser.add_argument("--top_db", type=int, default=30, help="Remove silence when under this threshold")
     parser.add_argument("--channel", type=int, default=0, help="Use this channel if multiple exist in audio")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
-
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
-
     if 'hubert' in args.model.lower() or 'wav2vec' in args.model.lower():
         args.stride = 0
         args.rreceptive_field = 0
@@ -92,7 +90,7 @@ if __name__ == "__main__":
 
     if args.wav is None:
         try:
-            for i, chunk in enumerate(record_mic_stream(chunk_duration=args.duration, sample_rate=16000)):
+            for i, chunk in enumerate(mic_stream(chunk_duration=args.duration, sample_rate=16000)):
                 t = time.time()
                 tokens = audio_tokenizer(chunk)
                 logging.info(f"Chunk {i+1}, process took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
