@@ -15,6 +15,7 @@ import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 
 from AudioEmbedder import AudioEmbedder
+from AudioProcessor import AudioProcessor
 from Utils import list_audio_files, secs2human
 
 
@@ -77,21 +78,23 @@ def train_kmeans(embeddings: np.ndarray, k: int, max_iter=1000, batch_size=16384
     return kmeans.cluster_centers_
 
     
-def main():
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (mHuBERT, wav2vec2-XLSR, Whisper supported)")
     parser.add_argument("--data", type=str, required=True, help="Audio file or directory of audio files.")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids.")
     parser.add_argument("--max-iter", type=int, default=1000, help="Max number of iterations (set same as 2xk).")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size.")
-    parser.add_argument("--oname", type=str, default="centroids", help="Output file name for centroids (ONAME.MODEL.K.npy is created).")
     parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
     parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
     parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use (random subsampling).")
+    parser.add_argument("--oname", type=str, default="centroids", help="Output file name for centroids (ONAME.MODEL.K.npy is created).")
     args = parser.parse_args()
 
-    embedder = AudioEmbedder(model_name=args.model, remove_silence=True)
-    embeddings = audio2embeddings(embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
+    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
+    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
+
+    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
     centroids = train_kmeans(embeddings, args.k, args.max_iter, args.batch_size) # [k, D]
     print("Centroids shape:", centroids.shape)
 
@@ -100,5 +103,3 @@ def main():
     print(f"Saved centroids → {output}")
 
 
-if __name__ == "__main__":
-    main()

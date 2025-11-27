@@ -1,5 +1,6 @@
 import os
 import soxr
+import logging
 import numpy as np
 import soundfile as sf
 
@@ -7,6 +8,7 @@ SUPPORTED_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
 
 def load_wav(file_path: str, channel: int = 0, sample_rate: int = 16000) -> np.ndarray:
     wav, sr = sf.read(file_path)
+    logging.info(f"file wav size is {wav.shape} sr={sr}")
     # stereo (multi-channel)
     if len(wav.shape) > 1: 
         if channel < -1 or channel >= wav.shape[1]:
@@ -19,9 +21,11 @@ def load_wav(file_path: str, channel: int = 0, sample_rate: int = 16000) -> np.n
                 wav = wav[:, 1]
             else:
                 wav = np.mean(wav, axis=1)
+        logging.info(f"handled channels, wav size is {wav.shape}")
     # resample if needed 
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
+        logging.info(f"resampled wav wav size is {wav.shape} sr={sr}")
     # Ensure float32 dtype
     wav = wav.astype(np.float32)
 
@@ -45,3 +49,10 @@ def list_audio_files(path: str):
             if f.lower().endswith(SUPPORTED_EXT):
                 files.append(os.path.join(root, f))
     return sorted(files)
+
+def arguments(args):
+    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+    args.pop('audio_processor', None)
+    args.pop('audio_embedder', None)
+    args.pop('audio_tokenizer', None)
+    return args

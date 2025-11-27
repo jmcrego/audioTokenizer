@@ -2,11 +2,13 @@
 #!/usr/bin/env python3
 import time
 import queue
-import torch
 import logging
 import numpy as np
 import sounddevice as sd
 
+from AudioEmbedder import AudioEmbedder
+from AudioProcessor import AudioProcessor
+from AudioTokenizer import AudioTokenizer
 from Utils import secs2human
 
 logger = logging.getLogger("record_mic_stream")
@@ -68,12 +70,14 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    tokenizer = AudioTokenizer(args.model, args.centroids)
+    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
+    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
+    audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
 
     try:
         for i, chunk in enumerate(record_mic_stream(chunk_duration=args.duration, sample_rate=16000)):
             t = time.time()
-            tokens = tokenizer(chunk)
+            tokens = audio_tokenizer(chunk)
             logging.info(f"Chunk {i+1}, process took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
     except KeyboardInterrupt:
         print("\nStreaming stopped.")
