@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 
-from Utils import arguments
+from Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
@@ -85,7 +85,7 @@ class AudioEmbedder:
             # Normalize the embeddings
             embeddings = embeddings / norm
 
-        logger.info(f"embeddings size={embeddings.shape}")
+        logger.info(f"embeddings {descr(embeddings)}")
         return embeddings
 
 # -----------------------------
