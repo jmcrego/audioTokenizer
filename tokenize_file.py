@@ -1,11 +1,8 @@
 
 #!/usr/bin/env python3
 import time
-#import queue
-#import torch
 import logging
 import argparse
-#import numpy as np
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
