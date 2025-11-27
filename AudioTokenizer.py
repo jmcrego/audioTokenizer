@@ -64,6 +64,7 @@ class AudioTokenizer:
         if self.use_faiss:
             D, tokens = self.faiss_index.search(embeddings,1)   # tokens = [T, 1] (nearest centroid for new embedding)
             tokens = tokens.squeeze() # numpy array [T]
+
         else:
             tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
             tokens = tokens.numpy() # numpy array [T]

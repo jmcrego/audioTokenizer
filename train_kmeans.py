@@ -120,7 +120,10 @@ if __name__ == "__main__":
     kmeans = train_kmeans(embeddings, k=args.k, n_iter=args.n_iter, batch_size=args.batch_size, device=args.device) # [k, D]
 
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}.n_iter{args.n_iter}.bs{args.batch_size}"
-    faiss.write_index(kmeans.index, f"{args.output}.kmeans_faiss.index")
-    # save separately centroids lets you load them without FAISS
-    np.save(f"{args.output}.centroids.npy", kmeans.centroids)
 
+    # save centroids
+    np.save(f"{args.output}.centroids.npy", kmeans.centroids)
+    # Create FAISS search index for inference
+    index = faiss.IndexFlatL2(kmeans.centroids.shape[1])
+    index.add(kmeans.centroids)
+    faiss.write_index(index, f"{args.output}.kmeans_faiss.index")
