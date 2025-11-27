@@ -61,15 +61,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy")
-    parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (only if streaming)")
-    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise streaming is run)")
+    parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
+    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
+    parser.add_argument("--stride", type=int, default=320, help="Stride to apply (when hubert or wav2vec models)")
+    parser.add_argument("--receptive_field", type=int, default=400, help="Receptive_field to apply (when hubert or wav2vec models)")
+    parser.add_argument("--top_db", type=int, default=30, help="Remove silence when under this threshold")
+    parser.add_argument("--channel", type=int, default=0, help="Use this channel if multiple exist in audio")
+    parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
+
     args = parser.parse_args()
+
+    if 'hubert' in args.model.lower() or 'wav2vec' in args.model.lower():
+        args.stride = 0
+        args.rreceptive_field = 0
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
-    audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.receptive_field, channel=args.channel)
+    audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
+    audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids, device=args.device)
 
     if args.wav is None:
         try:
