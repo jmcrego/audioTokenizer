@@ -17,7 +17,7 @@ K-means tokenizer                                 → Discrete tokens [bs, seq_l
 Caveats:
 * CNN feature encoder extracts audio features from audio chunks. A stack of strided conv layers that downsample the input. [use pretrain model, FROZEN]
 * Transformer encoder refines features. It applies global context, self-attention across the entire sequence. [use pretrain model, FROZEN]
-* K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid. [must be TRAINED from speech files]
+* K-means tokenizer creates discrete acoustic tokens by mapping each embedding to the nearest centroid. [must be TRAINED from SCRATCH using speech files]
 * D depends on the model used. Ex:
   * mHuBERT base: 768
   * mHuBERT large: 1024
