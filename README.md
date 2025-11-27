@@ -5,7 +5,7 @@ Workflow diagram:
 ```
 numpy WAV (float32, 16 kHz)                       → [samples]
         ↓
-processor: normalization                          → tensor [bs=1, samples]
+processor                                         → tensor [bs=1, samples]
         ↓
 CNN feature encoder (stride=320, RF≈400)          → Latent features [bs, seq_len, D]
         ↓
@@ -15,6 +15,7 @@ K-means tokenizer                                 → Discrete tokens [bs, seq_l
 ```
 
 Caveats:
+* Processor handles resampling, channel handling (mono), amplitude normalization, Silence removal and padding. Returns torch.Tensor. For Whisper it may produce log-mel features instead.
 * CNN feature encoder extracts accoustic patterns from audio chunks. A stack of strided conv layers that downsample the input. [use pretrain model, FROZEN]
 * Transformer encoder refines features. It applies global context, self-attention across the entire sequence. [use pretrain model, FROZEN]
 * K-means tokenizer creates discrete acoustic units by mapping each embedding to the nearest centroid. [must be TRAINED FROM SCRATCH using speech files]
