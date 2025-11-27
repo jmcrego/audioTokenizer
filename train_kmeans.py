@@ -91,7 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
     parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use (random subsampling).")
     parser.add_argument("--ouput", type=str, default="centroids", help="Output file name for centroids (OUTPUT.MODEL.K.npy is created).")
-    parser.add_argument("--device", type=str, default='cpu' help="Device to use ('cpu' or 'cuda')")
+    parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
 
