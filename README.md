@@ -46,10 +46,10 @@ python train_kmeans.py --model utter-project/mhubert-147 --data data --k 512 --m
 
 ### Tokenize an entire audio file:
 ```
-python tokenize_file.py --model utter-project/mhubert-147 --centroids centroids.mhubert-147.512.npy --wav data/common_voice_fr_18916222.mp3
+python tokenize_audio.py --model utter-project/mhubert-147 --centroids centroids.mhubert-147.512.npy --wav data/common_voice_fr_18916222.mp3
 ```
 
 ### Stream audio tokens obtained from your mic:
 ```
-python tokenize_mic.py --model utter-project/mhubert-147 --centroids centroids.mhubert-147.100.npy --duration 1
+python tokenize_audio.py --model utter-project/mhubert-147 --centroids centroids.mhubert-147.100.npy --duration 1
 ```
