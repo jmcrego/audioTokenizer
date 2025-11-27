@@ -9,12 +9,12 @@ Usage:
 """
 
 import os
+import faiss
 import torch
 import random
 import logging
 import argparse
 import numpy as np
-import faiss
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
@@ -95,7 +95,6 @@ def train_kmeans(embeddings: np.ndarray, k: int, n_iter=1000, batch_size=16384, 
     return kmeans
 
 
-    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
@@ -123,10 +122,3 @@ if __name__ == "__main__":
     # save separately centroids lets you load them without FAISS
     np.save(f"{args.output}.centroids.npy", kmeans.centroids)
 
-    #when reading, use:
-
-    # index = faiss.read_index("kmeans.index")
-    # D, I = index.search(x, 1)   # nearest centroid for new embedding
-
-    # or only centroids:
-    # centroids = np.load("centroids.npy")

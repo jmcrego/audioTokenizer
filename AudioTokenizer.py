@@ -13,12 +13,13 @@ Usage:
 """
 
 import os
+import faiss
 import torch
 import logging
 import numpy as np
 from typing import Union
 
-from Utils import arguments
+from Utils import arguments, descr
 
 logger = logging.getLogger("audio_tokenizer")
 
@@ -35,12 +36,17 @@ class AudioTokenizer:
             - computation device ("cpu" or "cuda")
         """
         logger.info(f"Initializing {arguments(locals())}")
+        self.use_faiss = centroid_file.endswith('.index')
         self.device = torch.device(device)
         self.embedder = audio_embedder
         if not os.path.exists(centroid_file):
             raise FileNotFoundError(f"Centroid file not found: {centroid_file}")
-        self.centroids = np.load(centroid_file)
-        self.centroids = torch.tensor(self.centroids, dtype=torch.float32).to(self.device)
+        
+        if self.use_faiss:
+            self.faiss_index = faiss.read_index(centroid_file)
+        else:
+            self.centroids = np.load(centroid_file)
+            self.centroids = torch.tensor(self.centroids, dtype=torch.float32).to(self.device)
 
 
     def __call__(self, audio_input: Union[str, np.ndarray]) -> torch.Tensor:
@@ -52,12 +58,18 @@ class AudioTokenizer:
             token_ids: numpy array [T]
         """
         embeddings = self.embedder(audio_input)  # [T, D]
+        logger.info(f"embeddings {descr(embeddings)}")
 
         # nearest centroid → token IDs
-        tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
-        #For speed on large corpora or client inference, use Faiss (index with flat L2 or HNSW) to get very fast nearest-centroid lookup.
+        if self.use_faiss:
+            D, tokens = self.faiss_index.search(embeddings,1)   # tokens = [T, 1] (nearest centroid for new embedding)
+            tokens = tokens.squeeze() # numpy array [T]
+        else:
+            tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
+            tokens = tokens.numpy() # numpy array [T]
 
-        return tokens.numpy()
+        logger.info(f"tokens {descr(tokens)}")
+        return tokens
 
 
 if __name__ == "__main__":
@@ -78,5 +90,4 @@ if __name__ == "__main__":
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
 
     tokens = audio_tokenizer(args.wav)
-    print("Token sequence length:", len(tokens))
-    print("Tokens:", tokens)
+    print(tokens)

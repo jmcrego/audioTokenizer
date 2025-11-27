@@ -68,7 +68,7 @@ def mic_stream(chunk_duration=5., sample_rate=16000):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
-    parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy")
+    parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy or faiss index")
     parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
     parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
     parser.add_argument("--stride", type=int, default=320, help="Stride to apply (with hubert/wav2vec models)")
@@ -100,4 +100,4 @@ if __name__ == "__main__":
     else:
         t = time.time()
         tokens = audio_tokenizer(args.wav)
-        logging.info(f"Tokenization took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
+        logging.info(f"Tokenization took {time.time()-t:.3f} sec\n{tokens}")
