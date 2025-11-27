@@ -14,14 +14,14 @@ import random
 import logging
 import argparse
 import numpy as np
-from sklearn.cluster import MiniBatchKMeans
+import faiss
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
 from Utils import list_audio_files, secs2human
 
 
-def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None):
+def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None, device: str = 'cpu'):
     # ---------- Find audio files ----------
     audio_files = list_audio_files(data_path)
     if not audio_files:
@@ -66,31 +66,47 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     return X  #[N, D]
 
 
-def train_kmeans(embeddings: np.ndarray, k: int, max_iter=1000, batch_size=16384):
-    """Train MiniBatchKMeans on large embedding matrix."""
-    logging.info(f"Training MiniBatchKMeans: k={k}, dim={embeddings.shape[1]}")
-    kmeans = MiniBatchKMeans(   
-        n_clusters=k,
-        batch_size=batch_size,
-        random_state=0,
-        verbose=1,
-        max_iter=max_iter,
+def train_kmeans(embeddings: np.ndarray, k: int, n_iter=1000, batch_size=16384, device='cpu'):
+    """Train FAISS K-means on large embedding matrix."""
+    logging.info(f"Training faiss kmeans: k={k}, dim={embeddings.shape[1]}")
+
+    d = embeddings.shape[1]  # embedding dimension
+    use_gpu = (device == 'cuda')
+
+    # ---------- GPU or CPU resources ----------
+    if use_gpu:
+        res = faiss.StandardGpuResources()
+    else:
+        res = None
+
+    # ---------- Create the KMeans object ------
+    kmeans = faiss.Kmeans(
+        d=d,
+        k=k,
+        niter=n_iter,
+        verbose=True,
+        gpu=use_gpu,
     )
-    kmeans.fit(embeddings)
-    return kmeans.cluster_centers_
+
+    # ---------- Train ----------
+    kmeans.train(embeddings.astype(np.float32))
+    logging.info(f"KMeans training finished. centroids = {kmeans.centroids.shape}")  # numpy array [k, d]
+
+    return kmeans
+
 
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (mHuBERT, wav2vec2-XLSR, Whisper supported)")
+    parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
     parser.add_argument("--data", type=str, required=True, help="Audio file or directory of audio files.")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids.")
-    parser.add_argument("--max-iter", type=int, default=1000, help="Max number of iterations (set same as 2xK).")
+    parser.add_argument("--n-iter", type=int, default=1000, help="Kmeans number of iterations.")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size.")
     parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
     parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
     parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use (random subsampling).")
-    parser.add_argument("--ouput", type=str, default="centroids", help="Output file name for centroids (OUTPUT.MODEL.K.npy is created).")
+    parser.add_argument("--output", type=str, default="centroids", help="Output file for centroids (OUTPUT.MODEL.K.{kmeans_faiss.index,centroids.npy} is created).")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
@@ -99,13 +115,18 @@ if __name__ == "__main__":
 
     audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
+    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total, device=args.device) #[N, D]    
+    kmeans = train_kmeans(embeddings, k=args.k, n_iter=args.n_iter, batch_size=args.batch_size, device=args.device) # [k, D]
 
-    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
-    centroids = train_kmeans(embeddings, args.k, args.max_iter, args.batch_size) # [k, D]
-    logging.info("Centroids shape:", centroids.shape)
+    args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}.n_iter{args.n_iter}.bs{args.batch_size}"
+    faiss.write_index(kmeans.index, f"{args.output}.kmeans_faiss.index")
+    # save separately centroids lets you load them without FAISS
+    np.save(f"{args.output}.centroids.npy", kmeans.centroids)
 
-    output = args.output + f".{os.path.basename(args.model)}" + f".{args.k}.npy"
-    np.save(output, centroids)
-    logging.info(f"Saved centroids → {output}")
+    #when reading, use:
 
+    # index = faiss.read_index("kmeans.index")
+    # D, I = index.search(x, 1)   # nearest centroid for new embedding
 
+    # or only centroids:
+    # centroids = np.load("centroids.npy")

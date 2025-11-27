@@ -32,3 +32,4 @@ decorator==5.2.1
 certifi==2025.11.12
 charset_normalizer==3.4.4
 idna==3.11
+faiss-cpu==1.9.0
