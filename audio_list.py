@@ -69,6 +69,8 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                 total_lang_duration += duration
 
                 if max_files_lang is not None and total_lang_files >= max_files_lang:
+                    bar.update(bar.total - bar.n)
+                    bar.close()
                     break
 
             total_files += total_lang_files
