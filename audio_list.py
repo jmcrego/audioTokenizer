@@ -33,10 +33,11 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         fdo.write(f"langs={langs}\n")
         fdo.write(f"max_files_lang={max_files_lang}\n")
         fdo.write(f"min_duration_file={min_duration_file}\n")
+        total_duration = 0
+        total_files = 0
         for lang in langs:
             sys.stderr.write(f"Processing language: {lang}\n")
             lang_path = Path(base_path.replace('LANG', lang))
-            total_duration = 0
             
             if not lang_path.exists():
                 sys.stderr.write(f"Warning: Path does not exist for language {lang}: {lang_path}\n")
@@ -51,23 +52,33 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                 continue
 
             bar = tqdm(total=max_files_lang or len(files), desc=f"{lang} files", unit=" file")
-            n_files = 0
+            total_lang_duration = 0
+            total_lang_files = 0
             for filepath in files:
                 filepath, duration = get_audio_duration(filepath)
+
                 if duration is None:
                     continue
+
                 if min_duration_file is not None and duration < min_duration_file:
                     continue
+
                 fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
                 bar.update(1)
-                total_duration += duration
-                n_files += 1
-                if max_files_lang is not None and n_files >= max_files_lang:
+                total_lang_files += 1
+                total_lang_duration += duration
+
+                if max_files_lang is not None and total_lang_files >= max_files_lang:
                     break
 
-            sys.stderr.write(f"Lang {lang}, Total files {n_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
-            fdo.write(f"{lang} TotalDuration={total_duration/3600:.2f}h TotalFiles={n_files}\n")
+            total_files += total_lang_files
+            total_duration += total_lang_duration
+
+            sys.stderr.write(f"Lang {lang}, Total files {total_lang_files}, Total duration {total_lang_duration:.2f}s ({total_lang_duration/3600:.2f}h)\n")
+            fdo.write(f"{lang} TotalDuration={total_lang_duration/3600:.2f}h TotalFiles={total_lang_files}\n")
     
+        sys.stderr.write(f"Total files {total_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
+        fdo.write(f"TotalDuration={total_duration/3600:.2f}h TotalFiles={total_files}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations")
