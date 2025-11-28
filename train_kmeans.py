@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
-from Utils import list_audio_files, secs2human, descr
+from Utils import list_audio_files, secs2human
 
 def estimate_niter(N, D, K):
     """
@@ -67,7 +67,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     ptr = 0  # pointer to next empty row
     n_emb_so_far = 0
 
-    for i, path in enumerate(audio_files):
+    for path in audio_files:
         try:
             emb = embedder(path)  # Tensor [T, D]
             # logging.debug(
@@ -158,7 +158,7 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     kmeans = faiss.Clustering(d, k, cp)
     # Train KMeans
     kmeans.train(embeddings, index)
-    logging.info(f"KMeans training finished. centroids = {descr(kmeans.centroids)}")  # numpy array [k, d]
+    logging.info(f"KMeans training finished. centroids = {kmeans.centroids.shape}")  # numpy array [k, d]
 
     return faiss.vector_to_array(kmeans.centroids).reshape(k, d)
 
