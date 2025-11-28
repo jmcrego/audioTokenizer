@@ -55,12 +55,16 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     audio_files = audio_files[: max_audio_files] if max_audio_files is not None else audio_files
     logging.info(f"Kept {len(audio_files)} audio files.")
 
+    D = embedder.D
     # ---------- Extract embeddings ----------
 
     file_bar = tqdm(total=len(audio_files), desc="Files", position=0)
     emb_bar = tqdm(total=max_frames_total, desc="Embeddings", position=1)
 
-    all_embeddings = []
+    chunk_size = 256_000
+    X = np.empty((chunk_size, D), dtype=np.float32) # Pre-allocate one chunk in the array
+    ptr = 0  # pointer to next empty row
+
     for i, path in enumerate(audio_files):
         try:
             emb = embedder(path)  # Tensor [T, D]
@@ -71,11 +75,22 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
 
             emb = emb.cpu().numpy()  # [T, D]
 
+            #subsample
             if max_frames_file is not None and emb.shape[0] > max_frames_file:
                 idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
                 emb = emb[idx]
 
-            all_embeddings.append(emb) #[N_i, D]
+            n = emb.shape[0]
+
+            # Resize X with another chunk if needed
+            while ptr + n > X.shape[0]:
+                X_new = np.empty((X.shape[0]+chunk_size, D), dtype=np.float32)
+                X_new[:ptr, :] = X[:ptr, :]
+                X = X_new
+
+            # Copy embeddings into X
+            X[ptr:ptr+n, :] = emb
+            ptr += n
 
             # Update progress bars
             file_bar.update(1)
@@ -84,13 +99,15 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
             ### enough samples
             if len(all_embeddings) >= max_frames_total:
                 break
-            
+
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
 
+    X = X[:ptr, :]
+
     # ---------- Stack ----------
-    logging.info("Stacking embeddings...")
-    X = np.concatenate(all_embeddings, axis=0) # [N_i, D]
+    # logging.info("Stacking embeddings...")
+    # X = np.concatenate(all_embeddings, axis=0) # [N_i, D]
     sample_rate = 16000
     stride = 320
     logging.info(f"Total frames: {len(X)}, dim: {X.shape[1]}, time: {secs2human(len(X) * stride / sample_rate)}")

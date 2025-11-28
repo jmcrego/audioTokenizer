@@ -29,16 +29,19 @@ class AudioEmbedder:
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
             self.embedder = HubertModel.from_pretrained(model)
-            
+            self.D = self.embedder.config.hidden_size
+
         elif "wav2vec2" in model.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
             self.embedder = Wav2Vec2Model.from_pretrained(model)
+            self.D = self.embedder.config.hidden_size
 
         elif "whisper" in self.model.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(model)
             self.embedder = WhisperModel.from_pretrained(model).encoder
+            self.D = self.embedder.config.d_model
 
         else:
             raise ValueError(f"Unknown model: {model}")
@@ -98,7 +101,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.")
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
-    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence)")
+    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
     parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
     parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     args = parser.parse_args()
