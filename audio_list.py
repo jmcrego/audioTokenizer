@@ -41,8 +41,8 @@ def find_audio_files_by_lang(base_path, langs, max_workers=8, use_full_path=Fals
             results[lang] = {}
             continue
         
-        # Find all .wav files
-        wav_files = list(lang_path.rglob('*.wav'))
+        # Find all .mp3 files
+        wav_files = list(lang_path.rglob('*.mp3'))
         print(f"Found {len(wav_files)} files")
         
         if not wav_files:
