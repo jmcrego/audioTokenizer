@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
-from Utils import list_audio_files, secs2human
+from Utils import list_audio_files, secs2human, descr
 
 def estimate_niter(N, D, K):
     """
@@ -43,95 +43,102 @@ def estimate_niter(N, D, K):
     niter = int(np.clip(base, 30, 150))
     return niter
 
-def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = 1000000):
+def audio2embeddings(embedder, 
+                     data_path: str,
+                     max_audio_files: int = None,
+                     max_frames_file: int = None,
+                     max_frames_total: int = None,
+                     chunk_size: int = 256_000):
+    """
+    Convert a directory of audio files into embeddings.
+    Returns a single numpy array [N_total, D].
+    """
     # ---------- Find audio files ----------
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
     if not audio_files:
         raise RuntimeError("No audio files found!")
-    random.shuffle(audio_files)
 
-    logging.info(f"Shuffle {len(audio_files)} audio files.")
-    audio_files = audio_files[: max_audio_files] if max_audio_files is not None else audio_files
-    logging.info(f"Max audio files is {len(audio_files)}")
-    logging.info(f"Max embeddings is {max_frames_total}")
+    random.shuffle(audio_files)
+    audio_files = audio_files[:max_audio_files] if max_audio_files is not None else audio_files
+    logging.info(f"Processing {len(audio_files)} audio files (max frames total = {max_frames_total})")
 
     D = embedder.D
-    # ---------- Extract embeddings ----------
 
-    f_bar = tqdm(total=len(audio_files), desc="Files", unit="files", position=0, leave=True)
-    e_bar = tqdm(total=max_frames_total, desc="Embed", unit="embed", position=1, leave=True)
+    # ---------- Setup progress bars ----------
+    file_bar = tqdm(total=len(audio_files), desc="Files", unit="file", position=0, leave=True)
+    emb_bar = tqdm(total=max_frames_total or 0, desc="Embeddings", unit="emb", position=1, leave=True)
 
-    chunk_size = 256_000
-    X = np.empty((chunk_size, D), dtype=np.float32) # Pre-allocate one chunk in the array
+    # ---------- Dynamic chunk allocation ----------
+    X = np.empty((chunk_size, D), dtype=np.float32)
     ptr = 0  # pointer to next empty row
-    n_emb_so_far = 0
 
-    for path in audio_files:
+    # ---------- Process files ----------
+    for i, path in enumerate(audio_files):
         try:
             emb = embedder(path)  # Tensor [T, D]
-            # logging.debug(
-            #     f"  {i+1}/{len(audio_files)} {os.path.basename(path)}:"
-            #     f" {emb.shape[0]} frames, dim {emb.shape[1]}"
-            # )
+            emb = emb.cpu().numpy()
 
-            emb = emb.cpu().numpy()  # [T, D]
-
-            #subsample
+            # Per-file subsampling
             if max_frames_file is not None and emb.shape[0] > max_frames_file:
                 idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
                 emb = emb[idx]
 
             n = emb.shape[0]
 
-            # Resize X with another chunk if needed
-            while ptr + n > X.shape[0]:
-                X_new = np.empty((X.shape[0]+chunk_size, D), dtype=np.float32)
+            # Determine how many frames can be added
+            if max_frames_total is not None:
+                frames_to_add = min(n, max_frames_total - ptr)
+                if frames_to_add <= 0:
+                    break
+                emb = emb[:frames_to_add]
+            else:
+                frames_to_add = n
+
+            # Resize X if needed
+            while ptr + frames_to_add > X.shape[0]:
+                new_size = X.shape[0] + chunk_size
+                X_new = np.empty((new_size, D), dtype=np.float32)
                 X_new[:ptr, :] = X[:ptr, :]
                 X = X_new
 
-            # Copy embeddings into X
-            X[ptr:ptr+n, :] = emb
-            ptr += n
-
-            n_emb_so_far += n
+            # Copy embeddings
+            X[ptr:ptr + frames_to_add, :] = emb
+            ptr += frames_to_add
 
             # Update progress bars
-            f_bar.update(1)
-            e_bar.update(n)
-
-            ### enough samples
-            if n_emb_so_far >= max_frames_total:
-                break
+            file_bar.update(1)
+            emb_bar.update(frames_to_add)
 
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
 
-    # Trim X to the actual number of embeddings
+    # ---------- Trim X to actual size ----------
     X = X[:ptr, :]
 
-    # ---------- Stack ----------
-    sample_rate = 16000
-    stride = 320
-    logging.info(f"Total frames: {X.shape}, time: {secs2human(len(X) * stride / sample_rate)}")
-
-    # ---------- keep args.max_frames from all_frames ----------
+    # ---------- Optional global subsampling ----------
     if max_frames_total is not None and len(X) > max_frames_total:
         idx = np.random.choice(len(X), max_frames_total, replace=False)
-        X = X[idx] #[N, D]
-        logging.info(f"Subsampled to {len(X)} frames.")
+        X = X[idx]
+        logging.info(f"Subsampled to {len(X)} frames (global limit).")
 
-    #shuffle globally
-    #np.random.shuffle(X) 
+    # ---------- Log total time / frames ----------
+    sample_rate = 16000
+    stride = 320
+    total_seconds = len(X) * stride / sample_rate
+    logging.info(f"Total frames: {X.shape}, approximate time: {secs2human(total_seconds)}")
 
-    return X  #[N, D]
+    return X  # [N_total, D]
 
 
 def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     """Train FAISS K-means on large embedding matrix."""
     logging.info(f"Training faiss kmeans: k={k}, embeddings.shape={embeddings.shape}")
+    if embeddings.shape[0] == 0:
+        raise RuntimeError("No embeddings were extracted!")
 
     embeddings = embeddings.astype(np.float32)
+    np.random.shuffle(embeddings)
     n, d = embeddings.shape # num of embeddings, embedding dimension
     use_gpu = (device == 'cuda')
     niter = estimate_niter(n, d, k)
@@ -158,9 +165,12 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     kmeans = faiss.Clustering(d, k, cp)
     # Train KMeans
     kmeans.train(embeddings, index)
-    logging.info(f"KMeans training finished. centroids = {kmeans.centroids.shape}")  # numpy array [k, d]
 
-    return faiss.vector_to_array(kmeans.centroids).reshape(k, d)
+    # Convert flat FAISS vector to NumPy array
+    centroids = faiss.vector_to_array(kmeans.centroids).reshape(k, d)
+    logging.info(f"KMeans training finished. centroids = {descr(kmeans.centroids)}")  # numpy array [k, d]
+
+    return centroids
 
 
 if __name__ == "__main__":
@@ -179,13 +189,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     if args.max_frames_total is None:
-        args.max_frames_total = max(256 * args.k, 100000)
+        args.max_frames_total = max(256 * args.k, 1000000)
     
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
-    embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
+    embeddings = audio2embeddings(audio_embedder, args.data, max_audio_files=args.max_audio_files, max_frames_file=args.max_frames_file, max_frames_total=args.max_frames_total) #[N, D]    
     centroids = train_kmeans(embeddings, k=args.k, device=args.device) # [k, D]
 
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
