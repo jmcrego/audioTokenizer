@@ -52,28 +52,22 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
 
             bar = tqdm(total=max_files_lang or len(files), desc=f"{lang} files", unit=" file")
             n_files = 0
-            n_discarded = 0
             for filepath in files:
                 filepath, duration = get_audio_duration(filepath)
-                if duration is not None:
-                    if min_duration_file is None or duration > min_duration_file:
-                        total_duration += duration
-                    else:
-                       n_discarded += 1
-                       continue
-                else:
-                    n_discarded += 1
+                if duration is None:
+                    continue
+                if min_duration_file is not None and duration < min_duration_file:
                     continue
                 fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
                 bar.update(1)
+                total_duration += duration
                 n_files += 1
                 if max_files_lang is not None and n_files >= max_files_lang:
                     break
 
-            sys.stderr.write(f"Lang {lang}, Total files {n_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h), Total discarded {n_discarded}\n")
+            sys.stderr.write(f"Lang {lang}, Total files {n_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
             fdo.write(f"{lang} TotalDuration={total_duration/3600:.2f}h TotalFiles={n_files}\n")
     
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations")
