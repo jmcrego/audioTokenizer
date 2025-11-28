@@ -59,8 +59,8 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     D = embedder.D
     # ---------- Extract embeddings ----------
 
-    file_bar = tqdm(total=len(audio_files), desc="Files", position=0)
-    emb_bar = tqdm(total=max_frames_total, desc="Embeddings", position=1)
+    file_bar = tqdm(total=len(audio_files), desc="Files", position=0, leave=True)
+    emb_bar = tqdm(total=max_frames_total, desc="Embeddings", position=1, leave=True)
 
     chunk_size = 256_000
     X = np.empty((chunk_size, D), dtype=np.float32) # Pre-allocate one chunk in the array
