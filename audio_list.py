@@ -42,19 +42,19 @@ def find_audio_files_by_lang(base_path, langs, max_workers=8, use_full_path=Fals
             continue
         
         # Find all .mp3 files
-        wav_files = list(lang_path.rglob('*.mp3'))
-        print(f"Found {len(wav_files)} files")
+        mp3_files = list(lang_path.rglob('*.mp3'))
+        print(f"Found {len(mp3_files)} files")
         
-        if not wav_files:
+        if not mp3_files:
             results[lang] = {}
             continue
         
         # Compute durations in parallel
         lang_durations = {}
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(get_audio_duration, str(f)): f for f in wav_files}
+            futures = {executor.submit(get_audio_duration, str(f)): f for f in mp3_files}
             
-            for future in tqdm(as_completed(futures), total=len(wav_files), 
+            for future in tqdm(as_completed(futures), total=len(mp3_files), 
                              desc=f"Computing durations for {lang}"):
                 filepath, duration = future.result()
                 if duration is not None:
