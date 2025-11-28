@@ -59,8 +59,8 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     D = embedder.D
     # ---------- Extract embeddings ----------
 
-    file_bar = tqdm(total=len(audio_files), desc="Files", position=0, leave=True)
-    emb_bar = tqdm(total=max_frames_total, desc="Embeddings", position=1, leave=True)
+    f_bar = tqdm(total=len(audio_files), desc="Files", unit="files", position=0, leave=True)
+    e_bar = tqdm(total=max_frames_total, desc="Embed", unit="embed", position=1, leave=True)
 
     chunk_size = 256_000
     X = np.empty((chunk_size, D), dtype=np.float32) # Pre-allocate one chunk in the array
@@ -83,7 +83,6 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
                 emb = emb[idx]
 
             n = emb.shape[0]
-            n_emb_so_far += n
 
             # Resize X with another chunk if needed
             while ptr + n > X.shape[0]:
@@ -95,9 +94,11 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
             X[ptr:ptr+n, :] = emb
             ptr += n
 
+            n_emb_so_far += n
+
             # Update progress bars
-            file_bar.update(1)
-            emb_bar.update(emb.shape[0])
+            f_bar.update(1)
+            e_bar.update(n)
 
             ### enough samples
             if n_emb_so_far >= max_frames_total:
@@ -171,14 +172,14 @@ if __name__ == "__main__":
     parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
     parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
-    parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
+    parser.add_argument("--max-frames-file", type=int, default=50, help="Max number of frames to use per audio file (random subsampling).")
     parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use OR max(256*K, 1M) (random subsampling).")
     parser.add_argument("--output", type=str, default="centroids", help="Output file for centroids (OUTPUT.MODEL.K.{kmeans_faiss.index,centroids.npy} is created).")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     if args.max_frames_total is None:
-        args.max_frames_total = max_train_samples=max(256 * args.k, 100000)
+        args.max_frames_total = max(256 * args.k, 100000)
     
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
     centroids = train_kmeans(embeddings, k=args.k, device=args.device) # [k, D]
 
-    args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}.n_iter{args.n_iter}"
+    args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
 
     # save centroids
     np.save(f"{args.output}.centroids.npy", centroids)
