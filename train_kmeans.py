@@ -53,7 +53,8 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
 
     logging.info(f"Shuffle {len(audio_files)} audio files.")
     audio_files = audio_files[: max_audio_files] if max_audio_files is not None else audio_files
-    logging.info(f"Kept {len(audio_files)} audio files.")
+    logging.info(f"Max audio files is {len(audio_files)}")
+    logging.info(f"Max embeddings is {max_frames_total}")
 
     D = embedder.D
     # ---------- Extract embeddings ----------
