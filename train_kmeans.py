@@ -70,10 +70,10 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     for i, path in enumerate(audio_files):
         try:
             emb = embedder(path)  # Tensor [T, D]
-            logging.debug(
-                f"  {i+1}/{len(audio_files)} {os.path.basename(path)}:"
-                f" {emb.shape[0]} frames, dim {emb.shape[1]}"
-            )
+            # logging.debug(
+            #     f"  {i+1}/{len(audio_files)} {os.path.basename(path)}:"
+            #     f" {emb.shape[0]} frames, dim {emb.shape[1]}"
+            # )
 
             emb = emb.cpu().numpy()  # [T, D]
 
