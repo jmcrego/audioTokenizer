@@ -1,5 +1,6 @@
 import argparse
 import sys
+import random
 from pathlib import Path
 from tqdm import tqdm
 import soundfile as sf
@@ -13,7 +14,7 @@ def get_audio_duration(filepath):
         sys.stderr.write(f"Error reading {filepath}: {e}\n")
         return filepath, None
 
-def find_audio_files_by_lang(base_path, langs):
+def find_audio_files_by_lang(base_path, langs, max_files_lang):
     """
     Find audio files by language and compute their durations efficiently.
     
@@ -39,6 +40,11 @@ def find_audio_files_by_lang(base_path, langs):
         # Find all .mp3 files
         files = list(lang_path.rglob('*.mp3'))
         sys.stderr.write(f"Found {len(files)} files\n")
+
+        if max_files_lang is not None and len(files) > max_files_lang:
+            random.shuffle(files)
+            files = files[:max_files_lang]
+            sys.stderr.write(f"Kept {len(files)} files\n")
         
         if not files:
             continue
@@ -57,10 +63,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations")
     parser.add_argument("--base-path", type=str, required=True, help="Base path with LANG placeholder")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
+    parser.add_argument("--max-files-lang", type=int, default=None, help="Maximum number of files per language")
     args = parser.parse_args()
     
     print("Starting audio file search and duration computation...")
     audio_files = find_audio_files_by_lang(
         args.base_path, 
         args.langs, 
+        args.max_files_lang,
     )
