@@ -56,7 +56,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             for filepath in files:
                 filepath, duration = get_audio_duration(filepath)
                 if duration is not None:
-                   if min_duration_file is None or duration > min_duration_file:
+                    if min_duration_file is None or duration > min_duration_file:
                         total_duration += duration
                     else:
                        n_discarded += 1
