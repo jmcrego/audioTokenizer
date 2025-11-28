@@ -56,8 +56,12 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     logging.info(f"Kept {len(audio_files)} audio files.")
 
     # ---------- Extract embeddings ----------
+
+    file_bar = tqdm(total=len(audio_files), desc="Files", position=0)
+    emb_bar = tqdm(total=max_frames_total, desc="Embeddings", position=1)
+
     all_embeddings = []
-    for i, path in enumerate(tqdm(audio_files, desc="Embedding audio", unit=" file")):
+    for i, path in enumerate(audio_files):
         try:
             emb = embedder(path)  # Tensor [T, D]
             logging.debug(
@@ -73,10 +77,14 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
 
             all_embeddings.append(emb) #[N_i, D]
 
+            # Update progress bars
+            file_bar.update(1)
+            emb_bar.update(emb.shape[0])
+
             ### enough samples
             if len(all_embeddings) >= max_frames_total:
                 break
-
+            
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
 
