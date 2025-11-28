@@ -66,8 +66,8 @@ def audio2embeddings(embedder,
     D = embedder.D
 
     # ---------- Setup progress bars ----------
-    file_bar = tqdm(total=len(audio_files), desc="Files", unit="file", position=0, leave=True)
-    emb_bar = tqdm(total=max_frames_total or 0, desc="Embeddings", unit="emb", position=1, leave=True)
+    f_bar = tqdm(total=len(audio_files), desc="Files", unit=" file", position=0, leave=True)
+    e_bar = tqdm(total=max_frames_total, desc="Embed", unit=" embs", position=1, leave=True)
 
     # ---------- Dynamic chunk allocation ----------
     X = np.empty((chunk_size, D), dtype=np.float32)
@@ -107,8 +107,8 @@ def audio2embeddings(embedder,
             ptr += frames_to_add
 
             # Update progress bars
-            file_bar.update(1)
-            emb_bar.update(frames_to_add)
+            f_bar.update(1)
+            e_bar.update(frames_to_add)
 
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
