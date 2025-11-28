@@ -16,6 +16,7 @@ import logging
 import argparse
 import numpy as np
 from tqdm import tqdm
+import tempfile
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
@@ -130,6 +131,90 @@ def audio2embeddings(embedder,
 
     return X  # [N_total, D]
 
+def audio2embeddings_memmap(embedder,
+                 data_path: str,
+                 memmap_path: str,
+                 max_audio_files: int = None,
+                 max_frames_file: int = None,
+                 max_frames_total: int = None,
+                 chunk_size: int = 256_000):
+    """
+    Convert audio files to embeddings stored in a numpy memmap on disk.
+
+    Returns:
+        memmap_path (str)  : path to memmap file (same as arg)
+        n_written (int)    : number of embeddings actually written (<= max_frames_total)
+        D (int)            : embedding dimension
+    NOTE: max_frames_total must be provided (memmap needs a fixed shape).
+    """
+    if max_frames_total is None:
+        raise ValueError("max_frames_total must be set when using memmap.")
+
+    audio_files = list_audio_files(data_path)
+    logging.info(f"Found {len(audio_files)} audio files.")
+    if not audio_files:
+        raise RuntimeError("No audio files found!")
+
+    random.shuffle(audio_files)
+    audio_files = audio_files[:max_audio_files] if max_audio_files is not None else audio_files
+    logging.info(f"Processing {len(audio_files)} files (memmap={memmap_path}, max_frames_total={max_frames_total})")
+
+    D = embedder.D
+    # create memmap file (mode 'w+' creates or overwrites)
+    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_frames_total, D))
+    ptr = 0
+
+    # progress bars
+    f_bar = tqdm(total=len(audio_files), desc="Files", unit="file", position=0, leave=True)
+    e_bar = tqdm(total=max_frames_total, desc="Embeds", unit="emb", position=1, leave=True)
+
+    for i, path in enumerate(audio_files):
+        try:
+            emb = embedder(path)  # Tensor [T, D]
+            emb = emb.cpu().numpy()
+
+            # per-file subsample
+            if max_frames_file is not None and emb.shape[0] > max_frames_file:
+                idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
+                emb = emb[idx]
+
+            n = emb.shape[0]
+            if n == 0:
+                f_bar.update(1)
+                continue
+
+            # how many can we store
+            can_add = max_frames_total - ptr
+            if can_add <= 0:
+                # reached capacity
+                break
+
+            add = n if n <= can_add else can_add
+            if add < n:
+                emb = emb[:add]
+
+            # write into memmap
+            X[ptr:ptr+add, :] = emb
+            ptr += add
+
+            # update bars
+            f_bar.update(1)
+            e_bar.update(add)
+
+            # stop if full
+            if ptr >= max_frames_total:
+                break
+
+        except Exception as e:
+            logging.error(f"ERROR with {path}: {e}")
+
+    # flush to disk
+    X.flush()
+    f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
+    e_bar.n = e_bar.total if ptr >= max_frames_total else ptr; e_bar.refresh(); e_bar.close()
+
+    logging.info(f"Finished writing memmap: {memmap_path}, written_frames={ptr}, dim={D}")
+    return memmap_path, ptr, D
 
 def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     """Train FAISS K-means on large embedding matrix."""
@@ -167,20 +252,110 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
 
     return centroids
 
+def train_kmeans_memmap(memmap_path: str,
+                        n_vectors: int,
+                        d: int,
+                        k: int,
+                        device='cpu',
+                        sample_size=None):
+    """
+    Train FAISS K-means from a memmap file containing float32 embeddings [N, d].
+
+    Args:
+        memmap_path: path to memmap file created by audio2memmap()
+        n_vectors: number of valid vectors in the memmap (ptr returned by audio2memmap)
+        d: embedding dimension
+        k: number of centroids
+        device: 'cpu' or 'cuda'
+        sample_size: how many vectors to sample for training
+                     If None: uses FAISS best practice = min(N, max(256*k, 100k))
+    Returns:
+        centroids: numpy array [k, d] float32
+    """
+    logging.info(f"Training FAISS KMeans from memmap: k={k}, n_vectors={n_vectors}, d={d}")
+
+    if n_vectors == 0:
+        raise RuntimeError("No embeddings found in memmap!")
+
+    # -------------------------------
+    # Suggested default sample size
+    # -------------------------------
+    if sample_size is None:
+        sample_size = min(n_vectors, max(256 * k, 100_000))
+
+    logging.info(f"KMeans sample_size = {sample_size} (max possible = {n_vectors})")
+
+    # -------------------------------
+    # Estimate niter (same as your version)
+    # -------------------------------
+    niter = estimate_niter(sample_size, d, k)
+    logging.info(f"KMeans niter = {niter} (estimated)")
+
+    # -------------------------------
+    # Open memmap for reading
+    # -------------------------------
+    Xmm = np.memmap(memmap_path, dtype=np.float32, mode='r', shape=(n_vectors, d))
+
+    # -------------------------------
+    # Sample indices
+    # -------------------------------
+    if sample_size < n_vectors:
+        idx = np.random.choice(n_vectors, sample_size, replace=False)
+        X = np.asarray(Xmm[idx], dtype=np.float32)
+    else:
+        X = np.asarray(Xmm, dtype=np.float32)
+
+    # shuffle for good measure (same as your function)
+    np.random.shuffle(X)
+
+    # -------------------------------
+    # Clustering parameters
+    # -------------------------------
+    cp = faiss.ClusteringParameters()
+    cp.niter = niter
+    cp.nredo = 3
+    cp.min_points_per_centroid = 5
+    cp.train_size = 0   # use the full sampled subset, and let FAISS handle iteration-level sampling
+
+    # -------------------------------
+    # Construct FAISS index (CPU or GPU)
+    # -------------------------------
+    if device == 'cuda':
+        res = faiss.StandardGpuResources()
+        index = faiss.index_cpu_to_gpu(res, 0, faiss.IndexFlatL2(d))
+    else:
+        index = faiss.IndexFlatL2(d)
+
+    # -------------------------------
+    # KMeans training
+    # -------------------------------
+    kmeans = faiss.Clustering(d, k, cp)
+    logging.info("Running FAISS kmeans.train()...")
+    kmeans.train(X, index)
+
+    # -------------------------------
+    # Extract centroids
+    # -------------------------------
+    centroids = faiss.vector_to_array(kmeans.centroids).reshape(k, d).astype(np.float32)
+    logging.info(f"KMeans finished. Centroids shape = {centroids.shape}")
+
+    return centroids
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
     parser.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids to compute.")
-    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
-    parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
-    parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
+    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence from audio (set 0 to avoid removing silence OR when whisper)")
+    parser.add_argument("--stride", type=int, default=320, help="Processor CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
+    parser.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field used, necessary to pad audio")
     parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
-    parser.add_argument("--max-frames-file", type=int, default=50, help="Max number of frames to use per audio file (random subsampling).")
-    parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use OR max(256*K, 1M) (random subsampling).")
+    parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
+    parser.add_argument("--max-frames-total", type=int, required=True, help="Max number of frames to use (random subsampling).")
     parser.add_argument("--output", type=str, default="centroids", help="Output file for centroids (OUTPUT.MODEL.K.{kmeans_faiss.index,centroids.npy} is created).")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
+    parser.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     if args.max_frames_total is None:
@@ -191,15 +366,36 @@ if __name__ == "__main__":
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
 
-    embeddings = audio2embeddings(audio_embedder, 
-                                  args.data, 
-                                  max_audio_files=args.max_audio_files, 
-                                  max_frames_file=args.max_frames_file, 
-                                  max_frames_total=args.max_frames_total) #[N, D]    
+    if args.memmap:
+        memmap_path = args.data + ".memmap"  # pick a permanent path
+        memmap_path, n_written, D = audio2embeddings_memmap(
+            embedder=audio_embedder,
+            data_path=args.data,
+            memmap_path=memmap_path,
+            max_audio_files=args.max_audio_files,
+            max_frames_file=args.max_frames_file,
+            max_frames_total=args.max_frames_total)
+        
+        centroids = train_kmeans_memmap(
+            memmap_path,
+            n_vectors=n_written,
+            d=D,
+            k=args.k,
+            device=args.device)
 
-    centroids = train_kmeans(embeddings, 
-                             k=args.k, 
-                             device=args.device) # [k, D]
+    else: ### all in RAM
+        embeddings = audio2embeddings(
+            audio_embedder, 
+            args.data, 
+            max_audio_files=args.max_audio_files, 
+            max_frames_file=args.max_frames_file, 
+            max_frames_total=args.max_frames_total) #[N, D]    
+
+
+        centroids = train_kmeans(
+            embeddings, 
+            k=args.k, 
+            device=args.device) # [k, D]
 
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
     # save centroids
