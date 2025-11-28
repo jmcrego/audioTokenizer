@@ -41,13 +41,19 @@ def secs2human(t):
 def list_audio_files(path: str):
     """Return list of audio files from a file or directory."""
     if os.path.isfile(path):
-        return [path]
-
-    files = []
-    for root, _, fs in os.walk(path):
-        for f in fs:
-            if f.lower().endswith(SUPPORTED_EXT):
-                files.append(os.path.join(root, f))
+        #return [path]
+        files = []
+        with open(path, 'r') as fd:
+            for l in fd:
+                parts = l.strip().split('\t')
+                if len(parts) == 3:
+                    files.append(parts[2])
+    else:
+        files = []
+        for root, _, fs in os.walk(path):
+            for f in fs:
+                if f.lower().endswith(SUPPORTED_EXT):
+                    files.append(os.path.join(root, f))
     return sorted(files)
 
 def arguments(args):

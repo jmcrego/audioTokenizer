@@ -171,7 +171,7 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
-    parser.add_argument("--data", type=str, required=True, help="Audio file or directory of audio files.")
+    parser.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids to compute.")
     parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
     parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
