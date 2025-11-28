@@ -97,7 +97,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
             emb_bar.update(emb.shape[0])
 
             ### enough samples
-            if len(all_embeddings) >= max_frames_total:
+            if X.shape[0] >= max_frames_total:
                 break
 
         except Exception as e:
