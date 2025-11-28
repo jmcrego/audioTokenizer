@@ -119,7 +119,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
         logging.info(f"Subsampled to {len(X)} frames.")
 
     #shuffle globally
-    np.random.shuffle(X) 
+    #np.random.shuffle(X) 
 
     return X  #[N, D]
 
