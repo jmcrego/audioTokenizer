@@ -65,6 +65,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     chunk_size = 256_000
     X = np.empty((chunk_size, D), dtype=np.float32) # Pre-allocate one chunk in the array
     ptr = 0  # pointer to next empty row
+    n_emb_so_far = 0
 
     for i, path in enumerate(audio_files):
         try:
@@ -82,6 +83,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
                 emb = emb[idx]
 
             n = emb.shape[0]
+            n_emb_so_far += n
 
             # Resize X with another chunk if needed
             while ptr + n > X.shape[0]:
@@ -98,7 +100,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
             emb_bar.update(emb.shape[0])
 
             ### enough samples
-            if X.shape[0] >= max_frames_total:
+            if n_emb_so_far >= max_frames_total:
                 break
 
         except Exception as e:
