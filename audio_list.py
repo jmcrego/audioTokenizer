@@ -44,7 +44,7 @@ def find_audio_files_by_lang(base_path, langs):
             continue
         
         for filepath in tqdm(files, total=len(files), desc=f"{lang} files", unit=" file"):
-            duration = get_audio_duration(filepath)
+            filepath, duration = get_audio_duration(filepath)
             if duration is not None:
                 total_duration += duration
             print(f"{duration}\t{filepath}")
