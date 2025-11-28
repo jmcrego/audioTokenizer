@@ -115,7 +115,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     # ---------- keep args.max_frames from all_frames ----------
     if max_frames_total is not None and len(X) > max_frames_total:
         idx = np.random.choice(len(X), max_frames_total, replace=False)
-        X = X[idx] #[<=max_frames, D]
+        X = X[idx] #[N, D]
         logging.info(f"Subsampled to {len(X)} frames.")
 
     #shuffle globally
