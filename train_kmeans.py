@@ -50,6 +50,7 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
     if not audio_files:
         raise RuntimeError("No audio files found!")
     random.shuffle(audio_files)
+
     logging.info(f"Shuffle {len(audio_files)} audio files.")
     audio_files = audio_files[: max_audio_files] if max_audio_files is not None else audio_files
     logging.info(f"Kept {len(audio_files)} audio files.")
@@ -71,6 +72,10 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
                 emb = emb[idx]
 
             all_embeddings.append(emb) #[N_i, D]
+
+            ### enough samples
+            if len(all_embeddings) >= max_frames_total:
+                break
 
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
@@ -105,7 +110,6 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     logging.info(f"KMeans niter={niter} (estimated)")
 
     # --------- Clustering parameters ---------
-
     cp = faiss.ClusteringParameters()
     cp.niter = niter
     cp.nredo = 3
@@ -135,18 +139,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
     parser.add_argument("--data", type=str, required=True, help="Audio file or directory of audio files.")
-    parser.add_argument("--k", type=int, default=500, help="Number of centroids.")
+    parser.add_argument("--k", type=int, default=500, help="Number of centroids to compute.")
+    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
+    parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
+    parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
     parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
-    parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use (random subsampling).")
+    parser.add_argument("--max-frames-total", type=int, default=None, help="Max number of frames to use OR max(256*K, 1M) (random subsampling).")
     parser.add_argument("--output", type=str, default="centroids", help="Output file for centroids (OUTPUT.MODEL.K.{kmeans_faiss.index,centroids.npy} is created).")
     parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
-
+    if args.max_frames_total is None:
+        args.max_frames_total = max_train_samples=max(256 * args.k, 100000)
+    
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
     embeddings = audio2embeddings(audio_embedder, args.data, args.max_audio_files, args.max_frames_file, args.max_frames_total) #[N, D]    
     centroids = train_kmeans(embeddings, k=args.k, device=args.device) # [k, D]

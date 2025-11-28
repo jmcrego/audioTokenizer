@@ -98,11 +98,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.")
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
+    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence)")
+    parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
+    parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
+    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model)
 
     #wav = audio_processor(args.wav)
