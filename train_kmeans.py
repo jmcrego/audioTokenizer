@@ -61,7 +61,7 @@ def audio2embeddings(embedder,
 
     random.shuffle(audio_files)
     audio_files = audio_files[:max_audio_files] if max_audio_files is not None else audio_files
-    logging.info(f"Processing {len(audio_files)} audio files (max frames total = {max_frames_total})")
+    logging.info(f"Processing {len(audio_files)} audio files (max frames total = {max_frames_total}, max frames file = {max_frames_file})")
 
     D = embedder.D
 
@@ -190,11 +190,18 @@ if __name__ == "__main__":
 
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
-    embeddings = audio2embeddings(audio_embedder, args.data, max_audio_files=args.max_audio_files, max_frames_file=args.max_frames_file, max_frames_total=args.max_frames_total) #[N, D]    
-    centroids = train_kmeans(embeddings, k=args.k, device=args.device) # [k, D]
+
+    embeddings = audio2embeddings(audio_embedder, 
+                                  args.data, 
+                                  max_audio_files=args.max_audio_files, 
+                                  max_frames_file=args.max_frames_file, 
+                                  max_frames_total=args.max_frames_total) #[N, D]    
+
+    centroids = train_kmeans(embeddings, 
+                             k=args.k, 
+                             device=args.device) # [k, D]
 
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
-
     # save centroids
     np.save(f"{args.output}.centroids.npy", centroids)
     # Create FAISS search index for inference
