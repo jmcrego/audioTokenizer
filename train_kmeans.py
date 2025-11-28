@@ -126,7 +126,7 @@ def audio2embeddings(embedder,
     sample_rate = 16000
     stride = 320
     total_seconds = len(X) * stride / sample_rate
-    logging.info(f"Total frames: {X.shape}, approximate time: {secs2human(total_seconds)}")
+    logging.info(f"\n\nTotal frames: {X.shape}, approximate time: {secs2human(total_seconds)}")
 
     return X  # [N_total, D]
 
@@ -163,7 +163,7 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
 
     # Convert flat FAISS vector to NumPy array
     centroids = faiss.vector_to_array(kmeans.centroids).reshape(k, d)
-    logging.info(f"KMeans training finished. centroids = {descr(kmeans.centroids)}")  # numpy array [k, d]
+    logging.info(f"KMeans training finished. centroids = {descr(centroids)}")  # numpy array [k, d]
 
     return centroids
 
