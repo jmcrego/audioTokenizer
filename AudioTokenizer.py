@@ -3,10 +3,9 @@
 Convert audio → embeddings → discrete tokens using pretrained centroids.
 
 The tokenizer supports:
-- Loading centroids from .npy, .pt, or sklearn KMeans pickle.
+- Loading centroids from .npy, .index (faiss).
 - Tokenizing audio files or numpy waveforms.
 - Accepting precomputed embeddings directly.
-
 Usage:
     tokenizer = AudioTokenizer("centroids.npy", embedder)
     tokens = tokenizer("speech.wav")
@@ -32,16 +31,16 @@ class AudioTokenizer:
         Load pretrained centroids and initializes the audio embedder.
         Args:
             - audio_embedder
-            - path to centroids file (.npy)
+            - path to centroids file (.npy or .index)
             - computation device ("cpu" or "cuda")
         """
         logger.info(f"Initializing {arguments(locals())}")
-        self.use_faiss = centroid_file.endswith('.index')
         self.device = torch.device(device)
         self.embedder = audio_embedder
         if not os.path.exists(centroid_file):
             raise FileNotFoundError(f"Centroid file not found: {centroid_file}")
         
+        self.use_faiss = centroid_file.endswith('.index')
         if self.use_faiss:
             self.faiss_index = faiss.read_index(centroid_file)
         else:
@@ -52,7 +51,7 @@ class AudioTokenizer:
     def __call__(self, audio_input: Union[str, np.ndarray]) -> torch.Tensor:
         """
         Args:
-            - audio filepath (.wav, .mp3) or waveform (numPy array)
+            - audio filepath (.wav, .mp3) or waveform (numpy array)
             - numpy array audio chunk
         Returns:
             token_ids: numpy array [T]
@@ -62,9 +61,8 @@ class AudioTokenizer:
 
         # nearest centroid → token IDs
         if self.use_faiss:
-            D, tokens = self.faiss_index.search(embeddings,1)   # tokens = [T, 1] (nearest centroid for new embedding)
+            _, tokens = self.faiss_index.search(embeddings,1)   # tokens = [T, 1] (nearest centroid for new embedding)
             tokens = tokens.squeeze() # numpy array [T]
-
         else:
             tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
             tokens = tokens.numpy() # numpy array [T]

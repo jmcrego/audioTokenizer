@@ -72,7 +72,8 @@ def train_kmeans(embeddings: np.ndarray, k: int, n_iter=1000, batch_size=16384, 
     """Train FAISS K-means on large embedding matrix."""
     logging.info(f"Training faiss kmeans: k={k}, dim={embeddings.shape[1]}")
 
-    d = embeddings.shape[1]  # embedding dimension
+    d = embeddings.shape[1] # embedding dimension
+    n = embeddings.shape[0] # number of embeddings
     use_gpu = (device == 'cuda')
 
     # ---------- GPU or CPU resources ----------
@@ -88,6 +89,15 @@ def train_kmeans(embeddings: np.ndarray, k: int, n_iter=1000, batch_size=16384, 
         niter=n_iter,
         verbose=True,
         gpu=use_gpu,
+        train_size=n,
+        seed=1234,          # RNG seed
+        #spherical=False,    # normalize to unit L2 (spherical kmeans)
+        nredo=2,            # number of random restarts
+        #max_points_per_centroid=1000000,
+        #min_points_per_centroid=1,
+        #cp=None,            # custom clustering parameters object
+        #index_factory_string=None, # index type for nearest-centroid search
+        gpu_res=res,       # GPU resources
     )
 
     # ---------- Train ----------
