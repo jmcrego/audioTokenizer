@@ -43,7 +43,7 @@ def estimate_niter(N, D, K):
     niter = int(np.clip(base, 30, 150))
     return niter
 
-def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = None):
+def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_frames_file: int = None,  max_frames_total: int = 1000000):
     # ---------- Find audio files ----------
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
