@@ -41,7 +41,7 @@ class AudioProcessor:
             wav = audio_input
         else:
             raise ValueError("audio_input must be a path or np.ndarray")
-        logger.info(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+        logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
 
         #  CHANNEL handling (mono)
         if len(wav.shape) > 1: 
@@ -55,19 +55,19 @@ class AudioProcessor:
                     wav = wav[:, 1]
                 else:
                     wav = np.mean(wav, axis=1)
-            logger.info(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
+            logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
         # RESAMPLE
         if sr != self.sample_rate:
             wav = soxr.resample(wav, sr, self.sample_rate)
-            logger.info(f"resampled, wav size={wav.shape} sr={self.sample_rate} time={wav.shape[0]/self.sample_rate:.2f} sec")
+            logger.debug(f"resampled, wav size={wav.shape} sr={self.sample_rate} time={wav.shape[0]/self.sample_rate:.2f} sec")
         # Ensure float32 dtype
         wav = wav.astype(np.float32)
 
         # --- REMOVE SILENCE ---
         if self.top_db:
             wav, _ = librosa.effects.trim(wav, top_db=self.top_db)
-            logger.info(f"removed silence, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+            logger.debug(f"removed silence, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
 
         # --- PAD THE AUDIO TO MATCH THE STRIDE ---
         if self.stride: #mHuBERT / wav2vec2
@@ -75,7 +75,7 @@ class AudioProcessor:
             if remainder != 0:
                 pad_len = self.stride - remainder
                 wav = np.pad(wav, (0, pad_len), mode='constant') 
-                logger.info(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+                logger.debug(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
 
         return wav 
 

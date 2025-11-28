@@ -57,7 +57,7 @@ class AudioTokenizer:
             token_ids: numpy array [T]
         """
         embeddings = self.embedder(audio_input)  # [T, D]
-        logger.info(f"embeddings {descr(embeddings)}")
+        logger.debug(f"embeddings {descr(embeddings)}")
 
         # nearest centroid → token IDs
         if self.use_faiss:
@@ -67,7 +67,7 @@ class AudioTokenizer:
             tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
             tokens = tokens.numpy() # numpy array [T]
 
-        logger.info(f"tokens {descr(tokens)}")
+        logger.debug(f"tokens {descr(tokens)}")
         return tokens
 
 

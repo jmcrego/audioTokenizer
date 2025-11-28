@@ -69,7 +69,7 @@ class AudioEmbedder:
         else:
             raise ValueError("Unsupported model")
 
-        logger.info(f"input_features size={input_features.shape}")
+        logger.debug(f"input_features size={input_features.shape}")
 
         # compute embeddings
         input_features = input_features.to(self.device)
@@ -85,7 +85,7 @@ class AudioEmbedder:
             # Normalize the embeddings
             embeddings = embeddings / norm
 
-        logger.info(f"embeddings {descr(embeddings)}")
+        logger.debug(f"embeddings {descr(embeddings)}")
         return embeddings
 
 # -----------------------------

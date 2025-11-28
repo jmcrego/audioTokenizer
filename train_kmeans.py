@@ -15,6 +15,7 @@ import random
 import logging
 import argparse
 import numpy as np
+from tqdm import tqdm
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
@@ -55,16 +56,20 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
 
     # ---------- Extract embeddings ----------
     all_embeddings = []
-    for i, path in enumerate(audio_files):
+    for i, path in enumerate(tqdm(audio_files, desc="Embedding audio", unit=" file")):
         try:
-            emb = embedder(path) # Tensor [T, D]
-            logging.info(f"  {i+1}/{len(audio_files)} {os.path.basename(path)}: {emb.shape[0]} frames, dim {emb.shape[1]}")
-            emb = emb.cpu().numpy() #[T, D]
+            emb = embedder(path)  # Tensor [T, D]
+            logging.debug(
+                f"  {i+1}/{len(audio_files)} {os.path.basename(path)}:"
+                f" {emb.shape[0]} frames, dim {emb.shape[1]}"
+            )
 
-            #shuffle frames if needed
+            emb = emb.cpu().numpy()  # [T, D]
+
             if max_frames_file is not None and emb.shape[0] > max_frames_file:
                 idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
                 emb = emb[idx]
+
             all_embeddings.append(emb) #[N_i, D]
 
         except Exception as e:
