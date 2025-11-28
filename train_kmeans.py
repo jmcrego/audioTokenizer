@@ -66,8 +66,8 @@ def audio2embeddings(embedder,
     D = embedder.D
 
     # ---------- Setup progress bars ----------
-    f_bar = tqdm(total=len(audio_files), desc="Files", unit=" file", position=0, leave=True)
-    e_bar = tqdm(total=max_frames_total, desc="Embed", unit=" embs", position=1, leave=True)
+    e_bar = tqdm(total=max_frames_total, desc="Embed", unit=" embs", position=0, leave=True)
+    f_bar = tqdm(total=len(audio_files), desc="Files", unit=" file", position=1, leave=True)
 
     # ---------- Dynamic chunk allocation ----------
     X = np.empty((chunk_size, D), dtype=np.float32)
