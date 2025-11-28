@@ -70,7 +70,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                 if max_files_lang is not None and n_files >= max_files_lang:
                     break
 
-            sys.stderr.write(f"Lang {lang}, Total files {n_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
+            sys.stderr.write(f"Lang {lang}, Total files {n_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h), Total discarded {n_discarded}\n")
             fdo.write(f"{lang} TotalDuration={total_duration/3600:.2f}h\n")
     
 
