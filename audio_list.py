@@ -45,21 +45,22 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             # Find all .mp3 files
             files = list(lang_path.rglob('*.mp3'))
             sys.stderr.write(f"Found {len(files)} files\n")
-
-            if max_files_lang is not None and len(files) > max_files_lang:
-                random.shuffle(files)
-                files = files[:max_files_lang]
-                sys.stderr.write(f"Shuffled and Kept {len(files)} files\n")
+            random.shuffle(files)
             
             if not files:
                 continue
-            
+
+            n_files = 0
             for filepath in tqdm(files, total=len(files), desc=f"{lang} files", unit=" file"):
                 filepath, duration = get_audio_duration(filepath)
                 if duration is not None:
                    if min_duration_file is None or duration > min_duration_file:
                         total_duration += duration
                 fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
+                n_files += 1
+                if max_files_lang is not None and n_files >= max_files_lang:
+                    break
+
 
             sys.stderr.write(f"Lang {lang}, Total files {len(files)}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
             fdo.write(f"{lang} TotalDuration={total_duration/3600:.2f}h\n")
