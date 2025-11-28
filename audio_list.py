@@ -1,7 +1,6 @@
 import argparse
-import json
+import sys
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 import soundfile as sf
 
@@ -11,88 +10,57 @@ def get_audio_duration(filepath):
         info = sf.info(filepath)
         return filepath, info.duration
     except Exception as e:
-        print(f"Error reading {filepath}: {e}")
+        sys.stderr.write(f"Error reading {filepath}: {e}\n")
         return filepath, None
 
-def find_audio_files_by_lang(base_path, langs, max_workers=8):
+def find_audio_files_by_lang(base_path, langs):
     """
     Find audio files by language and compute their durations efficiently.
     
     Args:
         base_path (str): Base path with LANG placeholder
         langs (str or list): Comma-separated string or list of language codes
-        max_workers (int): Number of parallel workers
-        use_full_path (bool): If True, use full path as key; if False, use filename only
     
     Returns:
         dict: Nested dictionary {lang: {path/filename: duration}}
     """
     if isinstance(langs, str):
         langs = [lang.strip() for lang in langs.split(',')]
-    
-    results = {}
-    
+
     for lang in langs:
-        print(f"\nProcessing language: {lang}")
+        sys.stderr.write(f"Processing language: {lang}\n")
         lang_path = Path(base_path.replace('LANG', lang))
+        total_duration = 0
         
         if not lang_path.exists():
-            print(f"Warning: Path does not exist for language {lang}: {lang_path}")
-            results[lang] = {}
+            sys.stderr.write(f"Warning: Path does not exist for language {lang}: {lang_path}\n")
             continue
         
         # Find all .mp3 files
         files = list(lang_path.rglob('*.mp3'))
-        print(f"Found {len(files)} files")
+        sys.stderr.write(f"Found {len(files)} files\n")
         
         if not files:
-            results[lang] = {}
             continue
         
-        lang_durations = {}
         for filepath in tqdm(files, total=len(files), desc=f"{lang} files", unit=" file"):
             duration = get_audio_duration(filepath)
             if duration is not None:
-                key = filepath
-                lang_durations[key] = duration
+                total_duration += duration
+            print(f"{duration}\t{filepath}")
 
-        results[lang] = lang_durations
-        total_duration = sum(lang_durations.values())
-        print(f"Total duration for {lang}: {total_duration:.2f}s ({total_duration/3600:.2f}h)")
+        sys.stderr.write(f"Lang {lang}, Total files {len(files)}, Total duration for {lang}: {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
     
-    return results
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations")
     parser.add_argument("--base-path", type=str, required=True, help="Base path with LANG placeholder")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
-    parser.add_argument("--output", type=str, required=True, help="Output JSON file")
-    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers (default: 8)")
     args = parser.parse_args()
     
     print("Starting audio file search and duration computation...")
     audio_files = find_audio_files_by_lang(
         args.base_path, 
         args.langs, 
-        max_workers=args.workers,
     )
-    
-    # Save to JSON
-    with open(args.output, 'w') as f:
-        json.dump(audio_files, f, indent=2)
-    
-    print(f"Results saved to {args.output}")
-    
-    # Print summary
-    print("\nSummary:")
-    total_files = 0
-    total_hours = 0
-    for lang, files in audio_files.items():
-        num_files = len(files)
-        total_duration = sum(files.values()) if files else 0
-        total_files += num_files
-        total_hours += total_duration / 3600
-        print(f"  {lang}: {num_files:6d} files, {total_duration/3600:8.2f}h")
-    
-    print(f"\n  Total: {total_files:6d} files, {total_hours:8.2f}h")
