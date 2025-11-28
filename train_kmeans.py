@@ -104,14 +104,13 @@ def audio2embeddings(embedder, data_path: str, max_audio_files: int = None, max_
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
 
+    # Trim X to the actual number of embeddings
     X = X[:ptr, :]
 
     # ---------- Stack ----------
-    # logging.info("Stacking embeddings...")
-    # X = np.concatenate(all_embeddings, axis=0) # [N_i, D]
     sample_rate = 16000
     stride = 320
-    logging.info(f"Total frames: {len(X)}, dim: {X.shape[1]}, time: {secs2human(len(X) * stride / sample_rate)}")
+    logging.info(f"Total frames: {X.shape}, time: {secs2human(len(X) * stride / sample_rate)}")
 
     # ---------- keep args.max_frames from all_frames ----------
     if max_frames_total is not None and len(X) > max_frames_total:
