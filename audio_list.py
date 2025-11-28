@@ -60,7 +60,7 @@ def find_audio_files_by_lang(base_path, langs, max_workers=8):
         #             lang_durations[key] = duration
 
         lang_durations = {}
-        for filepath in tqdm(mp3_files, total=len(mp3_files), desc=f"Durations for {lang}" unit=" file"):
+        for filepath in tqdm(mp3_files, total=len(mp3_files), desc=f"Durations for {lang}", unit=" file"):
             duration = get_audio_duration(filepath)
             if duration is not None:
                 key = filepath
