@@ -29,6 +29,10 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         langs = [lang.strip() for lang in langs.split(',')]
 
     with open(output, 'w') as fdo:
+        fdo.write(f"base_path={base_path}\n")
+        fdo.write(f"langs={langs}\n")
+        fdo.write(f"max_files_lang={max_files_lang}\n")
+        fdo.write(f"min_duration_file={min_duration_file}\n")
         for lang in langs:
             sys.stderr.write(f"Processing language: {lang}\n")
             lang_path = Path(base_path.replace('LANG', lang))
@@ -58,7 +62,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                 fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
 
             sys.stderr.write(f"Lang {lang}, Total files {len(files)}, Total duration for {lang}: {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
-            fdo.write(f"{lang}\tduration={total_duration/3600:.2f}h\n")
+            fdo.write(f"{lang} TotalDuration={total_duration/3600:.2f}h\n")
     
 
 
