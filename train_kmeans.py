@@ -149,12 +149,7 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     cp.niter = niter
     cp.nredo = 3
     cp.min_points_per_centroid = 5
-    #cp.train_size = 0  # 0:uses all, >0:uses this many, not set:automatic sampling (recommended)
-
-    # # ---------- Create the KMeans object ------
-    # kmeans = faiss.Kmeans(d=d, k=k, cp=cp, verbose=True, seed=1234, gpu=use_gpu, index_factory_string="Flat")
-    # # ---------- Train ----------
-    # kmeans.train(embeddings)
+    cp.train_size = 0  # 0:uses all, >0:uses this many, not set:automatic sampling (recommended)
 
     # Build the distance index
     index = faiss.IndexFlatL2(d)
