@@ -36,7 +36,6 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         total_duration = 0
         total_files = 0
         for lang in langs:
-            sys.stderr.write(f"Processing language: {lang}\n")
             lang_path = Path(base_path.replace('LANG', lang))
             
             if not lang_path.exists():
@@ -45,7 +44,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             
             # Find all .mp3 files
             files = list(lang_path.rglob('*.mp3'))
-            sys.stderr.write(f"Found {len(files)} files\n")
+            sys.stderr.write(f"{lang}: found {len(files)} files\n")
             random.shuffle(files)
             
             if not files:
@@ -77,10 +76,10 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             total_files += total_lang_files
             total_duration += total_lang_duration
 
-            sys.stderr.write(f"Lang {lang}, Total files {total_lang_files}, Total duration {total_lang_duration:.2f}s ({total_lang_duration/3600:.2f}h)\n")
-            fdo.write(f"{lang} TotalDuration={total_lang_duration/3600:.2f}h TotalFiles={total_lang_files}\n")
+            sys.stderr.write(f"{lang}: total files {total_lang_files}, total duration {total_lang_duration:.2f}s ({total_lang_duration/3600:.2f}h)\n")
+            fdo.write(f"{lang}\tTotalDuration={total_lang_duration/3600:.2f}h TotalFiles={total_lang_files}\n")
     
-        sys.stderr.write(f"Total files {total_files}, Total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
+        sys.stderr.write(f"total files {total_files}, total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
         fdo.write(f"TotalDuration={total_duration/3600:.2f}h TotalFiles={total_files}\n")
 
 if __name__ == "__main__":
