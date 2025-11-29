@@ -215,7 +215,7 @@ def audio2embeddings_memmap(embedder,
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
     e_bar.n = e_bar.total if ptr >= max_e else ptr; e_bar.refresh(); e_bar.close()
 
-    meta = {"n_vectors": ptr, "dim": D}
+    meta = {"n_vectors": ptr, "dim": D, "data_path": data_path, "max_f": max_f, "max_epf": max_epf, "max_e": max_e, "chunk_size": chunk_size}
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f)
 
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     ### Build embeddings
     ##############################################
     if args.memmap:
-        memmap_path = args.data + ".memmap"
+        memmap_path = args.output + ".memmap"
         if not os.path.exists(memmap_path):
             memmap_path, n_written, D = audio2embeddings_memmap(
                 embedder=audio_embedder,
