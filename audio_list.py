@@ -83,7 +83,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         fdo.write(f"TotalDuration={total_duration/3600:.2f}h TotalFiles={total_files}\n")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Find audio files by language and compute durations")
+    parser = argparse.ArgumentParser(description="Find audio files by language and compute durations.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--base-path", type=str, required=True, help="Base path with LANG placeholder")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
     parser.add_argument("--max-files-lang", type=int, default=None, help="Maximum number of files per language")

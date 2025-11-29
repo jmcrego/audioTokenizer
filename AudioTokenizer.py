@@ -76,7 +76,7 @@ if __name__ == "__main__":
     from AudioEmbedder import AudioEmbedder
     from AudioProcessor import AudioProcessor
 
-    parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
+    parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids/centroids.mhubert-147.100.npy")
     parser.add_argument("--wav", type=str, required=True)

@@ -351,7 +351,7 @@ def train_kmeans_memmap(memmap_path: str,
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
     parser.add_argument("--output", type=str, default="centroids", help="Output file prefix.")
 
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     embedding_group = parser.add_argument_group("embedding options")
     embedding_group.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
     embedding_group.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
-    embedding_group.add_argument("--top_db", type=int, default=0, help="Threshold (db) to remove silence.")
+    embedding_group.add_argument("--top_db", type=int, default=10, help="Threshold (db) to remove silence.")
     embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
     embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
     embedding_group.add_argument("--max-f", type=int, default=None, help="Max total number of audio files.")

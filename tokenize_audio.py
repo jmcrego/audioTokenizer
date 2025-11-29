@@ -66,7 +66,7 @@ def mic_stream(chunk_duration=5., sample_rate=16000):
             yield chunk.flatten()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids")
+    parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy or faiss index")
     parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
