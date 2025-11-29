@@ -361,7 +361,7 @@ if __name__ == "__main__":
     if args.max_frames_total is None:
         args.max_frames_total = max(256 * args.k, 1000000)
     
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(args.ouput+".log")])
 
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
@@ -390,7 +390,6 @@ if __name__ == "__main__":
             max_audio_files=args.max_audio_files, 
             max_frames_file=args.max_frames_file, 
             max_frames_total=args.max_frames_total) #[N, D]    
-
 
         centroids = train_kmeans(
             embeddings, 
