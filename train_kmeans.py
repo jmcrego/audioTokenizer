@@ -350,26 +350,26 @@ def train_kmeans_memmap(memmap_path: str,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    # --- mmap options ---
-    mmap_group = parser.add_argument_group("mmap options")
-    mmap_group.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
-    mmap_group.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
-    mmap_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
-    mmap_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
-    mmap_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
-    mmap_group.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files.")
-    mmap_group.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames per file.")
-    mmap_group.add_argument("--max-frames-total", type=int, required=True, help="Total max frames.")
+    # --- embedding options ---
+    embedding_group = parser.add_argument_group("embedding options")
+    embedding_group.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
+    embedding_group.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
+    embedding_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
+    embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
+    embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
+    embedding_group.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files.")
+    embedding_group.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames per file.")
+    embedding_group.add_argument("--max-frames-total", type=int, required=True, help="Total max frames.")
+    embedding_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
 
     # --- centroid options ---
     centroid_group = parser.add_argument_group("centroid options")
     centroid_group.add_argument("--k", type=int, default=500, help="Number of centroids.")
-    centroid_group.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
 
     # --- common options ---
     common_group = parser.add_argument_group("common options")
     common_group.add_argument("--output", type=str, default="centroids", help="Output file prefix.")
-    common_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
+    common_group.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
 
     args = parser.parse_args()
 
