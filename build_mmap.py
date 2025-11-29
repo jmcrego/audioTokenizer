@@ -104,15 +104,12 @@ if __name__ == "__main__":
     parser.add_argument("--stride", type=int, default=320, help="Processor CNN stride (0 for no padding added OR whisper).")
     parser.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
     parser.add_argument("--max-f", type=int, default=None, help="Max total number of audio files.")
-    parser.add_argument("--max-e", type=int, default=None, help="Max total number of embeddings (if not set will be max(256*K, 1M)).")
+    parser.add_argument("--max-e", type=int, default=1000000, help="Max total number of embeddings.")
     parser.add_argument("--max-epf", type=int, default=None, help="Max number of embeddings-per-file.")
     parser.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
     args = parser.parse_args()
-    if args.max_e is None:
-        args.max_e = max(256 * args.k, 1000000)
 
-    if not args.memmap.endswith(".memmap"):
-        args.memmap += f".{os.path.basename(args.model)}.top_db{args.top_db}.stride{args.stride}.rf{args.rf}.max-f{args.max_f}.max-e{args.max_e}.max-epf{args.max_epf}.memmap"
+    args.memmap += f".{os.path.basename(args.model)}.top_db{args.top_db}.stride{args.stride}.rf{args.rf}.max-f{args.max_f}.max-e{args.max_e}.max-epf{args.max_epf}.memmap"
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(f"{args.memmap}.log")])
 
