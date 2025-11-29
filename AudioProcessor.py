@@ -66,7 +66,7 @@ class AudioProcessor:
             logger.debug(f"resampled, wav size={wav.shape} sr={self.sample_rate} time={wav.shape[0]/self.sample_rate:.2f} sec")
         # Ensure float32 dtype
         wav = wav.astype(np.float32)
-        self.total_audio += wav.shape[0]
+        self.total_audio += len(wav)
 
         # --- REMOVE SILENCE ---
         if self.top_db:
