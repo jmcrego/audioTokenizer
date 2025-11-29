@@ -128,7 +128,7 @@ def audio2embeddings(embedder,
     sample_rate = 16000
     stride = 320
     total_seconds = len(X) * stride / sample_rate
-    logging.info(f"\n\nTotal embeddings: {X.shape}, approximate time: {secs2human(total_seconds)}")
+    logging.info(f"Total embeddings: {X.shape}, approximate time: {secs2human(total_seconds)}")
     logging.info(f"Processor stats: {embedder.processor.stats()}")
 
     return X  # [N_total, D]
