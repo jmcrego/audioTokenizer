@@ -70,9 +70,10 @@ class AudioProcessor:
 
         # --- REMOVE SILENCE ---
         if self.top_db:
-            wav, _ = librosa.effects.trim(wav, top_db=self.top_db)
-            logger.debug(f"removed silence, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
-            self.total_noise += self.total_audio-wav.shape[0]
+            wav_trimmed, _ = librosa.effects.trim(wav, top_db=self.top_db)
+            logger.debug(f"removed silence, wav size={wav_trimmed.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+            self.total_noise += len(wav)-len(wav_trimmed)
+            wav = wav_trimmed
 
         # --- PAD THE AUDIO TO MATCH THE STRIDE ---
         if self.stride: #mHuBERT / wav2vec2
