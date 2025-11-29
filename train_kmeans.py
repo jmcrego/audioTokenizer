@@ -47,7 +47,7 @@ def estimate_niter(N, D, K):
 
 def audio2embeddings(embedder, 
                      data_path: str,
-                     max_audio_files: int = None,
+                     max_f: int = None,
                      max_frames_file: int = None,
                      max_frames_total: int = None,
                      chunk_size: int = 256_000):
@@ -62,7 +62,7 @@ def audio2embeddings(embedder,
         raise RuntimeError("No audio files found!")
 
     random.shuffle(audio_files)
-    audio_files = audio_files[:max_audio_files] if max_audio_files is not None else audio_files
+    audio_files = audio_files[:max_f] if max_f is not None else audio_files
     logging.info(f"Processing {len(audio_files)} audio files (max frames total = {max_frames_total}, max frames file = {max_frames_file})")
 
     D = embedder.D
@@ -135,7 +135,7 @@ def audio2embeddings(embedder,
 def audio2embeddings_memmap(embedder,
                  data_path: str,
                  memmap_path: str,
-                 max_audio_files: int = None,
+                 max_f: int = None,
                  max_frames_file: int = None,
                  max_frames_total: int = None,
                  chunk_size: int = 256_000):
@@ -157,7 +157,7 @@ def audio2embeddings_memmap(embedder,
         raise RuntimeError("No audio files found!")
 
     random.shuffle(audio_files)
-    audio_files = audio_files[:max_audio_files] if max_audio_files is not None else audio_files
+    audio_files = audio_files[:max_f] if max_f is not None else audio_files
     logging.info(f"Processing {len(audio_files)} files (memmap={memmap_path}, max_frames_total={max_frames_total})")
 
     D = embedder.D
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     embedding_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
     embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
     embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
-    embedding_group.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files.")
+    embedding_group.add_argument("--max-f", type=int, default=None, help="Max number of audio files.")
     embedding_group.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames per file.")
     embedding_group.add_argument("--max-frames-total", type=int, required=True, help="Total max frames.")
     embedding_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
@@ -392,7 +392,7 @@ if __name__ == "__main__":
                 embedder=audio_embedder,
                 data_path=args.data,
                 memmap_path=memmap_path,
-                max_audio_files=args.max_audio_files,
+                max_f=args.max_f,
                 max_frames_file=args.max_frames_file,
                 max_frames_total=args.max_frames_total)
         else:
@@ -414,7 +414,7 @@ if __name__ == "__main__":
         embeddings = audio2embeddings(
             audio_embedder, 
             args.data, 
-            max_audio_files=args.max_audio_files, 
+            max_f=args.max_f, 
             max_frames_file=args.max_frames_file, 
             max_frames_total=args.max_frames_total) #[N, D]    
 
