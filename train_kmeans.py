@@ -370,8 +370,11 @@ if __name__ == "__main__":
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
 
+    ### Build embeddings
+    ##############################################
     if args.memmap:
-        memmap_path = args.data + ".memmap"  # pick a permanent path
+        pass
+        memmap_path = args.data + ".memmap"
         memmap_path, n_written, D = audio2embeddings_memmap(
             embedder=audio_embedder,
             data_path=args.data,
@@ -379,15 +382,7 @@ if __name__ == "__main__":
             max_audio_files=args.max_audio_files,
             max_frames_file=args.max_frames_file,
             max_frames_total=args.max_frames_total)
-        
-        centroids = train_kmeans_memmap(
-            memmap_path,
-            n_vectors=n_written,
-            d=D,
-            k=args.k,
-            device=args.device)
-
-    else: ### all in RAM
+    else:
         embeddings = audio2embeddings(
             audio_embedder, 
             args.data, 
@@ -395,6 +390,17 @@ if __name__ == "__main__":
             max_frames_file=args.max_frames_file, 
             max_frames_total=args.max_frames_total) #[N, D]    
 
+    ### Build centroids
+    ##############################################
+    if args.memmap:
+        centroids = train_kmeans_memmap(
+            memmap_path,
+            n_vectors=n_written,
+            d=D,
+            k=args.k,
+            device=args.device)
+
+    else: 
         centroids = train_kmeans(
             embeddings, 
             k=args.k, 
