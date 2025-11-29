@@ -89,7 +89,7 @@ def build_mmap_from_audio(
 
     meta = {"n_vectors": ptr, "dim": embedder.D, "data_path": data_path, "max_f": max_f, "max_epf": max_epf, "max_e": max_e}
     with open(memmap_path + ".json", "w") as f:
-        json.dump(meta, f)
+        json.dump(meta, f, indent=4)
 
     logging.info(f"Finished writing memmap: {memmap_path}, written_embeddings={ptr}, dim={embedder.D}")
     logging.info(f"Processor stats: {embedder.processor.stats()}")
