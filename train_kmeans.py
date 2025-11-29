@@ -349,19 +349,30 @@ def train_kmeans_memmap(memmap_path: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name (utter-project/mhubert-147, openai/whisper-base, wav2vec2-XLSR, etc.)")
-    parser.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
-    parser.add_argument("--k", type=int, default=500, help="Number of centroids to compute.")
-    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence from audio (set 0 to avoid removing silence OR when whisper)")
-    parser.add_argument("--stride", type=int, default=320, help="Processor CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
-    parser.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field used, necessary to pad audio")
-    parser.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files to process (random subsampling).")
-    parser.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames to use per audio file (random subsampling).")
-    parser.add_argument("--max-frames-total", type=int, required=True, help="Max number of frames to use (random subsampling).")
-    parser.add_argument("--output", type=str, default="centroids", help="Output file for centroids (OUTPUT.MODEL.K.{kmeans_faiss.index,centroids.npy} is created).")
-    parser.add_argument("--device", type=str, default='cpu', help="Device to use ('cpu' or 'cuda')")
-    parser.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
+
+    # --- mmap options ---
+    mmap_group = parser.add_argument_group("mmap options")
+    mmap_group.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
+    mmap_group.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
+    mmap_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
+    mmap_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
+    mmap_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
+    mmap_group.add_argument("--max-audio-files", type=int, default=None, help="Max number of audio files.")
+    mmap_group.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames per file.")
+    mmap_group.add_argument("--max-frames-total", type=int, required=True, help="Total max frames.")
+
+    # --- centroid options ---
+    centroid_group = parser.add_argument_group("centroid options")
+    centroid_group.add_argument("--k", type=int, default=500, help="Number of centroids.")
+    centroid_group.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
+
+    # --- common options ---
+    common_group = parser.add_argument_group("common options")
+    common_group.add_argument("--output", type=str, default="centroids", help="Output file prefix.")
+    common_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
+
     args = parser.parse_args()
+
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     if args.max_frames_total is None:
         args.max_frames_total = max(256 * args.k, 1000000)
