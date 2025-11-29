@@ -359,7 +359,7 @@ if __name__ == "__main__":
     embedding_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
     embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
     embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
-    embedding_group.add_argument("--max-f", type=int, default=None, help="Max number of audio files.")
+    embedding_group.add_argument("--max-f", type=int, default=None, help="Max total number of audio files.")
     embedding_group.add_argument("--max-e", type=int, required=True, help="Max total number of embeddings.")
     embedding_group.add_argument("--max-epf", type=int, default=None, help="Max number of embeddings per file.")
     embedding_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
