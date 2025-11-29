@@ -349,6 +349,8 @@ def train_kmeans_memmap(memmap_path: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
+    parser.add_argument("--output", type=str, default="centroids", help="Output file prefix.")
 
     # --- embedding options ---
     embedding_group = parser.add_argument_group("embedding options")
@@ -365,11 +367,6 @@ if __name__ == "__main__":
     # --- centroid options ---
     centroid_group = parser.add_argument_group("centroid options")
     centroid_group.add_argument("--k", type=int, default=500, help="Number of centroids.")
-
-    # --- common options ---
-    common_group = parser.add_argument_group("common options")
-    common_group.add_argument("--output", type=str, default="centroids", help="Output file prefix.")
-    common_group.add_argument("--device", type=str, default="cpu", help="Device to use ('cpu' or 'cuda').")
 
     args = parser.parse_args()
 
