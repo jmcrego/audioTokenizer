@@ -288,7 +288,7 @@ def train_kmeans_memmap(memmap_path: str,
     if sample_size is None:
         sample_size = n_vectors #min(n_vectors, max(256 * k, 100_000))
 
-    logging.info(f"KMeans sample_size = {sample_size} (max possible = {n_vectors})")
+    logging.info(f"KMeans sample_size = {sample_size}")
 
     # -------------------------------
     # Estimate niter (same as your version)
