@@ -286,7 +286,7 @@ def train_kmeans_memmap(memmap_path: str,
     # Suggested default sample size
     # -------------------------------
     if sample_size is None:
-        sample_size = min(n_vectors, max(256 * k, 100_000))
+        sample_size = n_vectors #min(n_vectors, max(256 * k, 100_000))
 
     logging.info(f"KMeans sample_size = {sample_size} (max possible = {n_vectors})")
 
