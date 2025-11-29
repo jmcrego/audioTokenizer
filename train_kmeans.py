@@ -377,8 +377,6 @@ if __name__ == "__main__":
 
     ### Build embeddings
     ##############################################
-    n_written = None
-    D = None
     if args.memmap:
         memmap_path = args.data + ".memmap"
         if not os.path.exists(memmap_path):
@@ -394,7 +392,15 @@ if __name__ == "__main__":
                 meta = json.load(f)
             n_written = meta['n_vectors']
             D = meta['D']
-            logging.info(f"Skipping memmap creation, file exists {memmap_path} with n_written={n_written} D={D}")
+            logging.info(f"Skipping memmap creation, existing file {memmap_path} with n_written={n_written} D={D}")
+
+        centroids = train_kmeans_memmap(
+            memmap_path,
+            n_vectors=n_written,
+            d=D,
+            k=args.k,
+            device=args.device)
+
     else:
         embeddings = audio2embeddings(
             audio_embedder, 
@@ -403,17 +409,6 @@ if __name__ == "__main__":
             max_frames_file=args.max_frames_file, 
             max_frames_total=args.max_frames_total) #[N, D]    
 
-    ### Build centroids
-    ##############################################
-    if args.memmap:
-        centroids = train_kmeans_memmap(
-            memmap_path,
-            n_vectors=n_written,
-            d=D,
-            k=args.k,
-            device=args.device)
-
-    else: 
         centroids = train_kmeans(
             embeddings, 
             k=args.k, 
