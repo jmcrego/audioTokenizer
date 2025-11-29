@@ -239,7 +239,7 @@ def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
     cp.niter = niter
     cp.nredo = 3
     cp.min_points_per_centroid = 5
-    cp.train_size = 0  # 0:uses all, >0:uses this many, not set:automatic sampling (recommended)
+    cp.train_size = embeddings.shape[0]  # 0:uses all, >0:uses this many, not set:automatic sampling (recommended)
 
     # Build the distance index
     index = faiss.IndexFlatL2(d)
@@ -320,7 +320,7 @@ def train_kmeans_memmap(memmap_path: str,
     cp.niter = niter
     cp.nredo = 3
     cp.min_points_per_centroid = 5
-    cp.train_size = 0   # use the full sampled subset, and let FAISS handle iteration-level sampling
+    cp.train_size = sample_size   # use the full sampled subset, and let FAISS handle iteration-level sampling
 
     # -------------------------------
     # Construct FAISS index (CPU or GPU)
