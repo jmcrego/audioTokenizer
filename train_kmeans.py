@@ -348,7 +348,7 @@ def train_kmeans_memmap(memmap_path: str,
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Build embeddings from audi files and compute kmeans centroids", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # --- embedding options ---
     embedding_group = parser.add_argument_group("embedding options")
