@@ -48,8 +48,8 @@ def estimate_niter(N, D, K):
 def audio2embeddings(embedder, 
                      data_path: str,
                      max_f: int = None,
-                     max_frames_file: int = None,
-                     max_frames_total: int = None,
+                     max_epf: int = None,
+                     max_e: int = None,
                      chunk_size: int = 256_000):
     """
     Convert a directory of audio files into embeddings.
@@ -63,12 +63,12 @@ def audio2embeddings(embedder,
 
     random.shuffle(audio_files)
     audio_files = audio_files[:max_f] if max_f is not None else audio_files
-    logging.info(f"Processing {len(audio_files)} audio files (max frames total = {max_frames_total}, max frames file = {max_frames_file})")
+    logging.info(f"Processing {len(audio_files)} audio files (max embeddings total = {max_e}, max embeddings file = {max_epf})")
 
     D = embedder.D
 
     # ---------- Setup progress bars ----------
-    e_bar = tqdm(total=max_frames_total, desc="Embed", unit=" embs", position=0, leave=True)
+    e_bar = tqdm(total=max_e, desc="Embed", unit=" embs", position=0, leave=True)
     f_bar = tqdm(total=len(audio_files), desc="Files", unit=" file", position=1, leave=True)
 
     # ---------- Dynamic chunk allocation ----------
@@ -82,35 +82,35 @@ def audio2embeddings(embedder,
             emb = emb.cpu().numpy()
 
             # Per-file subsampling
-            if max_frames_file is not None and emb.shape[0] > max_frames_file:
-                idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
+            if max_epf is not None and emb.shape[0] > max_epf:
+                idx = np.random.choice(emb.shape[0], max_epf, replace=False)
                 emb = emb[idx]
 
             n = emb.shape[0]
 
-            # Determine how many frames can be added
-            if max_frames_total is not None:
-                frames_to_add = min(n, max_frames_total - ptr)
-                if frames_to_add <= 0:
+            # Determine how many embeddings can be added
+            if max_e is not None:
+                embeddings_to_add = min(n, max_e - ptr)
+                if embeddings_to_add <= 0:
                     break
-                emb = emb[:frames_to_add]
+                emb = emb[:embeddings_to_add]
             else:
-                frames_to_add = n
+                embeddings_to_add = n
 
             # Resize X if needed
-            while ptr + frames_to_add > X.shape[0]:
+            while ptr + embeddings_to_add > X.shape[0]:
                 new_size = X.shape[0] + chunk_size
                 X_new = np.empty((new_size, D), dtype=np.float32)
                 X_new[:ptr, :] = X[:ptr, :]
                 X = X_new
 
             # Copy embeddings
-            X[ptr:ptr + frames_to_add, :] = emb
-            ptr += frames_to_add
+            X[ptr:ptr + embeddings_to_add, :] = emb
+            ptr += embeddings_to_add
 
             # Update progress bars
             f_bar.update(1)
-            e_bar.update(frames_to_add)
+            e_bar.update(embeddings_to_add)
 
         except Exception as e:
             logging.error(f"ERROR with {path}: {e}")
@@ -119,16 +119,16 @@ def audio2embeddings(embedder,
     X = X[:ptr, :]
 
     # ---------- Optional global subsampling ----------
-    if max_frames_total is not None and len(X) > max_frames_total:
-        idx = np.random.choice(len(X), max_frames_total, replace=False)
+    if max_e is not None and len(X) > max_e:
+        idx = np.random.choice(len(X), max_e, replace=False)
         X = X[idx]
-        logging.info(f"Subsampled to {len(X)} frames (global limit).")
+        logging.info(f"Subsampled to {len(X)} embeddings (global limit).")
 
-    # ---------- Log total time / frames ----------
+    # ---------- Log total time / embeddings ----------
     sample_rate = 16000
     stride = 320
     total_seconds = len(X) * stride / sample_rate
-    logging.info(f"\n\nTotal frames: {X.shape}, approximate time: {secs2human(total_seconds)}")
+    logging.info(f"\n\nTotal embeddings: {X.shape}, approximate time: {secs2human(total_seconds)}")
 
     return X  # [N_total, D]
 
@@ -136,20 +136,20 @@ def audio2embeddings_memmap(embedder,
                  data_path: str,
                  memmap_path: str,
                  max_f: int = None,
-                 max_frames_file: int = None,
-                 max_frames_total: int = None,
+                 max_epf: int = None,
+                 max_e: int = None,
                  chunk_size: int = 256_000):
     """
     Convert audio files to embeddings stored in a numpy memmap on disk.
 
     Returns:
         memmap_path (str)  : path to memmap file (same as arg)
-        n_written (int)    : number of embeddings actually written (<= max_frames_total)
+        n_written (int)    : number of embeddings actually written (<= max_e)
         D (int)            : embedding dimension
-    NOTE: max_frames_total must be provided (memmap needs a fixed shape).
+    NOTE: max_e must be provided (memmap needs a fixed shape).
     """
-    if max_frames_total is None:
-        raise ValueError("max_frames_total must be set when using memmap.")
+    if max_e is None:
+        raise ValueError("max_e must be set when using memmap.")
 
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
@@ -158,16 +158,16 @@ def audio2embeddings_memmap(embedder,
 
     random.shuffle(audio_files)
     audio_files = audio_files[:max_f] if max_f is not None else audio_files
-    logging.info(f"Processing {len(audio_files)} files (memmap={memmap_path}, max_frames_total={max_frames_total})")
+    logging.info(f"Processing {len(audio_files)} files (memmap={memmap_path}, max_e={max_e})")
 
     D = embedder.D
     # create memmap file (mode 'w+' creates or overwrites)
-    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_frames_total, D))
+    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_e, D))
     ptr = 0
 
     # progress bars
     f_bar = tqdm(total=len(audio_files), desc="Files", unit="file", position=0, leave=True)
-    e_bar = tqdm(total=max_frames_total, desc="Embeds", unit="emb", position=1, leave=True)
+    e_bar = tqdm(total=max_e, desc="Embeds", unit="emb", position=1, leave=True)
 
     for i, path in enumerate(audio_files):
         try:
@@ -175,8 +175,8 @@ def audio2embeddings_memmap(embedder,
             emb = emb.cpu().numpy()
 
             # per-file subsample
-            if max_frames_file is not None and emb.shape[0] > max_frames_file:
-                idx = np.random.choice(emb.shape[0], max_frames_file, replace=False)
+            if max_epf is not None and emb.shape[0] > max_epf:
+                idx = np.random.choice(emb.shape[0], max_epf, replace=False)
                 emb = emb[idx]
 
             n = emb.shape[0]
@@ -185,7 +185,7 @@ def audio2embeddings_memmap(embedder,
                 continue
 
             # how many can we store
-            can_add = max_frames_total - ptr
+            can_add = max_e - ptr
             if can_add <= 0:
                 # reached capacity
                 break
@@ -203,7 +203,7 @@ def audio2embeddings_memmap(embedder,
             e_bar.update(add)
 
             # stop if full
-            if ptr >= max_frames_total:
+            if ptr >= max_e:
                 break
 
         except Exception as e:
@@ -212,13 +212,13 @@ def audio2embeddings_memmap(embedder,
     # flush to disk
     X.flush()
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
-    e_bar.n = e_bar.total if ptr >= max_frames_total else ptr; e_bar.refresh(); e_bar.close()
+    e_bar.n = e_bar.total if ptr >= max_e else ptr; e_bar.refresh(); e_bar.close()
 
     meta = {"n_vectors": ptr, "dim": D}
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f)
 
-    logging.info(f"Finished writing memmap: {memmap_path}, written_frames={ptr}, dim={D}")
+    logging.info(f"Finished writing memmap: {memmap_path}, written_embeddings={ptr}, dim={D}")
     return memmap_path, ptr, D
 
 def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):
@@ -360,8 +360,8 @@ if __name__ == "__main__":
     embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
     embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
     embedding_group.add_argument("--max-f", type=int, default=None, help="Max number of audio files.")
-    embedding_group.add_argument("--max-frames-file", type=int, default=None, help="Max number of frames per file.")
-    embedding_group.add_argument("--max-frames-total", type=int, required=True, help="Total max frames.")
+    embedding_group.add_argument("--max-e", type=int, required=True, help="Max total number of embeddings.")
+    embedding_group.add_argument("--max-epf", type=int, default=None, help="Max number of embeddings per file.")
     embedding_group.add_argument("--memmap", action="store_true", help="Use memmap to reduce RAM usage.")
 
     # --- centroid options ---
@@ -371,8 +371,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
-    if args.max_frames_total is None:
-        args.max_frames_total = max(256 * args.k, 1000000)
+    if args.max_e is None:
+        args.max_e = max(256 * args.k, 1000000)
     
     args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
     ofile1 = f"{args.output}.centroids.npy"
@@ -393,8 +393,8 @@ if __name__ == "__main__":
                 data_path=args.data,
                 memmap_path=memmap_path,
                 max_f=args.max_f,
-                max_frames_file=args.max_frames_file,
-                max_frames_total=args.max_frames_total)
+                max_epf=args.max_epf,
+                max_e=args.max_e)
         else:
             with open(memmap_path + ".json") as f:
                 meta = json.load(f)
@@ -415,8 +415,8 @@ if __name__ == "__main__":
             audio_embedder, 
             args.data, 
             max_f=args.max_f, 
-            max_frames_file=args.max_frames_file, 
-            max_frames_total=args.max_frames_total) #[N, D]    
+            max_epf=args.max_epf, 
+            max_e=args.max_e) #[N, D]    
 
         centroids = train_kmeans(
             embeddings, 
