@@ -9,6 +9,7 @@ Usage:
 """
 
 import os
+import json
 import faiss
 import torch
 import random
@@ -213,6 +214,10 @@ def audio2embeddings_memmap(embedder,
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
     e_bar.n = e_bar.total if ptr >= max_frames_total else ptr; e_bar.refresh(); e_bar.close()
 
+    meta = {"n_vectors": ptr, "dim": D}
+    with open(memmap_path + ".json", "w") as f:
+        json.dump(meta, f)
+
     logging.info(f"Finished writing memmap: {memmap_path}, written_frames={ptr}, dim={D}")
     return memmap_path, ptr, D
 
@@ -373,8 +378,8 @@ if __name__ == "__main__":
     ### Build embeddings
     ##############################################
     if args.memmap:
-        if not os.path.exists(args.data + ".memmap"):
-            memmap_path = args.data + ".memmap"
+        memmap_path = args.data + ".memmap"
+        if not os.path.exists(memmap_path):
             memmap_path, n_written, D = audio2embeddings_memmap(
                 embedder=audio_embedder,
                 data_path=args.data,
@@ -383,7 +388,11 @@ if __name__ == "__main__":
                 max_frames_file=args.max_frames_file,
                 max_frames_total=args.max_frames_total)
         else:
-            logging.info(f"Skipping memmap creation, file exists {args.data + ".memmap"}")
+            with open(memmap_path + ".json") as f:
+                meta = json.load(f)
+            n_written = meta['n_vectors']
+            D = meta['D']
+            logging.info(f"Skipping memmap creation, file exists {memmap_path}")
     else:
         embeddings = audio2embeddings(
             audio_embedder, 
