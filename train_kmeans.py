@@ -377,6 +377,8 @@ if __name__ == "__main__":
 
     ### Build embeddings
     ##############################################
+    n_written = None
+    D = None
     if args.memmap:
         memmap_path = args.data + ".memmap"
         if not os.path.exists(memmap_path):
@@ -392,7 +394,7 @@ if __name__ == "__main__":
                 meta = json.load(f)
             n_written = meta['n_vectors']
             D = meta['D']
-            logging.info(f"Skipping memmap creation, file exists {memmap_path}")
+            logging.info(f"Skipping memmap creation, file exists {memmap_path} with n_written={n_written} D={D}")
     else:
         embeddings = audio2embeddings(
             audio_embedder, 
