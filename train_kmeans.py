@@ -359,7 +359,7 @@ if __name__ == "__main__":
     embedding_group = parser.add_argument_group("embedding options")
     embedding_group.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
     embedding_group.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
-    embedding_group.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence.")
+    embedding_group.add_argument("--top_db", type=int, default=0, help="Threshold (db) to remove silence.")
     embedding_group.add_argument("--stride", type=int, default=320, help="Processor CNN stride.")
     embedding_group.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
     embedding_group.add_argument("--max-f", type=int, default=None, help="Max total number of audio files.")
