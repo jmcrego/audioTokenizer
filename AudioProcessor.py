@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Preprocess audio from file or array.")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
-    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
+    parser.add_argument("--top_db", type=int, default=10, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
     parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
     parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     args = parser.parse_args()
