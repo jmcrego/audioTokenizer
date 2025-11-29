@@ -129,6 +129,9 @@ def audio2embeddings(embedder,
     stride = 320
     total_seconds = len(X) * stride / sample_rate
     logging.info(f"\n\nTotal embeddings: {X.shape}, approximate time: {secs2human(total_seconds)}")
+    perc_noise = 100 * embedder.processor.total_noise / embedder.processor.total_audio
+    perc_pad = 100 * embedder.processor.total_pad / embedder.processor.total_audio
+    logging.info(f"Processor: total audio: {embedder.processor.total_audio} total noise: {embedder.processor.total_noise} ({perc_noise:.2f}%) total pad: {embedder.processor.total_pad} ({perc_pad:.2f}%) ")
 
     return X  # [N_total, D]
 
@@ -219,6 +222,10 @@ def audio2embeddings_memmap(embedder,
         json.dump(meta, f)
 
     logging.info(f"Finished writing memmap: {memmap_path}, written_embeddings={ptr}, dim={D}")
+    perc_noise = 100 * embedder.processor.total_noise / embedder.processor.total_audio
+    perc_pad = 100 * embedder.processor.total_pad / embedder.processor.total_audio
+    logging.info(f"Processor: total audio: {embedder.processor.total_audio} total noise: {embedder.processor.total_noise} ({perc_noise:.2f}%) total pad: {embedder.processor.total_pad} ({perc_pad:.2f}%) ")
+
     return memmap_path, ptr, D
 
 def train_kmeans(embeddings: np.ndarray, k: int, device='cpu'):

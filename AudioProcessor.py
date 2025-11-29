@@ -24,6 +24,9 @@ class AudioProcessor:
         self.stride = stride #to pad the audio chunk unless whisper
         self.receptive_field = receptive_field #to pad the audio chunk unless whisper
         self.channel = channel
+        self.total_audio = 0
+        self.total_noise = 0
+        self.total_pad = 0
 
     def __call__(self, audio_input, sr=16000) -> torch.Tensor:
         """
@@ -63,11 +66,13 @@ class AudioProcessor:
             logger.debug(f"resampled, wav size={wav.shape} sr={self.sample_rate} time={wav.shape[0]/self.sample_rate:.2f} sec")
         # Ensure float32 dtype
         wav = wav.astype(np.float32)
+        self.total_audio += wav.shape[0]
 
         # --- REMOVE SILENCE ---
         if self.top_db:
             wav, _ = librosa.effects.trim(wav, top_db=self.top_db)
             logger.debug(f"removed silence, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+            self.total_noise += self.total_audio-wav.shape[0]
 
         # --- PAD THE AUDIO TO MATCH THE STRIDE ---
         if self.stride: #mHuBERT / wav2vec2
@@ -76,6 +81,7 @@ class AudioProcessor:
                 pad_len = self.stride - remainder
                 wav = np.pad(wav, (0, pad_len), mode='constant') 
                 logger.debug(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/self.sample_rate:.2f} sec")
+                self.total_pad += pad_len
 
         return wav 
 
