@@ -89,8 +89,8 @@ class AudioProcessor:
     def stats(self):
         return {
             'total audio': self.total_audio,
-            '% noise': f"{100*self.total_noise/self.total_audio:.2f}",
-            '% pad': f"{100*self.total_pad/self.total_audio:.2f}"
+            '% noise': round(100*self.total_noise/self.total_audio,2),
+            '% pad': round(100*self.total_pad/self.total_audio,2)
         }
 
 
