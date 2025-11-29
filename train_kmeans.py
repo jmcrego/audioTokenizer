@@ -383,7 +383,7 @@ if __name__ == "__main__":
                 max_frames_file=args.max_frames_file,
                 max_frames_total=args.max_frames_total)
         else:
-            logging.info(f"Skipping memmap creation, file exists {rgs.data + ".memmap"}")
+            logging.info(f"Skipping memmap creation, file exists {args.data + ".memmap"}")
     else:
         embeddings = audio2embeddings(
             audio_embedder, 
