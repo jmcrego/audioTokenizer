@@ -399,7 +399,8 @@ if __name__ == "__main__":
             n_vectors=n_written,
             d=D,
             k=args.k,
-            device=args.device)
+            device=args.device,
+            sample_size=n_written)
 
     else:
         embeddings = audio2embeddings(
