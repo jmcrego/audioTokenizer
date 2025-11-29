@@ -373,15 +373,17 @@ if __name__ == "__main__":
     ### Build embeddings
     ##############################################
     if args.memmap:
-        pass
-        memmap_path = args.data + ".memmap"
-        memmap_path, n_written, D = audio2embeddings_memmap(
-            embedder=audio_embedder,
-            data_path=args.data,
-            memmap_path=memmap_path,
-            max_audio_files=args.max_audio_files,
-            max_frames_file=args.max_frames_file,
-            max_frames_total=args.max_frames_total)
+        if not os.path.exists(args.data + ".memmap"):
+            memmap_path = args.data + ".memmap"
+            memmap_path, n_written, D = audio2embeddings_memmap(
+                embedder=audio_embedder,
+                data_path=args.data,
+                memmap_path=memmap_path,
+                max_audio_files=args.max_audio_files,
+                max_frames_file=args.max_frames_file,
+                max_frames_total=args.max_frames_total)
+        else:
+            logging.info(f"Skipping memmap creation, file exists {rgs.data + ".memmap"}")
     else:
         embeddings = audio2embeddings(
             audio_embedder, 
