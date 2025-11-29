@@ -97,9 +97,9 @@ def build_mmap_from_audio(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert audio files to embeddings and store them in a numpy memmap on disk.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--model", type=str, required=True, help="Path or HuggingFace model name.")
-    parser.add_argument("--data", type=str, required=True, help="File containing audio files to consider.")
-    parser.add_argument("--memmap", type=str, required=True, help="Output memmap file.")
+    parser.add_argument("model", type=str, required=True, help="Path or HuggingFace model name.")
+    parser.add_argument("data", type=str, required=True, help="File containing audio files to consider.")
+    parser.add_argument("memmap", type=str, required=True, help="Output memmap prefix.")
     parser.add_argument("--top_db", type=int, default=10, help="Threshold (db) to remove silence (0 for no filtering).")
     parser.add_argument("--stride", type=int, default=320, help="Processor CNN stride (0 for no padding added OR whisper).")
     parser.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
