@@ -361,7 +361,11 @@ if __name__ == "__main__":
     if args.max_frames_total is None:
         args.max_frames_total = max(256 * args.k, 1000000)
     
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(args.ouput+".log")])
+    args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
+    ofile1 = f"{args.output}.centroids.npy"
+    ofile2 = f"{args.output}.kmeans_faiss.index"
+    lfile  = f"{args.output}.log"
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(lfile)])
 
     audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
@@ -396,10 +400,9 @@ if __name__ == "__main__":
             k=args.k, 
             device=args.device) # [k, D]
 
-    args.output = f"{args.output}.{os.path.basename(args.model)}.k{args.k}"
     # save centroids
-    np.save(f"{args.output}.centroids.npy", centroids)
+    np.save(ofile1, centroids)
     # Create FAISS search index for inference
     index = faiss.IndexFlatL2(centroids.shape[1])
     index.add(centroids)
-    faiss.write_index(index, f"{args.output}.kmeans_faiss.index")
+    faiss.write_index(index, ofile2)
