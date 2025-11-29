@@ -85,6 +85,14 @@ class AudioProcessor:
 
         return wav 
 
+    def stats(self):
+        return {
+            'total audio': self.total_audio,
+            'total noise': self.total_noise,
+            'total pad': self.total_pad
+        }
+
+
 # -----------------------------
 # Example usage
 # -----------------------------
