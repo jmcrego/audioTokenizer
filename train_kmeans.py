@@ -306,9 +306,9 @@ def train_kmeans_memmap(memmap_path: str,
     # -------------------------------
     if sample_size < n_vectors:
         idx = np.random.choice(n_vectors, sample_size, replace=False)
-        X = np.asarray(Xmm[idx], dtype=np.float32)
+        X = np.asarray(Xmm[idx], dtype=np.float32, copy=True)
     else:
-        X = np.asarray(Xmm, dtype=np.float32)
+        X = np.asarray(Xmm, dtype=np.float32, copy=True)
 
     # shuffle for good measure (same as your function)
     np.random.shuffle(X)
