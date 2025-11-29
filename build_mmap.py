@@ -110,8 +110,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.max_e is None:
         args.max_e = max(256 * args.k, 1000000)
+
     if not args.memmap.endswith(".memmap"):
-        args.memmap += ".memmap"
+        args.memmap += f".{os.path.basename(args.model)}.top_db{args.top_db}.stride{args.stride}.rf{args.rf}.max-f{args.max_f}.max-e{args.max_e}.max-epf{args.max_epf}.memmap"
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(f"{args.memmap}.log")])
 
