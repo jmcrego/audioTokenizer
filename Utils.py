@@ -61,13 +61,13 @@ def arguments(args):
     # args.pop('audio_tokenizer', None)
     args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
     if 'audio_processor' in args: #and 'meta' in args['audio_processor']:
-        args['audio_processor'] = args['audio_processor']['meta']
+        args['audio_processor'] = args['audio_processor'].meta
 
     if 'audio_embedder' in args: #and 'meta' in args['audio_embedder']:
-        args['audio_embedder'] = args['audio_embedder']['meta']
+        args['audio_embedder'] = args['audio_embedder'].meta
 
     if 'audio_tokenizer' in args: #and 'meta' in args['audio_tokenizer']:
-        args['audio_tokenizer'] = args['audio_tokenizer']['meta']
+        args['audio_tokenizer'] = args['audio_tokenizer'].meta
     return args
 
 
