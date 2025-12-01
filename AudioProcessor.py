@@ -30,9 +30,9 @@ class AudioProcessor:
         self.total_noise = 0
         self.total_pad = 0
 
-    def meta(self) -> dict:
-        meta = {'top_db': self.top_db, 'stride': self.stride, 'receptive_field': self.receptive_field, 'channel': self.channel}
-        return meta
+    # def meta(self) -> dict:
+    #     meta = {'top_db': self.top_db, 'stride': self.stride, 'receptive_field': self.receptive_field, 'channel': self.channel}
+    #     return meta
 
     def __call__(self, audio_input, sr=16000) -> torch.Tensor:
         """

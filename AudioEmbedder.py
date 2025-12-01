@@ -52,9 +52,9 @@ class AudioEmbedder:
         self.embedder.to(self.device)
         self.embedder.eval()
 
-    def meta(self) -> dict:
-        meta = {'model': self.model, 'D': self.D, 'l2_norm': self.l2_norm, 'device': self.device, 'processor': self.processor.meta()}
-        return meta
+    # def meta(self) -> dict:
+    #     meta = {'model': self.model, 'D': self.D, 'l2_norm': self.l2_norm, 'device': self.device, 'processor': self.processor.meta()}
+    #     return meta
 
     def __call__(self, audio_input) -> torch.Tensor:
         """
