@@ -63,7 +63,9 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                         if '/' in name:
                             name = name.split('/')[-1]
                         if name in name2path:
-                            print(f"{name2path[name]}\t{sentence}")
+                            path = name2path[name]
+                            path, duration = get_audio_duration(filepath)
+                            print(f"{path}\t{duration:.2f}\t{sentence}")
             exit
 
             random.shuffle(files)
