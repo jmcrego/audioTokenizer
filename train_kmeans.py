@@ -142,9 +142,6 @@ def train_kmeans_memmap(memmap_path: str,
     faiss.write_index(index, ofile2)
 
 
-    return centroids
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("memdata", type=str, required=True, help="File with embeddings to cluster (memdata format).")
@@ -163,7 +160,7 @@ if __name__ == "__main__":
     with open(f"{args.mempath}.json") as f:
         meta = json.load(f)
 
-    centroids = train_kmeans_memmap(
+    train_kmeans_memmap(
         args.memmap,
         n_vectors=meta['n_vectors'],
         d=meta['D'],
