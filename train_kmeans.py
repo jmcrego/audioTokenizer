@@ -144,7 +144,7 @@ def train_kmeans_memmap(memmap_path: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("memdata", type=str, help="File with embeddings to cluster (memdata format).")
+    parser.add_argument("memmap", type=str, help="File with embeddings to cluster (memmap format).")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids.")
     parser.add_argument("--sample_size", type=int, default=None, help="Train with this number of embeddings (random sampling).")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
@@ -153,11 +153,11 @@ if __name__ == "__main__":
 
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     
-    output = f"{args.memdata}.k{args.k}.sample_size{args.sample_size}"
+    output = f"{args.memmap}.k{args.k}.sample_size{args.sample_size}"
     lfile  = f"{output}.log"
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(lfile)])
 
-    with open(f"{args.mempath}.json") as f:
+    with open(f"{args.memdata}.json") as f:
         meta = json.load(f)
 
     train_kmeans_memmap(
