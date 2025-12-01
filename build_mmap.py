@@ -93,7 +93,7 @@ def build_mmap_from_audio(
         json.dump(meta, f, indent=4)
 
     logging.info(f"Finished writing memmap: {memmap_path}, json={json.dumps(meta)}")
-    logging.info(f"Processor stats: {audio_embedder.processor.stats()}")
+    logging.info(f"Processor stats: {audio_embedder.audio_processor.stats()}")
 
 
 if __name__ == "__main__":
