@@ -87,7 +87,7 @@ def build_mmap_from_audio(
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
     e_bar.n = e_bar.total if ptr >= max_e else ptr; e_bar.refresh(); e_bar.close()
 
-    meta = {"n_vectors": ptr, "dim": embedder.D, "data_path": data_path, "max_f": max_f, "max_epf": max_epf, "max_e": max_e}
+    meta = {"n_vectors": ptr, "dim": embedder.D, "data_path": data_path, "max_f": max_f, "max_epf": max_epf, "max_e": max_e, 'embedder': embedder.meta()}
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f, indent=4)
 
