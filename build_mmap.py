@@ -50,7 +50,7 @@ def build_mmap_from_audio(
     e_bar = tqdm(total=max_e, desc="Embeds", unit="emb", position=1, leave=True)
 
     # create memmap file (mode 'w+' creates or overwrites) with max_e embeddings of dimension D
-    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_e, audio_embedder.D))
+    X = np.memmap(memmap_path+".memmap", dtype=np.float32, mode='w+', shape=(max_e, audio_embedder.D))
     ptr = 0
 
     for i, path in enumerate(audio_files):
@@ -92,7 +92,7 @@ def build_mmap_from_audio(
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f, indent=4)
 
-    logging.info(f"Finished writing memmap: {memmap_path}")
+    logging.info(f"Finished writing memmap: {memmap_path}.memmap")
     logging.info(f"Processor stats: {audio_embedder.audio_processor.stats()}")
 
 
@@ -113,7 +113,8 @@ if __name__ == "__main__":
     if args.max_e is None:
         args.max_e = len(list_audio_files(args.data))
 
-    args.memmap += f".{os.path.basename(args.model)}.top_db{args.top_db}.stride{args.stride}.rf{args.rf}.max-f{args.max_f}.max-e{args.max_e}.max-epf{args.max_epf}.memmap"
+    if args.memmap.endswith(".memmap"):
+        args.memmap = args.memmap[:-7] #remove extension
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(f"{args.memmap}.log")])
 
