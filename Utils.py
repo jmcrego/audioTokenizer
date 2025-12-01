@@ -57,6 +57,12 @@ def list_audio_files(path: str):
 
 def arguments(args):
     args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+    if 'audio_processor' in args and 'meta' in args.audio_processor:
+        args['audio_processor'] = args.audio_processor.meta
+    if 'audio_embedder' in args and 'meta' in args.audio_embedder:
+        args['audio_embedder'] = args.audio_embedder.meta
+    if 'audio_tokenizer' in args and 'meta' in args.audio_tokenizer:
+        args['audio_tokenizer'] = args.audio_tokenizer.meta
     args.pop('audio_processor', None)
     args.pop('audio_embedder', None)
     args.pop('audio_tokenizer', None)
