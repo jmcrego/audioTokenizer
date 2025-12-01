@@ -20,11 +20,11 @@ class AudioEmbedder:
 
     def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
         self.meta = arguments(locals())
-        self.meta['processor'] = audio_processor.meta
+        self.meta['audio_processor'] = audio_processor.meta
         logger.info(f"Initializing {self.meta}")
-        
+
         # logger.info(f"Initializing {arguments(locals())}")
-        self.processor = audio_processor
+        self.audio_processor = audio_processor
         self.device = torch.device(device)
         self.l2_norm = l2_norm
         self.model = model.lower()
@@ -65,7 +65,7 @@ class AudioEmbedder:
         Returns:
             embeddings: torch.Tensor [T, emb_dim]
         """
-        wav = self.processor(audio_input)
+        wav = self.audio_processor(audio_input)
 
         # extract features
         if "mhubert" in self.model.lower():

@@ -35,12 +35,12 @@ class AudioTokenizer:
             - computation device ("cpu" or "cuda")
         """
         self.meta = arguments(locals())
-        self.meta['embedder'] = audio_embedder.meta
+        self.meta['audio_embedder'] = audio_embedder.meta
         logger.info(f"Initializing {self.meta)}")
-        
+
         # logger.info(f"Initializing {arguments(locals())}")
         self.device = torch.device(device)
-        self.embedder = audio_embedder
+        self.audio_embedder = audio_embedder
         if not os.path.exists(centroid_file):
             raise FileNotFoundError(f"Centroid file not found: {centroid_file}")
         
@@ -60,7 +60,7 @@ class AudioTokenizer:
         Returns:
             token_ids: numpy array [T]
         """
-        embeddings = self.embedder(audio_input)  # [T, D]
+        embeddings = self.audio_embedder(audio_input)  # [T, D]
         logger.debug(f"embeddings {descr(embeddings)}")
 
         # nearest centroid → token IDs
