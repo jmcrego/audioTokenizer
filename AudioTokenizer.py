@@ -63,12 +63,13 @@ class AudioTokenizer:
         embeddings = self.audio_embedder(audio_input)  # [T, D]
         logger.debug(f"embeddings {descr(embeddings)}")
 
-        # ---- FIX: move to CPU + convert to NumPy ----
-        if isinstance(embeddings, torch.Tensor):
-            embeddings = embeddings.detach().cpu().numpy()
-
         # nearest centroid → token IDs
         if self.use_faiss:
+            # --- FIX: move to CPU and convert to numpy ---
+            if torch.is_tensor(embeddings):
+                embeddings = embeddings.detach().cpu().numpy()
+            # Ensure dtype + contiguity for FAISS
+            embeddings = np.ascontiguousarray(embeddings.astype(np.float32))
             _, tokens = self.faiss_index.search(embeddings,1)   # tokens = [T, 1] (nearest centroid for new embedding)
             tokens = tokens.squeeze() # numpy array [T]
         else:
