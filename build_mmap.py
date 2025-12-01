@@ -31,11 +31,9 @@ def build_mmap_from_audio(
     Convert audio files to embeddings and store them in a numpy memmap on disk.
     NOTE: max_e must be provided (memmap needs a fixed shape).
     """
+    meta = arguments(locals())
     if max_e is None:
         raise ValueError("max_e must be set when using memmap.")
-
-    meta = arguments(locals())
-    # meta['audio_embedder'] = audio_embedder.meta
 
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
@@ -89,10 +87,12 @@ def build_mmap_from_audio(
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
     e_bar.n = e_bar.total if ptr >= max_e else ptr; e_bar.refresh(); e_bar.close()
 
+    meta['n_vectors'] = ptr
+    meta['D'] = audio_embedder.D
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f, indent=4)
 
-    logging.info(f"Finished writing memmap: {memmap_path}, json={json.dumps(meta)}")
+    logging.info(f"Finished writing memmap: {memmap_path}")
     logging.info(f"Processor stats: {audio_embedder.audio_processor.stats()}")
 
 
