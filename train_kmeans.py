@@ -21,7 +21,7 @@ import tempfile
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
-from Utils import list_audio_files, secs2human, descr
+from Utils import list_audio_files, secs2human, descr, arguments
 
 def estimate_niter(N, D, K):
     """
@@ -63,7 +63,8 @@ def train_kmeans_memmap(memmap_path: str,
         device: 'cpu' or 'cuda'
         sample_size: how many vectors to sample for training (if None use n_vectors)
     """
-    logging.info(f"Training FAISS KMeans from memmap: k={k}, n_vectors={n_vectors}, d={d}")
+    meta = arguments(locals())
+    logging.info(f"Training FAISS KMeans from memmap, meta{meta}")
 
     if n_vectors == 0:
         raise RuntimeError("No embeddings found in memmap!")
