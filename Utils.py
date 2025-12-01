@@ -62,6 +62,7 @@ def arguments(args):
     args.pop('audio_tokenizer', None)
     return args
 
+
 def descr(var):
     myshape = var.shape if hasattr(var, 'shape') else "-"
     mydtype = var.dtype if hasattr(var, 'dtype') else "-"

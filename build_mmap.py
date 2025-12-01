@@ -3,7 +3,6 @@
 train_kmeans.py
 Train clustering centroids (e.g., K-means) on audio embeddings extracted
 with AudioEmbeddings (mHuBERT / wav2vec2 XLSR / Whisper encoder).
-
 Usage:
     python train_kmeans.py --model utter-project/mhubert-147 --data path/to/audio_dir --k 200
 """

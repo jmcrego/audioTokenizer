@@ -34,7 +34,10 @@ class AudioTokenizer:
             - path to centroids file (.npy or .index)
             - computation device ("cpu" or "cuda")
         """
-        logger.info(f"Initializing {arguments(locals())}")
+        self.meta = arguments(locals())
+        self.meta['embedder'] = audio_embedder.meta
+        logger.info(f"Initializing {self.meta)
+        # logger.info(f"Initializing {arguments(locals())}")
         self.device = torch.device(device)
         self.embedder = audio_embedder
         if not os.path.exists(centroid_file):

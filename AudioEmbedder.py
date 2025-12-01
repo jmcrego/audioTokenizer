@@ -19,7 +19,10 @@ class AudioEmbedder:
     """
 
     def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
-        logger.info(f"Initialing {arguments(locals())}")
+        self.meta = arguments(locals())
+        self.meta['processor'] = audio_processor.meta
+        logger.info(f"Initializing {self.meta)
+        # logger.info(f"Initializing {arguments(locals())}")
         self.processor = audio_processor
         self.device = torch.device(device)
         self.l2_norm = l2_norm
@@ -50,7 +53,7 @@ class AudioEmbedder:
         self.embedder.eval()
 
     def meta(self) -> dict:
-        meta = {'model': self.model, 'D': self.D, 'l2_norm': self.l2_norm, 'processor': self.processor.meta()}
+        meta = {'model': self.model, 'D': self.D, 'l2_norm': self.l2_norm, 'device': self.device, 'processor': self.processor.meta()}
         return meta
 
     def __call__(self, audio_input) -> torch.Tensor:
