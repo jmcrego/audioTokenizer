@@ -64,7 +64,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                             name = name.split('/')[-1]
                         if name in name2path:
                             path = name2path[name]
-                            path, duration = get_audio_duration(filepath)
+                            path, duration = get_audio_duration(path)
                             print(f"{path}\t{duration:.2f}\t{sentence}")
             exit
 
