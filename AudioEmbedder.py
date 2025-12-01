@@ -21,7 +21,7 @@ class AudioEmbedder:
     def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
         self.meta = arguments(locals())
         self.meta['processor'] = audio_processor.meta
-        logger.info(f"Initializing {self.meta)
+        logger.info(f"Initializing {self.meta}")
         # logger.info(f"Initializing {arguments(locals())}")
         self.processor = audio_processor
         self.device = torch.device(device)

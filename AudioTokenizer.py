@@ -36,7 +36,7 @@ class AudioTokenizer:
         """
         self.meta = arguments(locals())
         self.meta['embedder'] = audio_embedder.meta
-        logger.info(f"Initializing {self.meta)
+        logger.info(f"Initializing {self.meta)}")
         # logger.info(f"Initializing {arguments(locals())}")
         self.device = torch.device(device)
         self.embedder = audio_embedder
