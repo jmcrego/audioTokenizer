@@ -35,7 +35,7 @@ def build_mmap_from_audio(
         raise ValueError("max_e must be set when using memmap.")
 
     meta = arguments(locals())
-    meta['audio_embedder'] = audio_embedder.meta
+    # meta['audio_embedder'] = audio_embedder.meta
 
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")

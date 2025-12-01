@@ -35,7 +35,7 @@ class AudioTokenizer:
             - computation device ("cpu" or "cuda")
         """
         self.meta = arguments(locals())
-        self.meta['audio_embedder'] = audio_embedder.meta
+        # self.meta['audio_embedder'] = audio_embedder.meta
         logger.info(f"Initializing {self.meta)}")
 
         # logger.info(f"Initializing {arguments(locals())}")
