@@ -27,6 +27,8 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
     if isinstance(langs, str):
         langs = [lang.strip() for lang in langs.split(',')]
 
+    name2path = {}
+
     with open(output, 'w') as fdo:
         fdo.write(f"base_path={base_path}\n")
         fdo.write(f"langs={langs}\n")
@@ -45,10 +47,24 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             files = list(wav_path.rglob('*.mp3'))
             sys.stderr.write(f"{lang}: found {len(files)} files\n")
 
-            for file in files:
-                print(file)
+            for path in files:
+                name2path[Path(path).name] = path
 
-            continue
+            train_path = Path(base_path) / lang / 'train.tsv'
+
+            with open(str(train_path), 'r') as fdi:
+                for i, l in enumerate(fdi):
+                    if i==0:
+                        continue
+                    parts = l.strip().split('\t')
+                    if len(parts) >= 3:
+                        name = parts[1]
+                        sentence = parts[3]
+                        if '/' in name:
+                            name = name.split('/')[-1]
+                        if name in name2path:
+                            print(f"{name2path[name]}\t{sentence}")
+            exit
 
             random.shuffle(files)
             
