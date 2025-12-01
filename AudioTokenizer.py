@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import time
 import faiss
 import torch
 import logging
@@ -101,5 +102,7 @@ if __name__ == "__main__":
     audio_embedder = AudioEmbedder(audio_processor, model=args.model)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
 
+    t = time.time()
     tokens = audio_tokenizer(args.wav)
+    logging.info(f"Tokenization took {time.time()-t:.2f} sec")
     print(tokens)
