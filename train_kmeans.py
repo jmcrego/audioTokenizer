@@ -144,7 +144,7 @@ def train_kmeans_memmap(memmap_path: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract embeddings from audio files and compute centroids using FAISS KMeans.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("memdata", type=str, required=True, help="File with embeddings to cluster (memdata format).")
+    parser.add_argument("memdata", type=str, help="File with embeddings to cluster (memdata format).")
     parser.add_argument("--k", type=int, default=500, help="Number of centroids.")
     parser.add_argument("--sample_size", type=int, default=None, help="Train with this number of embeddings (random sampling).")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
