@@ -46,13 +46,17 @@ class AudioTokenizer:
         
         self.use_faiss = centroid_file.endswith('.index')
         if self.use_faiss:
-            self.faiss_index = faiss.read_index(centroid_file)
+            index = faiss.read_index(centroid_file)
+            if self.device.type == "cuda":
+                res = faiss.StandardGpuResources()
+                index = faiss.index_cpu_to_gpu(res, 0, index)
+            self.faiss_index = index
         else:
             self.centroids = np.load(centroid_file)
             self.centroids = torch.tensor(self.centroids, dtype=torch.float32).to(self.device)
 
 
-    def __call__(self, audio_input: Union[str, np.ndarray]) -> torch.Tensor:
+    def __call__(self, audio_input: Union[str, np.ndarray]):
         """
         Args:
             - audio filepath (.wav, .mp3) or waveform (numpy array)
@@ -74,7 +78,7 @@ class AudioTokenizer:
             tokens = tokens.squeeze() # numpy array [T]
         else:
             tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
-            tokens = tokens.numpy() # numpy array [T]
+            tokens = tokens.cpu().numpy() # numpy array [T]
 
         logger.debug(f"tokens {descr(tokens)}")
         return tokens
