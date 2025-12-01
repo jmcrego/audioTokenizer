@@ -161,13 +161,11 @@ if __name__ == "__main__":
 
     with open(f"{args.mempath}.json") as f:
         meta = json.load(f)
-    n_vectors = meta['n_vectors']
-    D = meta['D']
 
     centroids = train_kmeans_memmap(
         args.memmap,
-        n_vectors=n_vectors,
-        d=D,
+        n_vectors=meta['n_vectors'],
+        d=meta['D'],
         k=args.k,
         device=args.device,
         sample_size=args.sample_size
