@@ -157,7 +157,7 @@ if __name__ == "__main__":
     lfile  = f"{output}.log"
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(lfile)])
 
-    with open(f"{args.memmap}.json") as f:
+    with open(args.memmap.replace('.memmap', '.json')) as f:
         meta = json.load(f)
 
     train_kmeans_memmap(
