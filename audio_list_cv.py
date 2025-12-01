@@ -35,15 +35,21 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         total_duration = 0
         total_files = 0
         for lang in langs:
-            lang_path = Path(base_path.replace('LANG', lang))
+            wav_path = Path(base_path) / lang / 'clips'
             
-            if not lang_path.exists():
-                sys.stderr.write(f"Warning: Path does not exist for language {lang}: {lang_path}\n")
+            if not wav_path.exists():
+                sys.stderr.write(f"Warning: Path does not exist for language {lang}: {wav_path}\n")
                 continue
             
             # Find all .mp3 files
-            files = list(lang_path.rglob('*.mp3'))
+            files = list(wav_path.rglob('*.mp3'))
             sys.stderr.write(f"{lang}: found {len(files)} files\n")
+
+            for file in files:
+                print(file)
+
+            continue
+
             random.shuffle(files)
             
             if not files:
@@ -83,7 +89,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--base-path", type=str, required=True, help="Base path with LANG placeholder")
+    parser.add_argument("--base-path", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Base path for CommonVoice corpus")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
     parser.add_argument("--max-files-lang", type=int, default=None, help="Maximum number of files per language")
     parser.add_argument("--min-duration-file", type=float, default=None, help="Minimum duration for a file (seconds)")
