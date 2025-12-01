@@ -18,10 +18,10 @@ import tempfile
 
 from AudioEmbedder import AudioEmbedder
 from AudioProcessor import AudioProcessor
-from Utils import list_audio_files
+from Utils import list_audio_files, arguments
 
 def build_mmap_from_audio(
-        embedder,
+        audio_embedder,
         data_path: str,
         memmap_path: str,
         max_f: int = None,
@@ -33,6 +33,9 @@ def build_mmap_from_audio(
     """
     if max_e is None:
         raise ValueError("max_e must be set when using memmap.")
+
+    meta = arguments(locals())
+    meta['audio_embedder'] = audio_embedder.meta
 
     audio_files = list_audio_files(data_path)
     logging.info(f"Found {len(audio_files)} audio files.")
@@ -49,7 +52,7 @@ def build_mmap_from_audio(
     e_bar = tqdm(total=max_e, desc="Embeds", unit="emb", position=1, leave=True)
 
     # create memmap file (mode 'w+' creates or overwrites) with max_e embeddings of dimension D
-    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_e, embedder.D))
+    X = np.memmap(memmap_path, dtype=np.float32, mode='w+', shape=(max_e, audio_embedder.D))
     ptr = 0
 
     for i, path in enumerate(audio_files):
@@ -57,7 +60,7 @@ def build_mmap_from_audio(
             if ptr >= max_e: #reached max capacity
                 break
 
-            emb = embedder(path)  # Tensor [T, D]
+            emb = audio_embedder(path)  # Tensor [T, D]
             emb = emb.cpu().numpy()
             f_bar.update(1)
 
@@ -86,12 +89,11 @@ def build_mmap_from_audio(
     f_bar.n = f_bar.total; f_bar.refresh(); f_bar.close()
     e_bar.n = e_bar.total if ptr >= max_e else ptr; e_bar.refresh(); e_bar.close()
 
-    meta = {"n_vectors": ptr, "dim": embedder.D, "data_path": data_path, "max_f": max_f, "max_epf": max_epf, "max_e": max_e, 'embedder': embedder.meta}
     with open(memmap_path + ".json", "w") as f:
         json.dump(meta, f, indent=4)
 
     logging.info(f"Finished writing memmap: {memmap_path}, json={json.dumps(meta)}")
-    logging.info(f"Processor stats: {embedder.processor.stats()}")
+    logging.info(f"Processor stats: {audio_embedder.processor.stats()}")
 
 
 if __name__ == "__main__":
@@ -120,7 +122,7 @@ if __name__ == "__main__":
 
     if not os.path.exists(args.memmap):
         build_mmap_from_audio(
-            embedder=audio_embedder,
+            audio_embedder=audio_embedder,
             data_path=args.data,
             memmap_path=args.memmap,
             max_f=args.max_f,

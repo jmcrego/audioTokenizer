@@ -22,6 +22,7 @@ class AudioEmbedder:
         self.meta = arguments(locals())
         self.meta['processor'] = audio_processor.meta
         logger.info(f"Initializing {self.meta}")
+        
         # logger.info(f"Initializing {arguments(locals())}")
         self.processor = audio_processor
         self.device = torch.device(device)

@@ -20,6 +20,7 @@ class AudioProcessor:
     def __init__(self, top_db: int = 30, stride: int = 320, receptive_field: int = 400, channel: int = 0):
         self.meta = arguments(locals())
         logger.info(f"Initializing {self.meta}")
+        
         # logger.info(f"Initializing {arguments(locals())}")
         self.sample_rate = 16000  # default for all considered models
         self.top_db = top_db # to remove silence
