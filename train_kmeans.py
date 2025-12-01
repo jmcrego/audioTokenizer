@@ -153,8 +153,8 @@ if __name__ == "__main__":
 
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
     
-    args.output = f"{args.memdata}.k{args.k}"
-    lfile  = f"{args.output}.log"
+    output = f"{args.memdata}.k{args.k}.sample_size{args.sample_size}"
+    lfile  = f"{output}.log"
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(lfile)])
 
     with open(f"{args.mempath}.json") as f:
@@ -167,6 +167,6 @@ if __name__ == "__main__":
         k=args.k,
         device=args.device,
         sample_size=args.sample_size,
-        output=args.output)
+        output=output)
 
 
