@@ -168,7 +168,7 @@ if __name__ == "__main__":
         d=meta['D'],
         k=args.k,
         device=args.device,
-        sample_size=args.sample_size
+        sample_size=args.sample_size,
         output=args.output)
 
 
