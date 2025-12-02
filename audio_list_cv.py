@@ -82,7 +82,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                     if min_duration_file is not None and duration < min_duration_file:
                         continue
                 else:
-                    duration = 0.0
+                    duration = -1.0
                 fdo.write(f"{lang}\t{duration:.2f}\t{path}\t{transc}\n")
                 bar.update(1)
                 total_lang_duration += duration
