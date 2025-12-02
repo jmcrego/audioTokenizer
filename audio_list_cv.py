@@ -46,9 +46,9 @@ def read_paths(path, name2path):
     sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
     return path_transc
 
-def find_audio_files_by_lang(base_path, lang, file_set):
+def find_audio_files_by_lang(base_path, lang, file_set, odir):
     fout = file_set.replace('.tsv',f'.{lang}.tsv')
-    with open(fout, 'w') as fdo:
+    with open(odir+'/'+fout, 'w') as fdo:
         fdo.write(f"lang={lang} base_path={base_path}\n")
 
         name2path = find_audios(Path(base_path) / lang / 'clips')
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("--base-path", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Base path for CommonVoice corpus")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
     parser.add_argument("--set", type=str, required=True, help="set to use (ex: train.tsv)")
+    parser.add_argument("--odir", type=str, default=".", help="Output directory")
     args = parser.parse_args()
     
     for lang in args.langs.split(','):
@@ -81,4 +82,5 @@ if __name__ == "__main__":
             args.base_path, 
             lang, 
             args.set,
+            args.odir,
         )
