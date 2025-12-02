@@ -10,41 +10,58 @@ def get_audio_duration(filepath):
     try:
         info = sf.info(filepath)
         return info.duration
+
     except Exception as e:
         sys.stderr.write(f"Error reading {filepath}: {e}\n")
         return None
 
 def find_audios(path):
     name2path = {}
+
     if not path.exists():
         sys.stderr.write(f"Warning: Path does not exist: {path}\n")
         return name2path  
+
     # Find recursively all .mp3 files
     for file in list(path.rglob('*.mp3')):
         name2path[Path(file).name] = file
+
     sys.stderr.write(f"Found {len(name2path)} audio files in {path}\n")
+
     return name2path
 
 def read_paths(path, name2path):
+
     path_transc = []
+
     with open(str(path), 'r') as fdi:
+
         for i, l in enumerate(fdi):
+
             if i==0:
                 continue
+
             parts = l.strip().split('\t')
+
             if len(parts) < 3:
                 continue
+
             name = parts[1]
             name = name.split('/')[-1]
             if name not in name2path:
                 continue
+
             transc = parts[3].strip()
+
             if len(transc) == 0:
                 continue
+
             path_transc.append((name2path[name], transc))
 
     sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
+
     return path_transc
+
 
 def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
     """
