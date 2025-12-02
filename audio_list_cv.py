@@ -14,7 +14,7 @@ def get_audio_duration(filepath):
         sys.stderr.write(f"Error reading {filepath}: {e}\n")
         return None
 
-def find_wavs(path):
+def find_audios(path):
     name2path = {}
     if not path.exists():
         sys.stderr.write(f"Warning: Path does not exist: {path}\n")
@@ -22,7 +22,7 @@ def find_wavs(path):
     # Find recursively all .mp3 files
     for file in list(path.rglob('*.mp3')):
         name2path[Path(file).name] = file
-    sys.stderr.write(f"Found {len(name2path)} files in {path}\n")
+    sys.stderr.write(f"Found {len(name2path)} audio files in {path}\n")
     return name2path
 
 def read_paths(path, name2path):
@@ -67,7 +67,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         total_duration = 0
         total_files = 0
         for lang in langs:
-            name2path = find_wavs(Path(base_path) / lang / 'clips')
+            name2path = find_audios(Path(base_path) / lang / 'clips')
             path_transc = read_paths(Path(base_path) / lang / 'train.tsv', name2path)
             random.shuffle(path_transc)
 
@@ -75,11 +75,14 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             total_lang_files = 0
             bar = tqdm(total=max_files_lang or len(path_transc), desc=f"{lang} files", unit=" file")
             for path, transc in path_transc:
-                duration = get_audio_duration(path)
-                if duration is None:
-                    continue
-                if min_duration_file is not None and duration < min_duration_file:
-                    continue
+                if min_duration_file is not None:
+                    duration = get_audio_duration(path)
+                    if duration is None:
+                        continue
+                    if min_duration_file is not None and duration < min_duration_file:
+                        continue
+                else:
+                    duration = '-'
                 fdo.write(f"{lang}\t{duration:.2f}\t{path}\t{transc}\n")
                 bar.update(1)
                 total_lang_duration += duration
