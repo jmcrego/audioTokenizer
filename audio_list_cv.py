@@ -48,7 +48,7 @@ def read_paths(path, name2path):
 
 def find_audio_files_by_lang(base_path, lang, max_files_lang, min_duration_file, iset):
     fout = iset.replace('.tsv',f'.{lang}.tsv')
-    with open(fout", 'w') as fdo:
+    with open(fout, 'w') as fdo:
         fdo.write(f"base_path={base_path}\n")
         fdo.write(f"lang={lang}\n")
         fdo.write(f"max_files_lang={max_files_lang}\n")
