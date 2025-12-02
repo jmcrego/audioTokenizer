@@ -107,8 +107,8 @@ def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
         for path, transc in tqdm(path_transc, desc=f"{lang} files", unit="file"):
             path = Path(path)
 
-            if not path.is_file():    # skip missing audio
-                continue
+            # if not path.is_file():    # skip missing audio
+            #     continue
 
             fdo.write(f"{lang}\t{path}\t{transc}\n")
             total_written += 1
