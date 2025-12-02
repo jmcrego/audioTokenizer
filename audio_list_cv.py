@@ -70,7 +70,7 @@ def find_audio_files_by_lang(base_path, lang, file_set):
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Find audio files by language and compute durations.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Find audio files by language in CommonVoice corpus.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--base-path", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Base path for CommonVoice corpus")
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
     parser.add_argument("--set", type=str, required=True, help="set to use (ex: train.tsv)")
