@@ -41,7 +41,7 @@ def read_paths(path, name2path):
             transc = parts[3].strip()
             if len(transc) == 0:
                 continue
-            path_transc.append((name2path(name), transc))
+            path_transc.append((name2path[name], transc))
 
     sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
     return path_transc
