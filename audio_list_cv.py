@@ -46,27 +46,57 @@ def read_paths(path, name2path):
     sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
     return path_transc
 
-def find_audio_files_by_lang(base_path, lang, file_set, odir):
-    fout = file_set.replace('.tsv',f'.{lang}.tsv')
-    with open(odir+'/'+fout, 'w') as fdo:
-        fdo.write(f"lang={lang} base_path={base_path}\n")
+def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
+    """
+    Search audio files for a given language and write results to a TSV output file.
 
-        name2path = find_audios(Path(base_path) / lang / 'clips')
-        path_transc = read_paths(Path(base_path) / lang / file_set, name2path)
-        random.shuffle(path_transc)
+    Args:
+        base_path (str | Path): Root dataset directory.
+        lang (str): Language code (e.g., "fr", "en").
+        file_set (str): TSV file listing transcript pairs (e.g., "train.tsv").
+        output_dir (str | Path): Directory where the output TSV will be written.
+    """
+    base_path = Path(base_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)   # ensure output dir exists
 
-        total_files = 0
-        bar = tqdm(total=len(path_transc), desc=f"{lang} files", unit=" file")
-        for path, transc in path_transc:
-            if not Path(path).is_file():
+    # compute output filename
+    output_file = output_dir / file_set.replace(".tsv", f".{lang}.tsv")
+
+    # All paths
+    clips_dir = base_path / lang / "clips"
+    input_tsv = base_path / lang / file_set
+
+    # sanity checks
+    if not clips_dir.is_dir():
+        raise FileNotFoundError(f"Audio directory not found: {clips_dir}")
+
+    if not input_tsv.is_file():
+        raise FileNotFoundError(f"Transcript TSV not found: {input_tsv}")
+
+    # find audio paths
+    name2path = find_audios(clips_dir)
+    path_transc = read_paths(input_tsv, name2path)
+    random.shuffle(path_transc)
+
+    # write output file
+    with output_file.open("w", encoding="utf-8") as fdo:
+
+        # header line
+        fdo.write(f"lang={lang}\tbase_path={base_path}\n")
+
+        total_written = 0
+
+        for path, transc in tqdm(path_transc, desc=f"{lang} files", unit="file"):
+            path = Path(path)
+
+            if not path.is_file():    # skip missing audio
                 continue
-            fdo.write(f"{lang}\t{path}\t{transc}\n")
-            bar.update(1)
-            total_files += 1
 
-        # force close the bar
-        bar.close()
-        sys.stderr.write(f"{lang}: total files {total_files}\n")
+            fdo.write(f"{lang}\t{path}\t{transc}\n")
+            total_written += 1
+
+    sys.stderr.write(f"{lang}: total files written {total_written}\n")
     
 
 if __name__ == "__main__":
