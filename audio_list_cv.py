@@ -9,10 +9,42 @@ def get_audio_duration(filepath):
     """Get duration of an audio file in seconds."""
     try:
         info = sf.info(filepath)
-        return filepath, info.duration
+        return info.duration
     except Exception as e:
         sys.stderr.write(f"Error reading {filepath}: {e}\n")
-        return filepath, None
+        return None
+
+def find_wavs(path):
+    name2path = {}
+    if not path.exists():
+        sys.stderr.write(f"Warning: Path does not exist: {path}\n")
+        return name2path  
+    # Find recursively all .mp3 files
+    for file in list(path.rglob('*.mp3')):
+        name2path[Path(file).name] = file
+    sys.stderr.write(f"Found {len(name2path)} files in {path}\n")
+    return name2path
+
+def read_paths(path, name2path):
+    path_transc = []
+    with open(str(path), 'r') as fdi:
+        for i, l in enumerate(fdi):
+            if i==0:
+                continue
+            parts = l.strip().split('\t')
+            if len(parts) < 3:
+                continue
+            name = parts[1]
+            name = name.split('/')[-1]
+            if name not in name2path:
+                continue
+            transc = parts[3].strip()
+            if len(transc) == 0:
+                continue
+            path_transc.append((name2path(name), transc))
+
+    sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
+    return path_transc
 
 def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file, output):
     """
@@ -27,8 +59,6 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
     if isinstance(langs, str):
         langs = [lang.strip() for lang in langs.split(',')]
 
-    name2path = {}
-
     with open(output, 'w') as fdo:
         fdo.write(f"base_path={base_path}\n")
         fdo.write(f"langs={langs}\n")
@@ -37,59 +67,23 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
         total_duration = 0
         total_files = 0
         for lang in langs:
-            wav_path = Path(base_path) / lang / 'clips'
-            
-            if not wav_path.exists():
-                sys.stderr.write(f"Warning: Path does not exist for language {lang}: {wav_path}\n")
-                continue
-            
-            # Find all .mp3 files
-            files = list(wav_path.rglob('*.mp3'))
-            sys.stderr.write(f"{lang}: found {len(files)} files\n")
+            name2path = find_wavs(Path(base_path) / lang / 'clips')
+            path_transc = read_paths(Path(base_path) / lang / 'train.tsv', name2path)
+            random.shuffle(path_transc)
 
-            for path in files:
-                name2path[Path(path).name] = path
-
-            train_path = Path(base_path) / lang / 'train.tsv'
-
-            with open(str(train_path), 'r') as fdi:
-                for i, l in enumerate(fdi):
-                    if i==0:
-                        continue
-                    parts = l.strip().split('\t')
-                    if len(parts) >= 3:
-                        name = parts[1]
-                        sentence = parts[3]
-                        if '/' in name:
-                            name = name.split('/')[-1]
-                        if name in name2path:
-                            path = name2path[name]
-                            path, duration = get_audio_duration(path)
-                            print(f"{path}\t{duration:.2f}\t{sentence}")
-            exit
-
-            random.shuffle(files)
-            
-            if not files:
-                continue
-
-            bar = tqdm(total=max_files_lang or len(files), desc=f"{lang} files", unit=" file")
             total_lang_duration = 0
             total_lang_files = 0
-            for filepath in files:
-                filepath, duration = get_audio_duration(filepath)
-
+            bar = tqdm(total=max_files_lang or len(path_transc), desc=f"{lang} files", unit=" file")
+            for path, transc in path_transc:
+                duration = get_audio_duration(path)
                 if duration is None:
                     continue
-
                 if min_duration_file is not None and duration < min_duration_file:
                     continue
-
-                fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
+                fdo.write(f"{lang}\t{duration:.2f}\t{path}\t{transc}\n")
                 bar.update(1)
-                total_lang_files += 1
                 total_lang_duration += duration
-
+                total_lang_files += 1
                 if max_files_lang is not None and total_lang_files >= max_files_lang:
                     break
 
