@@ -75,6 +75,8 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             total_lang_files = 0
             bar = tqdm(total=max_files_lang or len(path_transc), desc=f"{lang} files", unit=" file")
             for path, transc in path_transc:
+                if not Path(path).is_file():
+                    continue
                 if min_duration_file is not None:
                     duration = get_audio_duration(path)
                     if duration is None:
