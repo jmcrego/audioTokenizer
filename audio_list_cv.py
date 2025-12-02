@@ -46,15 +46,16 @@ def read_paths(path, name2path):
     sys.stderr.write(f"Found {len(path_transc)} files in {path}\n")
     return path_transc
 
-def find_audio_files_by_lang(base_path, lang, max_files_lang, min_duration_file, output):
-    with open(output + f".{lang}", 'w') as fdo:
+def find_audio_files_by_lang(base_path, lang, max_files_lang, min_duration_file, iset):
+    fout = iset.replace('.tsv',f'.{lang}.tsv')
+    with open(fout", 'w') as fdo:
         fdo.write(f"base_path={base_path}\n")
         fdo.write(f"lang={lang}\n")
         fdo.write(f"max_files_lang={max_files_lang}\n")
         fdo.write(f"min_duration_file={min_duration_file}\n")
 
         name2path = find_audios(Path(base_path) / lang / 'clips')
-        path_transc = read_paths(Path(base_path) / lang / 'train.tsv', name2path)
+        path_transc = read_paths(Path(base_path) / lang / iset, name2path)
         random.shuffle(path_transc)
 
         total_lang_duration = 0
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("--langs", type=str, required=True, help="Comma-separated list of language codes")
     parser.add_argument("--max-files-lang", type=int, default=None, help="Maximum number of files per language")
     parser.add_argument("--min-duration-file", type=float, default=None, help="Minimum duration for a file (seconds)")
-    parser.add_argument("--output", type=str, required=True, help="Output OUTPUT.LANG files")
+    parser.add_argument("--set", type=str, required=True, help="set to use (ex: train.tsv)")
     args = parser.parse_args()
     
     for lang in args.langs.split(','):
@@ -99,5 +100,5 @@ if __name__ == "__main__":
             lang, 
             args.max_files_lang,
             args.min_duration_file,
-            args.output,
+            args.set,
         )
