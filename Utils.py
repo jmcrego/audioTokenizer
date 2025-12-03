@@ -46,6 +46,7 @@ def list_audio_files(path: str, field=0):
         with open(path, 'r') as fd:
             for l in fd:
                 parts = l.strip().split('\t')
+                print(parts)
                 if len(parts) > field:
                     files.append(parts[field])
     else:
