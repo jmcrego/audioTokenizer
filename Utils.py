@@ -38,7 +38,7 @@ def secs2human(t):
     return f"{sec // 3600:02d}:{(sec % 3600) // 60:02d}:{sec % 60:02d}.{ms:03d}"
 
 
-def list_audio_files(path: str):
+def list_audio_files(path: str, field=0):
     """Return list of audio files from a file or directory."""
     files = []
     if os.path.isfile(path):
@@ -46,8 +46,8 @@ def list_audio_files(path: str):
         with open(path, 'r') as fd:
             for l in fd:
                 parts = l.strip().split('\t')
-                if len(parts) == 3:
-                    files.append(parts[2])
+                if len(parts) > field:
+                    files.append(parts[field])
     else:
         for root, _, fs in os.walk(path):
             for f in fs:
