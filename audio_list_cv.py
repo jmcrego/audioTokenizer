@@ -66,7 +66,6 @@ def read_paths(path, name2path):
 def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
     """
     Search audio files for a given language and write results to a TSV output file.
-
     Args:
         base_path (str | Path): Root dataset directory.
         lang (str): Language code (e.g., "fr", "en").
@@ -100,7 +99,7 @@ def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
     with output_file.open("w", encoding="utf-8") as fdo:
 
         # header line
-        fdo.write(f"lang={lang}\tbase_path={base_path}\n")
+        #fdo.write(f"lang={lang}\tbase_path={base_path}\n")
 
         total_written = 0
 
