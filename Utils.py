@@ -42,11 +42,9 @@ def list_audio_files(path: str, field=0):
     """Return list of audio files from a file or directory."""
     files = []
     if os.path.isfile(path):
-        #return [path]
         with open(path, 'r') as fd:
             for l in fd:
                 parts = l.strip().split('\t')
-                print(parts)
                 if len(parts) > field:
                     files.append(parts[field])
     else:
@@ -80,5 +78,3 @@ def descr(var):
     mytype  = var.__class__.__name__
     return f"shape={myshape} type={mytype} dtype={mydtype}"
 
-files = list_audio_files('data/train.all.tsv')
-print(len(files))
