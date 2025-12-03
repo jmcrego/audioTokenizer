@@ -11,7 +11,7 @@ import numpy as np
 import soundfile as sf
 import librosa
 
-from Utils import arguments
+from scripts.Utils import arguments
 
 logger = logging.getLogger("audio_processor")
 

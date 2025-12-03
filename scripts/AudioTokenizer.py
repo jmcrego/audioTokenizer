@@ -18,7 +18,7 @@ import logging
 import numpy as np
 from typing import Union
 
-from Utils import arguments, descr
+from scripts.Utils import arguments, descr
 
 logger = logging.getLogger("audio_tokenizer")
 
@@ -86,8 +86,8 @@ class AudioTokenizer:
 
 if __name__ == "__main__":
     import argparse
-    from AudioEmbedder import AudioEmbedder
-    from AudioProcessor import AudioProcessor
+    from scripts.AudioEmbedder import AudioEmbedder
+    from scripts.AudioProcessor import AudioProcessor
 
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")

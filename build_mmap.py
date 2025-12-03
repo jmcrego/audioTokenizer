@@ -16,9 +16,9 @@ import numpy as np
 from tqdm import tqdm
 import tempfile
 
-from AudioEmbedder import AudioEmbedder
-from AudioProcessor import AudioProcessor
-from Utils import list_audio_files, arguments
+from scripts.AudioEmbedder import AudioEmbedder
+from scripts.AudioProcessor import AudioProcessor
+from scripts.Utils import list_audio_files, arguments
 
 def build_mmap_from_audio(
         audio_embedder,

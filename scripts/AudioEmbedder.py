@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 
-from Utils import arguments, descr
+from scripts.Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
@@ -104,7 +104,7 @@ class AudioEmbedder:
 # -----------------------------
 if __name__ == "__main__":
     import argparse
-    from AudioProcessor import AudioProcessor
+    from scripts.AudioProcessor import AudioProcessor
 
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")

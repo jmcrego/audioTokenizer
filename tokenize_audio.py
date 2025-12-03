@@ -15,10 +15,10 @@ except (ImportError, OSError) as e:
     SOUNDDEVICE_AVAILABLE = False
     print(f"Warning: sounddevice not available ({e}). Microphone streaming disabled.")
 
-from AudioEmbedder import AudioEmbedder
-from AudioProcessor import AudioProcessor
-from AudioTokenizer import AudioTokenizer
-from Utils import secs2human
+from scripts.AudioEmbedder import AudioEmbedder
+from scripts.AudioProcessor import AudioProcessor
+from scripts.AudioTokenizer import AudioTokenizer
+from scripts.Utils import secs2human
 
 def mic_stream(chunk_duration=5., sample_rate=16000):
     """
