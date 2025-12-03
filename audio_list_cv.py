@@ -110,7 +110,7 @@ def find_audio_files_by_lang(base_path, lang, file_set, output_dir):
             # if not path.is_file():    # skip missing audio
             #     continue
 
-            fdo.write(f"{lang}\t{path}\t{transc}\n")
+            fdo.write(f"{path}\t{lang}\t{transc}\n")
             total_written += 1
 
     sys.stderr.write(f"{lang}: total files written {total_written}\n")
