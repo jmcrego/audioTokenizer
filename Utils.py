@@ -80,3 +80,4 @@ def descr(var):
     mytype  = var.__class__.__name__
     return f"shape={myshape} type={mytype} dtype={mydtype}"
 
+list_audio_files('data/train.all.tsv')
