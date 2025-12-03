@@ -90,7 +90,7 @@ if __name__ == "__main__":
     audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids, device=args.device)
 
-    if args.wav is None:
+    if args.wav is None and args.wavs is None:
         try:
             for i, chunk in enumerate(mic_stream(chunk_duration=args.duration, sample_rate=16000)):
                 t = time.time()
