@@ -70,8 +70,9 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy or faiss index")
     parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
+    parser.add_argument("--wavs", type=str, default=None, help="File with audio files to tokenize (otherwise mic streaming)")
     parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
-    parser.add_argument("--top_db", type=int, default=30, help="Remove silence when under this threshold")
+    parser.add_argument("--top_db", type=int, default=10, help="Remove silence when under this threshold")
     parser.add_argument("--stride", type=int, default=320, help="Stride to apply (with hubert/wav2vec models)")
     parser.add_argument("--rf", type=int, default=400, help="Receptive_field to apply (with hubert/wav2vec models)")
     parser.add_argument("--channel", type=int, default=0, help="Use this channel if multiple exist in audio")
@@ -99,6 +100,15 @@ if __name__ == "__main__":
             print("\nStreaming stopped.")
 
     else:
-        t = time.time()
-        tokens = audio_tokenizer(args.wav)
-        logging.info(f"Tokenization took {time.time()-t:.3f} sec\n{tokens}")
+        if args.wavs is not None:
+            with open(args.wavs, 'r') as fdi:
+                for l in fdi:
+                    parts = l.strip().split()
+                    tokens = audio_tokenizer(parts[0])
+                    parts.append(" ".join(str(x) for x in tokens))
+                    print('\t'.join(parts))
+
+        elif args.wav is not None:
+            t = time.time()
+            tokens = audio_tokenizer(args.wav)
+            logging.info(f"Tokenization took {time.time()-t:.3f} sec\n{tokens}")
