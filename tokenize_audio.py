@@ -101,12 +101,13 @@ if __name__ == "__main__":
 
     else:
         if args.wavs is not None:
-            with open(args.wavs, 'r') as fdi:
-                for l in fdi:
-                    parts = l.strip().split()
-                    tokens = audio_tokenizer(parts[0])
-                    parts.append(" ".join(str(x) for x in tokens))
-                    print('\t'.join(parts))
+            with open(args.wavs.replace('.tsv','.tok.tsv'), 'w') as fdo:
+                with open(args.wavs, 'r') as fdi:
+                    for l in fdi:
+                        parts = l.strip().split()
+                        tokens = audio_tokenizer(parts[0])
+                        parts.append(" ".join(str(x) for x in tokens))
+                        fdo.write('\t'.join(parts) + '\n')
 
         elif args.wav is not None:
             t = time.time()
