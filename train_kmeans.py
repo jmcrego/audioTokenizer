@@ -19,9 +19,8 @@ import numpy as np
 from tqdm import tqdm
 import tempfile
 
-from AudioEmbedder import AudioEmbedder
-from AudioProcessor import AudioProcessor
-from Utils import list_audio_files, secs2human, descr, arguments
+from scripts.AudioEmbedder import AudioEmbedder
+from scripts.Utils import list_audio_files, secs2human, descr, arguments
 
 def estimate_niter(N, D, K):
     """

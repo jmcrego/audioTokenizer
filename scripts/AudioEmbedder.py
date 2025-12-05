@@ -50,7 +50,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
     # -----------------------------
-    # --- ENSURE float32 dtype ---
+    # --- ENSURE float32 dtype ----
     # -----------------------------
     wav = wav.astype(np.float32)
 
