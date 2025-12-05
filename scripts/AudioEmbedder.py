@@ -7,11 +7,53 @@ Supports WAV/MP3 files or raw numpy audio arrays.
 import torch
 import logging
 import numpy as np
+import soxr
+import librosa
 
 # from scripts.Utils import arguments, descr
 from Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
+
+def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
+    """Load WAV, convert to mono, resample, remove silence, ..."""
+
+    if isinstance(audio_input, str):
+        wav, sr = sf.read(audio_input)
+    elif isinstance(audio_input, np.ndarray):
+        wav = audio_input
+    else:
+        raise ValueError("audio_input must be a path or np.ndarray")
+    logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+
+    #  CHANNEL handling (mono)
+    if len(wav.shape) > 1: 
+        if wav.shape[1] > 1:
+            if channel == 0: #first channel
+                wav = wav[:, 0]
+            elif channel == 1: #second channel
+                wav = wav[:, 1]
+            elif channel == -1: #average channels
+                wav = np.mean(wav, axis=1)       
+            else:         
+                raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
+        logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
+
+    # RESAMPLE
+    if sr != sample_rate:
+        wav = soxr.resample(wav, sr, sample_rate)
+        logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
+
+    # Ensure float32 dtype
+    wav = wav.astype(np.float32)
+
+    # --- REMOVE SILENCE ---
+    if top_db:
+        wav_trimmed, _ = librosa.effects.trim(wav, top_db=top_db)
+        logger.debug(f"removed silence, wav size={wav_trimmed.shape} time={wav_trimmed.shape[0]/sample_rate:.2f} sec")
+        wav = wav_trimmed
+
+    return wav
 
 class AudioEmbedder:
     """
@@ -19,11 +61,12 @@ class AudioEmbedder:
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
+    def __init__(self, model: str = "utter-project/mhubert-147", top_db=0, l2_norm: bool=True, device: str = "cpu"):
         self.meta = arguments(locals())
         logger.info(f"Initializing {self.meta}")
 
         self.device = torch.device(device)
+        self.top_db = top_db
         self.l2_norm = l2_norm
         self.model = model.lower()
 
@@ -48,6 +91,7 @@ class AudioEmbedder:
         else:
             raise ValueError(f"Unknown model: {model}")
 
+        self.sample_rate = self.feature_extractor.sampling_rate
         self.embedder.to(self.device)
         self.embedder.eval()
 
@@ -60,6 +104,9 @@ class AudioEmbedder:
             embeddings: torch.Tensor [T, emb_dim]
         """
         #wav = self.audio_processor(audio_input)
+
+        # read input if necessary
+        audio_input = process_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
 
         # extract features
         if "mhubert" in self.model.lower():
