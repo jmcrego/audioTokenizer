@@ -102,9 +102,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
+
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_embedder = AudioEmbedder(model=args.model)
+    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     embeddings = audio_embedder(args.wav)
