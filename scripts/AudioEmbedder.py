@@ -15,6 +15,18 @@ from scripts.Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
+def arguments(args):
+    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+
+    if 'audio_embedder' in args:
+        args['audio_embedder'] = args['audio_embedder'].meta
+
+    if 'audio_tokenizer' in args:
+        args['audio_tokenizer'] = args['audio_tokenizer'].meta
+
+    return args
+
+
 def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     """Load WAV from file or an float32 numpy array, convert to mono (channel), resample (sample_rate), remove silence (top_db), ..."""
 
@@ -145,7 +157,7 @@ class AudioEmbedder:
             # Normalize the embeddings
             embeddings = embeddings / norm
 
-        logger.debug(f"embeddings {descr(embeddings)}")
+        logger.debug(f"embeddings {embeddings.shape} type={embeddings.__class__.__name__} dtype={embeddings.dtype}")
         return embeddings
 
 
@@ -163,4 +175,4 @@ if __name__ == "__main__":
 
     audio_embedder = AudioEmbedder(model=args.model, top_db=0, device=args.device)
     embeddings = audio_embedder(args.wav)
-    print(f"embeddings {descr(embeddings)}")
+    print(f"embeddings {embeddings.shape}")
