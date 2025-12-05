@@ -27,7 +27,9 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
 
+    # -----------------------------
     # --- mono CHANNEL ---
+    # -----------------------------
     if len(wav.shape) > 1: 
         if wav.shape[1] > 1:
             if channel == 0: #first channel
@@ -40,15 +42,21 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
                 raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
+    # -----------------------------
     # --- RESAMPLE ---
+    # -----------------------------
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
+    # -----------------------------
     # --- ENSURE float32 dtype ---
+    # -----------------------------
     wav = wav.astype(np.float32)
 
+    # -----------------------------
     # --- REMOVE SILENCE ---
+    # -----------------------------
     if top_db:
         wav_trimmed, _ = librosa.effects.trim(wav, top_db=top_db)
         logger.debug(f"removed silence, wav size={wav_trimmed.shape} time={wav_trimmed.shape[0]/sample_rate:.2f} sec")
