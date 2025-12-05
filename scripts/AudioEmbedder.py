@@ -11,8 +11,7 @@ import soundfile as sf
 import librosa
 import soxr
 
-# from scripts.Utils import arguments, descr
-from Utils import arguments, descr
+from scripts.Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
@@ -23,7 +22,7 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         wav, sr = sf.read(audio_input)
     elif isinstance(audio_input, np.ndarray):
         wav = audio_input
-        sr = sample_rate #may be wrong
+        sr = sample_rate 
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
