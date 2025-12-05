@@ -61,21 +61,32 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
 class AudioEmbedder:
     """
-    Audio embeddings extractor.
+    Audio embeddings extractor with chunk/stride support.
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, model: str = "utter-project/mhubert-147", l2_norm: bool=False, half_precision: bool=False, device: str = "cpu"):
+    def __init__(self, 
+                 model: str = "utter-project/mhubert-147",
+                 l2_norm: bool=False, 
+                 half_precision: bool=False,
+                 device: str = "cpu",
+                 chunk_size: int = 3200, #number of samples of each chunk passed to the model (it contains N/320 embeddings)
+                 stride: int = 1600): #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
         self.meta = arguments(locals())
         logger.info(f"Initializing {self.meta}")
+        assert chunk_size % 320 == 0, f"chunk_size ({chunk_size}) 
+        #chunk_size must be a multiple of 320 (model stride)" #For mHuBERT/wav2vec2 model stride is 320 (number of samples for an embedding)
+        #larger chunks allow for larger context when computing its internal embeddings, as the model sees all the chunk when computing embeddings
+        assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
+        #stride allows the overlap chunks (its embeddings), thus reducing the problem of truncating the sound of a word
+        #i could add averaging for overlapping frames (embeddings) to make the embeddings smoother and prevent duplicated frame effects
 
         self.device = torch.device(device)
         self.l2_norm = l2_norm
-        self.model = model.lower()
         self.half_precision = half_precision
-        self.window_size = 16000  # e.g., 1 second windows at 16 kHz
-        self.stride = 320          # e.g., 20ms stride = 320 samples at 16 kHz
-
+        self.model = model.lower()
+        self.chunk_size = chunk_size
+        self.stride = stride
 
         if "mhubert" in model.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -101,116 +112,95 @@ class AudioEmbedder:
         self.sample_rate = self.feature_extractor.sampling_rate
         self.embedder.to(self.device)
         if self.half_precision:
-            self.embedder = self.embedder.half() #when using A100/H100
+            self.embedder = self.embedder.half()  # for A100/H100
         self.embedder = torch.compile(self.embedder)
         self.embedder.eval()
 
 
-    def __call__(self, audio_inputs) -> tuple[torch.Tensor, list[int]]:
+    def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Extract embeddings from a batch of audio files or numpy arrays.
+        Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
         
         Args:
             audio_inputs: List of str paths or np.ndarray audio chunks.
-            
+        
         Returns:
             embeddings: torch.Tensor [B, T, D] padded to the longest sequence
-            lengths: List[int] original lengths of each audio input (in frames)
+            mask: torch.BoolTensor [B, T] indicating valid frames
         """
+        all_chunks = []
+        lengths = []
 
-        all_embeddings = []
-        all_masks = []
+        # Preprocess and slice each audio into overlapping chunks
+        for audio in audio_inputs:
+            wav = preprocess_audio(audio, sample_rate=self.sample_rate)
+            n_samples = len(wav)
 
-        # Preprocess audio
-        waves = [preprocess_audio(f, sample_rate=self.sample_rate) for f in audio_inputs]
-        for w in waves:
-            frames = []
-            frame_masks = []
-            start = 0
-            while start < len(w):
-                end = min(start + self.window_size, len(w))
-                chunk = w[start:end]
+            # Split into overlapping chunks
+            chunks = []
+            for start in range(0, n_samples, self.stride):
+                end = start + self.chunk_size
+                chunk = wav[start:end]
+                if len(chunk) < self.chunk_size:
+                    chunk = np.pad(chunk, (0, self.chunk_size - len(chunk)))
+                chunks.append(chunk)
+            all_chunks.append(np.stack(chunks))  # [n_chunks, chunk_size]
+            lengths.append(len(chunks))  # number of chunks per audio
 
-                # pad to window_size
-                pad_len = self.window_size - len(chunk)
-                if pad_len > 0:
-                    chunk = np.pad(chunk, (0, pad_len))
+        # Concatenate all chunks for batch processing
+        batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs]  
+        # C ~ Total chunks
+        # cs ~ chunk size (number of samples in a chunk)
 
-                # feature extraction
-                input_dict = self.feature_extractor(chunk, sampling_rate=self.sample_rate, return_tensors="pt")
-                inputs = input_dict.input_values if "whisper" not in self.model.lower() else input_dict.input_features
-                inputs = inputs.to(self.device)
-                if self.half_precision:
-                    inputs = inputs.half()
+        # Feature extraction
+        input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
+        inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
+        inputs = inputs.pin_memory().to(self.device, non_blocking=True) #[B, F] (for raw audio) or [B, F, f] (for Whisper)
+        #C ~ batch size (number of chunks)
+        #F ~ time dimension (number of frames per audio chunk)
+        #f ~ feature dimension (for spectrograms)
 
-                with torch.inference_mode():
-                    out = self.embedder(inputs).last_hidden_state.squeeze(0)  # [T, D]
+        if self.half_precision:
+            inputs = inputs.half()
 
-                if self.l2_norm:
-                    out = torch.nn.functional.normalize(out, dim=-1)
+        # Forward pass
+        with torch.inference_mode():
+            out = self.embedder(inputs).last_hidden_state  # [C, E, D] (each frame is now an embedding of size D)
+        #E ~ number of embeddings (same as previously number of frames)
+        #D ~ embedding dimension
 
-                frames.append(out)
-                frame_masks.append(torch.ones(out.shape[0], dtype=torch.bool))
+        # Optional L2 normalization
+        if self.l2_norm:
+            out = torch.nn.functional.normalize(out, dim=-1)
 
-                start += self.stride  # move window
+        # Split outputs back into original audios (A)
+        embeddings = []
+        masks = []
+        idx = 0
+        for n_chunks in lengths: #n_chunks is the number of chunks on each audio file
+            emb_audio = out[idx: idx + n_chunks]  # [nC, E, D]
+            #nC ~ number of chunks in this audio file
+            idx += n_chunks
 
-            # concatenate all windows for this audio
-            audio_emb = torch.cat(frames, dim=0)  # [T_total, D]
-            audio_mask = torch.cat(frame_masks, dim=0)  # [T_total]
-            all_embeddings.append(audio_emb)
-            all_masks.append(audio_mask)
+            # Flatten chunks along time dimension
+            emb_audio = emb_audio.reshape(-1, self.D)  # [nC*E, D]
+            #nC*E is the number of embeddings in current audio file
+            embeddings.append(emb_audio)
 
-        # batch pad to max length
-        max_len = max(e.shape[0] for e in all_embeddings)
-        batch_emb = torch.stack([torch.nn.functional.pad(e, (0, 0, 0, max_len - e.shape[0])) for e in all_embeddings])
-        batch_mask = torch.stack([torch.nn.functional.pad(m, (0, max_len - m.shape[0])) for m in all_masks])
-
-        return batch_emb, batch_mask
+            mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC*E]
+            masks.append(mask) 
+        #embeddings ~ [A, nC*E, D] (nC*E is different on each list element)
+        #masks = [A, nC*E]
 
 
+        # Pad all sequences to the max length
+        max_len = max(e.shape[0] for e in embeddings)
+        padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings])
+        #[A, T_max, D] # total number of frames/embeddings for this audio
+        padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks])
+        #[A, T_max]
 
-        # # -----------------------------
-        # # Preprocess audio
-        # # -----------------------------
-        # waves = [preprocess_audio(f, sample_rate=self.sample_rate) for f in audio_inputs]
-        # lengths = [len(w) for w in waves]
-        # max_len = max(lengths)
-
-        # # Pad sequences to the same length
-        # padded = [np.pad(w, (0, max_len - len(w))) for w in waves]
-        # batch = np.stack(padded)  # [B, max_len]
-        # mask = torch.zeros(len(waves), max_len, dtype=torch.bool, device=self.device)
-        # for i, l in enumerate(lengths):
-        #     mask[i, :l] = 1
-
-        # # -----------------------------
-        # # Feature extraction
-        # # -----------------------------
-        # input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
-        # inputs = input_dict.input_values if "whisper" not in self.model.lower() else input_dict.input_features
-        # inputs = inputs.pin_memory().to(self.device, non_blocking=True)
-
-        # # Optionally cast to half precision for faster GPU inference
-        # if self.half_precision:
-        #     inputs = inputs.half()
-
-        # # -----------------------------
-        # # Forward pass
-        # # -----------------------------
-        # with torch.inference_mode():
-        #     out = self.embedder(inputs).last_hidden_state  # [B, T, D]
-
-        # # -----------------------------
-        # # Optional L2 normalization
-        # # -----------------------------
-        # if self.l2_norm:
-        #     out = torch.nn.functional.normalize(out, dim=-1)
-
-        # # Optionally cast back to float32 if needed
-        # if self.half_precision:
-        #     out = out.float()
-
-        # return out, mask
+        return padded_embeddings, padded_masks
 
 
 
