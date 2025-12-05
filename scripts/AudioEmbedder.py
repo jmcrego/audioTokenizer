@@ -15,8 +15,8 @@ from scripts.Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
-def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
-    """Load WAV from file or consider audio_input a nparray, convert to mono, resample, remove silence, ..."""
+def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
+    """Load WAV from file or an float32 numpy array, convert to mono (channel), resample (sample_rate), remove silence (top_db), ..."""
 
     if isinstance(audio_input, str):
         wav, sr = sf.read(audio_input)
@@ -27,7 +27,7 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
 
-    #  CHANNEL handling (mono)
+    # --- mono CHANNEL ---
     if len(wav.shape) > 1: 
         if wav.shape[1] > 1:
             if channel == 0: #first channel
@@ -40,12 +40,12 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
                 raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
-    # RESAMPLE
+    # --- RESAMPLE ---
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
-    # Ensure float32 dtype
+    # --- ENSURE float32 dtype ---
     wav = wav.astype(np.float32)
 
     # --- REMOVE SILENCE ---
@@ -104,10 +104,9 @@ class AudioEmbedder:
         Returns:
             embeddings: torch.Tensor [T, emb_dim]
         """
-        #wav = self.audio_processor(audio_input)
 
         # read/preprocess input
-        audio_input = process_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
+        audio_input = preprocess_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
 
         # extract features
         if "mhubert" in self.model.lower():
@@ -155,6 +154,6 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
+    audio_embedder = AudioEmbedder(model=args.model, top_db=0, device=args.device)
     embeddings = audio_embedder(args.wav)
     print(f"embeddings {descr(embeddings)}")

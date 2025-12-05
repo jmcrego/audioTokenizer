@@ -93,12 +93,12 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
     parser.add_argument("--centroids", type=str, default="centroids/centroids.mhubert-147.100.npy")
     parser.add_argument("--wav", type=str, required=True)
+    parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=30, stride=320, receptive_field=400)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
+    audio_embedder = AudioEmbedder(model=args.model, top_db=0, device=args.device)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
 
     tokens = audio_tokenizer(args.wav)
