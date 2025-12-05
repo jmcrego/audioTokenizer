@@ -16,7 +16,6 @@ except (ImportError, OSError) as e:
     print(f"Warning: sounddevice not available ({e}). Microphone streaming disabled.")
 
 from scripts.AudioEmbedder import AudioEmbedder
-from scripts.AudioProcessor import AudioProcessor
 from scripts.AudioTokenizer import AudioTokenizer
 from scripts.Utils import secs2human
 
@@ -72,22 +71,13 @@ if __name__ == "__main__":
     parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
     parser.add_argument("--wavs", type=str, default=None, help="File with audio files to tokenize (otherwise mic streaming)")
     parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
-    parser.add_argument("--top_db", type=int, default=10, help="Remove silence when under this threshold")
-    parser.add_argument("--stride", type=int, default=320, help="Stride to apply (with hubert/wav2vec models)")
-    parser.add_argument("--rf", type=int, default=400, help="Receptive_field to apply (with hubert/wav2vec models)")
-    parser.add_argument("--channel", type=int, default=0, help="Use this channel if multiple exist in audio")
     parser.add_argument("--device", type=str, default='cuda', help="Device to use ('cpu' or 'cuda')")
     args = parser.parse_args()
     args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
 
-    if 'whisper' in args.model.lower():
-        args.stride = 0
-        args.rreceptive_field = 0
-
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf, channel=args.channel)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
+    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids, device=args.device)
 
     if args.wav is None and args.wavs is None:

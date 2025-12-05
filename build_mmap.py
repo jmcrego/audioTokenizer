@@ -17,7 +17,6 @@ from tqdm import tqdm
 import tempfile
 
 from scripts.AudioEmbedder import AudioEmbedder
-from scripts.AudioProcessor import AudioProcessor
 from scripts.Utils import list_audio_files, arguments
 
 def build_mmap_from_audio(
@@ -93,7 +92,6 @@ def build_mmap_from_audio(
         json.dump(meta, f, indent=4)
 
     logging.info(f"Finished writing memmap: {memmap_path}.memmap")
-    logging.info(f"Processor stats: {audio_embedder.audio_processor.stats()}")
 
 
 if __name__ == "__main__":
@@ -101,9 +99,6 @@ if __name__ == "__main__":
     parser.add_argument("model", type=str, help="Path or HuggingFace model name.")
     parser.add_argument("data", type=str, help="File containing audio files to consider.")
     parser.add_argument("memmap", type=str, help="Output memmap prefix (MEMMAP.\{memmap,json,log\} will be written).")
-    parser.add_argument("--top_db", type=int, default=10, help="Threshold (db) to remove silence (0 for no filtering).")
-    parser.add_argument("--stride", type=int, default=320, help="Processor CNN stride (0 for no padding added OR whisper).")
-    parser.add_argument("--rf", type=int, default=400, help="Processor CNN receptive field.")
     parser.add_argument("--max-f", type=int, default=None, help="Max total number of audio files.")
     parser.add_argument("--max-e", type=int, default=None, help="Max total number of embeddings.")
     parser.add_argument("--max-epf", type=int, default=None, help="Max number of embeddings-per-file (all files in DATA if not set).")
@@ -117,9 +112,8 @@ if __name__ == "__main__":
         args.memmap = args.memmap[:-7] #remove extension
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(),logging.FileHandler(f"{args.memmap}.log")])
-
-    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model, device=args.device)
+ 
+    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
 
     if not os.path.exists(args.memmap):
         build_mmap_from_audio(

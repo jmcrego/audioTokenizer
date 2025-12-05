@@ -8,7 +8,8 @@ import torch
 import logging
 import numpy as np
 
-from scripts.Utils import arguments, descr
+# from scripts.Utils import arguments, descr
+from Utils import arguments, descr
 
 logger = logging.getLogger("audio_embedder")
 
@@ -18,13 +19,10 @@ class AudioEmbedder:
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, audio_processor, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
+    def __init__(self, model: str = "utter-project/mhubert-147", l2_norm: bool=True, device: str = "cpu"):
         self.meta = arguments(locals())
-        # self.meta['audio_processor'] = audio_processor.meta
         logger.info(f"Initializing {self.meta}")
 
-        # logger.info(f"Initializing {arguments(locals())}")
-        self.audio_processor = audio_processor
         self.device = torch.device(device)
         self.l2_norm = l2_norm
         self.model = model.lower()
@@ -53,10 +51,6 @@ class AudioEmbedder:
         self.embedder.to(self.device)
         self.embedder.eval()
 
-    # def meta(self) -> dict:
-    #     meta = {'model': self.model, 'D': self.D, 'l2_norm': self.l2_norm, 'device': self.device, 'processor': self.processor.meta()}
-    #     return meta
-
     def __call__(self, audio_input) -> torch.Tensor:
         """
         Extract embeddings from a WAV numpy array.
@@ -65,17 +59,17 @@ class AudioEmbedder:
         Returns:
             embeddings: torch.Tensor [T, emb_dim]
         """
-        wav = self.audio_processor(audio_input)
+        #wav = self.audio_processor(audio_input)
 
         # extract features
         if "mhubert" in self.model.lower():
-            input_features = self.feature_extractor(wav, sampling_rate=16000, return_tensors="pt").input_values
+            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_values
 
         elif "wav2vec2" in self.model.lower():
-            input_features = self.feature_extractor(wav, sampling_rate=16000, return_tensors="pt").input_values
+            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_values
 
         elif "whisper" in self.model.lower():
-            input_features = self.feature_extractor(wav, sampling_rate=16000, return_tensors="pt").input_features
+            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_features
 
         else:
             raise ValueError("Unsupported model")
@@ -104,20 +98,13 @@ class AudioEmbedder:
 # -----------------------------
 if __name__ == "__main__":
     import argparse
-    from scripts.AudioProcessor import AudioProcessor
 
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
-    parser.add_argument("--top_db", type=int, default=30, help="Threshold (db) to remove silence (set 0 to avoid removing silence OR when whisper)")
-    parser.add_argument("--stride", type=int, default=320, help="CNN stride used, necessary to pad audio (set 0 to avoid padding OR when whisper)")
-    parser.add_argument("--rf", type=int, default=400, help="CNN receptive field used, necessary to pad audio")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_processor = AudioProcessor(top_db=args.top_db, stride=args.stride, receptive_field=args.rf)
-    audio_embedder = AudioEmbedder(audio_processor, model=args.model)
-
-    #wav = audio_processor(args.wav)
+    audio_embedder = AudioEmbedder(model=args.model)
     embeddings = audio_embedder(args.wav)
