@@ -7,8 +7,9 @@ Supports WAV/MP3 files or raw numpy audio arrays.
 import torch
 import logging
 import numpy as np
-import soxr
+import soundfile as sf
 import librosa
+import soxr
 
 # from scripts.Utils import arguments, descr
 from Utils import arguments, descr
