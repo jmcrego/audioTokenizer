@@ -158,4 +158,4 @@ if __name__ == "__main__":
 
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     embeddings = audio_embedder(args.wav)
-    logging.debug(f"embeddings {descr(embeddings)}")
+    print(f"embeddings {descr(embeddings)}")
