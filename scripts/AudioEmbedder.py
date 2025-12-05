@@ -14,7 +14,7 @@ import soxr
 # from scripts.Utils import arguments, descr
 from Utils import arguments, descr
 
-#logger = logging.getLogger("audio_embedder")
+logger = logging.getLogger("audio_embedder")
 
 def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     """Load WAV from file or consider audio_input a nparray, convert to mono, resample, remove silence, ..."""
@@ -107,12 +107,8 @@ class AudioEmbedder:
         """
         #wav = self.audio_processor(audio_input)
 
-        print('a')
-
         # read/preprocess input
         audio_input = process_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
-
-        print('b')
 
         # extract features
         if "mhubert" in self.model.lower():
@@ -129,14 +125,10 @@ class AudioEmbedder:
 
         logger.debug(f"input_features size={input_features.shape}")
 
-        print('c')
-
         # compute embeddings
         input_features = input_features.to(self.device)
         with torch.no_grad():
             embeddings = self.embedder(input_features).last_hidden_state.squeeze(0)  # [T, emb_dim]
-
-        print('d')
 
         #L2-normalize embeddings for better clustering
         if self.l2_norm:
@@ -146,8 +138,6 @@ class AudioEmbedder:
             norm = torch.clamp(norm, min=1e-8)
             # Normalize the embeddings
             embeddings = embeddings / norm
-
-        print('e')
 
         logger.debug(f"embeddings {descr(embeddings)}")
         return embeddings
@@ -165,7 +155,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
-    logger = logging.getLogger("audio_embedder")
-    
+
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     embeddings = audio_embedder(args.wav)
+    logging.debug(f"embeddings {descr(embeddings)}")
