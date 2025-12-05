@@ -17,7 +17,14 @@ from tqdm import tqdm
 import tempfile
 
 from scripts.AudioEmbedder import AudioEmbedder
-from scripts.Utils import list_audio_files, arguments
+from scripts.Utils import list_audio_files
+
+def arguments(args):
+    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+    if 'audio_embedder' in args:
+        args['audio_embedder'] = args['audio_embedder'].meta
+    return args
+
 
 def build_mmap_from_audio(
         audio_embedder,

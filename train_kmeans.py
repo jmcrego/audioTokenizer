@@ -20,7 +20,10 @@ from tqdm import tqdm
 import tempfile
 
 from scripts.AudioEmbedder import AudioEmbedder
-from scripts.Utils import list_audio_files, secs2human, descr, arguments
+
+def arguments(args):
+    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+
 
 def estimate_niter(N, D, K):
     """

@@ -17,7 +17,12 @@ except (ImportError, OSError) as e:
 
 from scripts.AudioEmbedder import AudioEmbedder
 from scripts.AudioTokenizer import AudioTokenizer
-from scripts.Utils import secs2human
+
+def secs2human(t):
+    sec = int(t)
+    ms = int((t - sec) * 1000)
+    return f"{sec // 3600:02d}:{(sec % 3600) // 60:02d}:{sec % 60:02d}.{ms:03d}"
+
 
 def mic_stream(chunk_duration=5., sample_rate=16000):
     """
