@@ -65,6 +65,20 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"removed silence, wav size={wav_trimmed.shape} time={wav_trimmed.shape[0]/sample_rate:.2f} sec")
         wav = wav_trimmed
 
+    # -----------------------------
+    # --- PAD TO MATCH STRIDE -----
+    # -----------------------------
+    if False:
+        stride = 320
+        receptive_field = 400
+        if stride: #mHuBERT / wav2vec2
+            remainder = (len(wav) - receptive_field) % stride
+            if remainder != 0:
+                pad_len = stride - remainder
+                wav = np.pad(wav, (0, pad_len), mode='constant') 
+                logger.debug(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/sample_rate:.2f} sec")
+
+
     return wav
 
 class AudioEmbedder:
