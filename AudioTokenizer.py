@@ -91,8 +91,8 @@ class AudioTokenizer:
 
 if __name__ == "__main__":
     import argparse
-    from scripts.AudioEmbedder import AudioEmbedder
-    from scripts.AudioProcessor import AudioProcessor
+    from AudioEmbedder import AudioEmbedder
+    from AudioProcessor import AudioProcessor
 
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")

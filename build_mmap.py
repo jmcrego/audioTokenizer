@@ -16,8 +16,7 @@ import numpy as np
 from tqdm import tqdm
 import tempfile
 
-from scripts.AudioEmbedder import AudioEmbedder
-from scripts.Utils import list_audio_files
+from AudioEmbedder import AudioEmbedder
 
 def arguments(args):
     args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
