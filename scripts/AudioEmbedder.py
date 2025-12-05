@@ -11,19 +11,10 @@ import soundfile as sf
 import librosa
 import soxr
 
-from scripts.Utils import arguments, descr
-
 logger = logging.getLogger("audio_embedder")
 
 def arguments(args):
     args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
-
-    if 'audio_embedder' in args:
-        args['audio_embedder'] = args['audio_embedder'].meta
-
-    if 'audio_tokenizer' in args:
-        args['audio_tokenizer'] = args['audio_tokenizer'].meta
-
     return args
 
 

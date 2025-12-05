@@ -18,9 +18,14 @@ import logging
 import numpy as np
 from typing import Union
 
-from scripts.Utils import arguments, descr
-
 logger = logging.getLogger("audio_tokenizer")
+
+def arguments(args):
+    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
+    if 'audio_embedder' in args:
+        args['audio_embedder'] = args['audio_embedder'].meta
+    return args
+
 
 class AudioTokenizer:
     """
@@ -65,7 +70,7 @@ class AudioTokenizer:
             token_ids: numpy array [T]
         """
         embeddings = self.audio_embedder(audio_input)  # [T, D]
-        logger.debug(f"embeddings {descr(embeddings)}")
+        logger.debug(f"embeddings {embeddings.shape} type={embeddings.__class__.__name__} dtype={embeddings.dtype}")
 
         # nearest centroid → token IDs
         if self.use_faiss:
@@ -80,7 +85,7 @@ class AudioTokenizer:
             tokens = torch.argmin(torch.cdist(embeddings, self.centroids), dim=1)
             tokens = tokens.cpu().numpy() # numpy array [T]
 
-        logger.debug(f"tokens {descr(tokens)}")
+        logger.debug(f"tokens {tokens.shape} type={tokens.__class__.__name__} dtype={tokens.dtype}")
         return tokens
 
 
