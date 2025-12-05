@@ -17,7 +17,7 @@ from Utils import arguments, descr
 logger = logging.getLogger("audio_embedder")
 
 def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
-    """Load WAV, convert to mono, resample, remove silence, ..."""
+    """Load WAV from file or consider audio_input a nparray, convert to mono, resample, remove silence, ..."""
 
     if isinstance(audio_input, str):
         wav, sr = sf.read(audio_input)
@@ -41,7 +41,7 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
     # RESAMPLE
-    if sr != sample_rate:
+    if sr is not None and sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
@@ -106,8 +106,12 @@ class AudioEmbedder:
         """
         #wav = self.audio_processor(audio_input)
 
-        # read input if necessary
+        print('a')
+
+        # read/preprocess input
         audio_input = process_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
+
+        print('b')
 
         # extract features
         if "mhubert" in self.model.lower():
@@ -124,10 +128,14 @@ class AudioEmbedder:
 
         logger.debug(f"input_features size={input_features.shape}")
 
+        print('c')
+
         # compute embeddings
         input_features = input_features.to(self.device)
         with torch.no_grad():
             embeddings = self.embedder(input_features).last_hidden_state.squeeze(0)  # [T, emb_dim]
+
+        print('d')
 
         #L2-normalize embeddings for better clustering
         if self.l2_norm:
@@ -137,6 +145,8 @@ class AudioEmbedder:
             norm = torch.clamp(norm, min=1e-8)
             # Normalize the embeddings
             embeddings = embeddings / norm
+
+        print('e')
 
         logger.debug(f"embeddings {descr(embeddings)}")
         return embeddings
@@ -151,7 +161,6 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Path to WAV/MP3 file")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
-
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
