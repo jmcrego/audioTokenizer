@@ -19,7 +19,7 @@ def arguments(args):
 
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
-    """Load WAV from file or an float32 numpy array, convert to mono (channel), resample (sample_rate), remove silence (top_db), ..."""
+    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), remove silence (top_db), ..."""
 
     if isinstance(audio_input, str):
         wav, sr = sf.read(audio_input)
@@ -78,8 +78,8 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
                 wav = np.pad(wav, (0, pad_len), mode='constant') 
                 logger.debug(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/sample_rate:.2f} sec")
 
-
     return wav
+
 
 class AudioEmbedder:
     """
