@@ -21,9 +21,6 @@ import tempfile
 
 from AudioEmbedder import AudioEmbedder
 
-def arguments(args):
-    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
-
 
 def estimate_niter(N, D, K):
     """
@@ -65,7 +62,8 @@ def train_kmeans_memmap(memmap_path: str,
         device: 'cpu' or 'cuda'
         sample_size: how many vectors to sample for training (if None use n_vectors)
     """
-    meta = arguments(locals())
+    meta = locals()
+    meta.pop('self', None)
     logging.info(f"Training FAISS KMeans from memmap, meta{meta}")
 
     if n_vectors == 0:

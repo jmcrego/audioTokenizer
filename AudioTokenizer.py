@@ -39,8 +39,9 @@ class AudioTokenizer:
             - path to centroids file (.npy or .index)
             - computation device ("cpu" or "cuda")
         """
-        self.meta = arguments(locals())
-        # self.meta['audio_embedder'] = audio_embedder.meta
+        self.meta = locals()
+        self.meta.pop('self', None)
+        self.meta['audio_embedder'] = audio_embedder.meta
         logger.info(f"Initializing {self.meta}")
 
         # logger.info(f"Initializing {arguments(locals())}")

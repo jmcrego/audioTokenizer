@@ -18,12 +18,6 @@ import tempfile
 
 from AudioEmbedder import AudioEmbedder
 
-def arguments(args):
-    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
-    if 'audio_embedder' in args:
-        args['audio_embedder'] = args['audio_embedder'].meta
-    return args
-
 SUPPORTED_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
 
 def list_audio_files(path: str, field=0):
@@ -53,7 +47,10 @@ def build_mmap_from_audio(
     Convert audio files to embeddings and store them in a numpy memmap on disk.
     NOTE: max_e must be provided (memmap needs a fixed shape).
     """
-    meta = arguments(locals())
+    meta = locals()
+    meta.pop('self', None)
+    meta['audio_embedder'] = audio_embedder.meta
+
     if max_e is None:
         raise ValueError("max_e must be set when using memmap.")
 

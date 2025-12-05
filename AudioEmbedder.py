@@ -12,10 +12,6 @@ import soxr
 
 logger = logging.getLogger("audio_embedder")
 
-def arguments(args):
-    args.pop('self', None)  # None prevents KeyError if 'self' doesn't exist
-    return args
-
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), ..."""
@@ -69,11 +65,13 @@ class AudioEmbedder:
                  model: str = "utter-project/mhubert-147",
                  l2_norm: bool=False, 
                  half_precision: bool=False,
-                 device: str = "cpu",
-                 chunk_size: int = 3200, #number of samples of each chunk passed to the model (it contains N/320 embeddings)
-                 stride: int = 1600): #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
-        self.meta = arguments(locals())
+                 chunk_size: int = 3200, #number of samples of each chunk passed to the model (the chunk will contain N/320 embeddings)
+                 stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
+                 device: str = "cpu",):
+        self.meta = locals()
+        self.meta.pop('self', None)
         logger.info(f"Initializing {self.meta}")
+        
         assert chunk_size % 320 == 0, f"chunk_size ({chunk_size}) 
         #chunk_size must be a multiple of 320 (model stride)" #For mHuBERT/wav2vec2 model stride is 320 (number of samples for an embedding)
         #larger chunks allow for larger context when computing its internal embeddings, as the model sees all the chunk when computing embeddings
