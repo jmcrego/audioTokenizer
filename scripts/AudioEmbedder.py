@@ -28,7 +28,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
 
     # -----------------------------
-    # --- mono CHANNEL ---
+    # --- mono CHANNEL ------------
     # -----------------------------
     if len(wav.shape) > 1: 
         if wav.shape[1] > 1:
@@ -43,7 +43,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
     # -----------------------------
-    # --- RESAMPLE ---
+    # --- RESAMPLE ----------------
     # -----------------------------
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
@@ -55,7 +55,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     wav = wav.astype(np.float32)
 
     # -----------------------------
-    # --- REMOVE SILENCE ---
+    # --- REMOVE SILENCE ----------
     # -----------------------------
     if top_db:
         wav_trimmed, _ = librosa.effects.trim(wav, top_db=top_db)
@@ -148,9 +148,8 @@ class AudioEmbedder:
         logger.debug(f"embeddings {descr(embeddings)}")
         return embeddings
 
-# -----------------------------
-# Example usage
-# -----------------------------
+
+
 if __name__ == "__main__":
     import argparse
 
