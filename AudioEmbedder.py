@@ -8,7 +8,6 @@ import torch
 import logging
 import numpy as np
 import soundfile as sf
-import librosa
 import soxr
 
 logger = logging.getLogger("audio_embedder")
@@ -18,8 +17,8 @@ def arguments(args):
     return args
 
 
-def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
-    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), remove silence (top_db), ..."""
+def preprocess_audio(audio_input, sample_rate=16000, channel=0):
+    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), ..."""
 
     if isinstance(audio_input, str):
         wav, sr = sf.read(audio_input)
@@ -34,15 +33,10 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     # --- mono CHANNEL ------------
     # -----------------------------
     if len(wav.shape) > 1: 
-        if wav.shape[1] > 1:
-            if channel == 0: #first channel
-                wav = wav[:, 0]
-            elif channel == 1: #second channel
-                wav = wav[:, 1]
-            elif channel == -1: #average channels
-                wav = np.mean(wav, axis=1)       
-            else:         
-                raise ValueError(f"Invalid channel {channel} for audio with {wav.shape[1]} channels")
+        if channel == -1:
+            wav = np.mean(wav, axis=1)
+        else:
+            wav = wav[:, channel]
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
     # -----------------------------
@@ -53,30 +47,14 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
     # -----------------------------
+    # --- Normalize audio amplitude
+    # -----------------------------
+    wav = wav / max(1e-8, np.abs(wav).max())
+
+    # -----------------------------
     # --- ENSURE float32 dtype ----
     # -----------------------------
     wav = wav.astype(np.float32)
-
-    # -----------------------------
-    # --- REMOVE SILENCE ----------
-    # -----------------------------
-    if top_db:
-        wav_trimmed, _ = librosa.effects.trim(wav, top_db=top_db)
-        logger.debug(f"removed silence, wav size={wav_trimmed.shape} time={wav_trimmed.shape[0]/sample_rate:.2f} sec")
-        wav = wav_trimmed
-
-    # -----------------------------
-    # --- PAD TO MATCH STRIDE -----
-    # -----------------------------
-    if False:
-        stride = 320
-        receptive_field = 400
-        if stride: #mHuBERT / wav2vec2
-            remainder = (len(wav) - receptive_field) % stride
-            if remainder != 0:
-                pad_len = stride - remainder
-                wav = np.pad(wav, (0, pad_len), mode='constant') 
-                logger.debug(f"padded wav by {pad_len} samples, wav size={wav.shape} time={wav.shape[0]/sample_rate:.2f} sec")
 
     return wav
 
@@ -87,14 +65,17 @@ class AudioEmbedder:
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
     """
 
-    def __init__(self, model: str = "utter-project/mhubert-147", top_db=0, l2_norm: bool=True, device: str = "cpu"):
+    def __init__(self, model: str = "utter-project/mhubert-147", l2_norm: bool=False, half_precision: bool=False, device: str = "cpu"):
         self.meta = arguments(locals())
         logger.info(f"Initializing {self.meta}")
 
         self.device = torch.device(device)
-        self.top_db = top_db
         self.l2_norm = l2_norm
         self.model = model.lower()
+        self.half_precision = half_precision
+        self.window_size = 16000  # e.g., 1 second windows at 16 kHz
+        self.stride = 320          # e.g., 20ms stride = 320 samples at 16 kHz
+
 
         if "mhubert" in model.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -119,51 +100,118 @@ class AudioEmbedder:
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.embedder.to(self.device)
+        if self.half_precision:
+            self.embedder = self.embedder.half() #when using A100/H100
+        self.embedder = torch.compile(self.embedder)
         self.embedder.eval()
 
-    def __call__(self, audio_input) -> torch.Tensor:
+
+    def __call__(self, audio_inputs) -> tuple[torch.Tensor, list[int]]:
         """
-        Extract embeddings from a WAV numpy array.
+        Extract embeddings from a batch of audio files or numpy arrays.
+        
         Args:
-            audio_input: str path to WAV file or np.ndarray (float32)
+            audio_inputs: List of str paths or np.ndarray audio chunks.
+            
         Returns:
-            embeddings: torch.Tensor [T, emb_dim]
+            embeddings: torch.Tensor [B, T, D] padded to the longest sequence
+            lengths: List[int] original lengths of each audio input (in frames)
         """
 
-        # read/preprocess input
-        audio_input = preprocess_audio(audio_input, sample_rate=self.sample_rate, channel=0, top_db=self.top_db)
+        all_embeddings = []
+        all_masks = []
 
-        # extract features
-        if "mhubert" in self.model.lower():
-            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_values
+        # Preprocess audio
+        waves = [preprocess_audio(f, sample_rate=self.sample_rate) for f in audio_inputs]
+        for w in waves:
+            frames = []
+            frame_masks = []
+            start = 0
+            while start < len(w):
+                end = min(start + self.window_size, len(w))
+                chunk = w[start:end]
 
-        elif "wav2vec2" in self.model.lower():
-            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_values
+                # pad to window_size
+                pad_len = self.window_size - len(chunk)
+                if pad_len > 0:
+                    chunk = np.pad(chunk, (0, pad_len))
 
-        elif "whisper" in self.model.lower():
-            input_features = self.feature_extractor(audio_input, sampling_rate=16000, return_tensors="pt").input_features
+                # feature extraction
+                input_dict = self.feature_extractor(chunk, sampling_rate=self.sample_rate, return_tensors="pt")
+                inputs = input_dict.input_values if "whisper" not in self.model.lower() else input_dict.input_features
+                inputs = inputs.to(self.device)
+                if self.half_precision:
+                    inputs = inputs.half()
 
-        else:
-            raise ValueError("Unsupported model")
+                with torch.inference_mode():
+                    out = self.embedder(inputs).last_hidden_state.squeeze(0)  # [T, D]
 
-        logger.debug(f"input_features size={input_features.shape}")
+                if self.l2_norm:
+                    out = torch.nn.functional.normalize(out, dim=-1)
 
-        # compute embeddings
-        input_features = input_features.to(self.device)
-        with torch.no_grad():
-            embeddings = self.embedder(input_features).last_hidden_state.squeeze(0)  # [T, emb_dim]
+                frames.append(out)
+                frame_masks.append(torch.ones(out.shape[0], dtype=torch.bool))
 
-        #L2-normalize embeddings for better clustering
-        if self.l2_norm:
-            # Compute the L2 norm along the last dimension
-            norm = torch.norm(embeddings, dim=-1, keepdim=True)
-            # Avoid division by zero
-            norm = torch.clamp(norm, min=1e-8)
-            # Normalize the embeddings
-            embeddings = embeddings / norm
+                start += self.stride  # move window
 
-        logger.debug(f"embeddings {embeddings.shape} type={embeddings.__class__.__name__} dtype={embeddings.dtype}")
-        return embeddings
+            # concatenate all windows for this audio
+            audio_emb = torch.cat(frames, dim=0)  # [T_total, D]
+            audio_mask = torch.cat(frame_masks, dim=0)  # [T_total]
+            all_embeddings.append(audio_emb)
+            all_masks.append(audio_mask)
+
+        # batch pad to max length
+        max_len = max(e.shape[0] for e in all_embeddings)
+        batch_emb = torch.stack([torch.nn.functional.pad(e, (0, 0, 0, max_len - e.shape[0])) for e in all_embeddings])
+        batch_mask = torch.stack([torch.nn.functional.pad(m, (0, max_len - m.shape[0])) for m in all_masks])
+
+        return batch_emb, batch_mask
+
+
+
+        # # -----------------------------
+        # # Preprocess audio
+        # # -----------------------------
+        # waves = [preprocess_audio(f, sample_rate=self.sample_rate) for f in audio_inputs]
+        # lengths = [len(w) for w in waves]
+        # max_len = max(lengths)
+
+        # # Pad sequences to the same length
+        # padded = [np.pad(w, (0, max_len - len(w))) for w in waves]
+        # batch = np.stack(padded)  # [B, max_len]
+        # mask = torch.zeros(len(waves), max_len, dtype=torch.bool, device=self.device)
+        # for i, l in enumerate(lengths):
+        #     mask[i, :l] = 1
+
+        # # -----------------------------
+        # # Feature extraction
+        # # -----------------------------
+        # input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
+        # inputs = input_dict.input_values if "whisper" not in self.model.lower() else input_dict.input_features
+        # inputs = inputs.pin_memory().to(self.device, non_blocking=True)
+
+        # # Optionally cast to half precision for faster GPU inference
+        # if self.half_precision:
+        #     inputs = inputs.half()
+
+        # # -----------------------------
+        # # Forward pass
+        # # -----------------------------
+        # with torch.inference_mode():
+        #     out = self.embedder(inputs).last_hidden_state  # [B, T, D]
+
+        # # -----------------------------
+        # # Optional L2 normalization
+        # # -----------------------------
+        # if self.l2_norm:
+        #     out = torch.nn.functional.normalize(out, dim=-1)
+
+        # # Optionally cast back to float32 if needed
+        # if self.half_precision:
+        #     out = out.float()
+
+        # return out, mask
+
 
 
 
@@ -178,6 +226,6 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_embedder = AudioEmbedder(model=args.model, top_db=0, device=args.device)
-    embeddings = audio_embedder(args.wav)
+    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
+    embeddings, masks = audio_embedder([args.wav])
     print(f"embeddings {embeddings.shape}")
