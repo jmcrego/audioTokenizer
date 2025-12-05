@@ -25,6 +25,23 @@ def arguments(args):
         args['audio_embedder'] = args['audio_embedder'].meta
     return args
 
+SUPPORTED_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
+
+def list_audio_files(path: str, field=0):
+    """Return list of audio files from a file or directory."""
+    files = []
+    if os.path.isfile(path):
+        with open(path, 'r') as fd:
+            for l in fd:
+                parts = l.strip().split('\t')
+                if len(parts) > field:
+                    files.append(parts[field])
+    else:
+        for root, _, fs in os.walk(path):
+            for f in fs:
+                if f.lower().endswith(SUPPORTED_EXT):
+                    files.append(os.path.join(root, f))
+    return sorted(files)
 
 def build_mmap_from_audio(
         audio_embedder,
