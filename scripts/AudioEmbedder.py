@@ -14,7 +14,7 @@ import soxr
 # from scripts.Utils import arguments, descr
 from Utils import arguments, descr
 
-logger = logging.getLogger("audio_embedder")
+#logger = logging.getLogger("audio_embedder")
 
 def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
     """Load WAV from file or consider audio_input a nparray, convert to mono, resample, remove silence, ..."""
@@ -23,6 +23,7 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         wav, sr = sf.read(audio_input)
     elif isinstance(audio_input, np.ndarray):
         wav = audio_input
+        sr = sample_rate #may be wrong
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
@@ -41,7 +42,7 @@ def process_audio(audio_input, sample_rate=16000, channel=0, top_db=0):
         logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
     # RESAMPLE
-    if sr is not None and sr != sample_rate:
+    if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
         logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
@@ -164,6 +165,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
-
+    logger = logging.getLogger("audio_embedder")
+    
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     embeddings = audio_embedder(args.wav)
