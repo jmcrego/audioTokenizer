@@ -46,6 +46,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     # --- ENSURE float32 dtype ----
     # -----------------------------
     wav = wav.astype(np.float32)
+    logger.debug(f"preprocess returns wav {wav.shape} type={wav.__class__.__name__} dtype={wav.dtype}")
 
     return wav
 
@@ -76,8 +77,6 @@ class AudioEmbedder:
         logger.info(f"Initializing {meta}")
 
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
-        #stride allows to overlap chunks, thus reducing the problem of truncating the sound of a word
-
         self.device = torch.device(device)
         self.l2_norm = l2_norm
         self.half_precision = half_precision
@@ -132,7 +131,7 @@ class AudioEmbedder:
         lengths = []
 
         # ----------------------------------------------
-        # --- preprocess audios and build chunks
+        # --- preprocess audios and build chunks -------
         # ----------------------------------------------
         for audio in audio_inputs:
             wav = preprocess_audio(audio, sample_rate=self.sample_rate)
@@ -150,7 +149,7 @@ class AudioEmbedder:
             lengths.append(len(chunks)) # number of chunks per audio input
 
         # ----------------------------------------------
-        # --- concat all chunks and extract features
+        # --- concat all chunks and extract features ---
         # ----------------------------------------------
         # Concatenate all chunks for batch processing
         batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
@@ -166,7 +165,7 @@ class AudioEmbedder:
             inputs = inputs.half()
 
         # ----------------------------------------------
-        # --- extract embeddings from all features
+        # --- extract embeddings from all features -----
         # ----------------------------------------------
         # Forward pass
         with torch.inference_mode():
@@ -177,7 +176,7 @@ class AudioEmbedder:
             out = torch.nn.functional.normalize(out, dim=-1)
 
         # ----------------------------------------------
-        # --- back to original format 
+        # --- back to original format ------------------
         # ----------------------------------------------
         # Split outputs back into original audios (B), each audio input is an entry in batch
         embeddings = []
@@ -197,7 +196,7 @@ class AudioEmbedder:
         #masks = [B, nC_i*E]
 
         # ----------------------------------------------
-        # --- Add padding and return tensors
+        # --- add padding and return tensors -----------
         # ----------------------------------------------
         # Pad all sequences to the max length of embeddings (T)
         max_len = max(e.shape[0] for e in embeddings)
