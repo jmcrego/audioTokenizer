@@ -73,7 +73,7 @@ class AudioEmbedder:
                  stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
                  device: str = "cpu",):
         meta = {k: v for k, v in locals().items() if k != "self"}
-        logger.info(f"Initializing {self.meta}")
+        logger.info(f"Initializing {meta}")
 
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         #stride allows to overlap chunks, thus reducing the problem of truncating the sound of a word
