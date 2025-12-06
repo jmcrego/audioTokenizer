@@ -7,6 +7,8 @@ import soundfile as sf
 import soxr
 
 logger = logging.getLogger("audio_embedder")
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.benchmark = True
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), normalize, ..."""
