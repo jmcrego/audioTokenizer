@@ -221,5 +221,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
-    embeddings, masks = audio_embedder(','.split(args.wav))
+    embeddings, masks = audio_embedder(args.wav.split(','))
     print(f"embeddings {embeddings.shape}")
