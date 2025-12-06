@@ -140,7 +140,6 @@ class AudioEmbedder:
         for audio in audio_inputs:
             wav = preprocess_audio(audio, sample_rate=self.sample_rate)
             n_samples = len(wav)
-
             # Split into overlapping chunks
             chunks = []
             for start in range(0, n_samples, self.stride):
