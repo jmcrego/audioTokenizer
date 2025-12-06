@@ -149,7 +149,7 @@ class AudioEmbedder:
             # results
             all_chunks.append(chunks) # [n_chunks, chunk_size]
             lengths.append(len(chunks)) # number of chunks per audio input
-        logger.debug(f"preprocess took {time.time()-t:.2f}} sec")
+        logger.debug(f"preprocess took {time.time()-t:.2f} sec")
 
         # ----------------------------------------------
         # --- concat all chunks and extract features ---
@@ -164,7 +164,7 @@ class AudioEmbedder:
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
-        logger.debug(f"feature extraction took {time.time()-t:.2f}} sec")
+        logger.debug(f"feature extraction took {time.time()-t:.2f} sec")
 
         if self.half_precision:
             inputs = inputs.half()
@@ -180,7 +180,7 @@ class AudioEmbedder:
         # Optional L2 normalization (only for computing clusters)
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)
-        logger.debug(f"embedding took {time.time()-t:.2f}} sec")
+        logger.debug(f"embedding took {time.time()-t:.2f} sec")
 
         # ----------------------------------------------
         # --- back to original format ------------------
@@ -210,7 +210,7 @@ class AudioEmbedder:
         max_len = max(e.shape[0] for e in embeddings)
         padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings]) #[B, T, D] 
         padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks]) #[B, T]
-        logger.debug(f"formatting took {time.time()-t:.2f}} sec")
+        logger.debug(f"formatting took {time.time()-t:.2f} sec")
 
         return padded_embeddings, padded_masks
 
