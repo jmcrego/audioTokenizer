@@ -43,7 +43,6 @@ class AudioTokenizer:
         self.meta['audio_embedder'] = audio_embedder.meta
         logger.info(f"Initializing {self.meta}")
 
-        # logger.info(f"Initializing {arguments(locals())}")
         self.device = torch.device(device)
         self.audio_embedder = audio_embedder
         if not os.path.exists(centroid_file):

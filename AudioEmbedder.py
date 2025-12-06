@@ -54,6 +54,15 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
     return wav
 
+def get_model_stride(embedder, feature_extractor, model_name):
+    model_name = model_name.lower()
+    if "whisper" in model_name:
+        return feature_extractor.hop_length
+    else:    
+        stride = 1
+        for layer in embedder.feature_extractor.conv_layers:
+            stride *= layer.conv.stride[0]
+        return stride
 
 class AudioEmbedder:
     """
@@ -71,12 +80,8 @@ class AudioEmbedder:
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {self.meta}")
 
-        assert chunk_size % 320 == 0, f"chunk_size ({chunk_size}) 
-        #chunk_size must be a multiple of 320 (model stride)" #For mHuBERT/wav2vec2 model stride is 320 (number of samples for an embedding)
-        #larger chunks allow for larger context when computing its internal embeddings, as the model sees all the chunk when computing embeddings
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
-        #stride allows the overlap chunks (its embeddings), thus reducing the problem of truncating the sound of a word
-        #i could add averaging for overlapping frames (embeddings) to make the embeddings smoother and prevent duplicated frame effects
+        #stride allows to overlap chunks, thus reducing the problem of truncating the sound of a word
 
         self.device = torch.device(device)
         self.l2_norm = l2_norm
@@ -106,6 +111,11 @@ class AudioEmbedder:
         else:
             raise ValueError(f"Unknown model: {model}")
 
+        self.model_stride = get_model_stride(self.embedder, self.feature_extractor, self.model)
+        #model_stride is the downsampling factor from audio samples to embeddings (how many audio samples used for one embedding)
+        assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
+        #chunk_size must be a multiple of model stride to avoid padding
+
         self.sample_rate = self.feature_extractor.sampling_rate
         self.embedder.to(self.device)
         if self.half_precision:
@@ -117,10 +127,8 @@ class AudioEmbedder:
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
-        
         Args:
             audio_inputs: List of str paths or np.ndarray audio chunks.
-        
         Returns:
             embeddings: torch.Tensor [B, T, D] padded to the longest sequence
             mask: torch.BoolTensor [B, T] indicating valid frames
@@ -188,7 +196,6 @@ class AudioEmbedder:
             masks.append(mask) 
         #embeddings ~ [A, nC*E, D] (nC*E is different on each list element)
         #masks = [A, nC*E]
-
 
         # Pad all sequences to the max length
         max_len = max(e.shape[0] for e in embeddings)
