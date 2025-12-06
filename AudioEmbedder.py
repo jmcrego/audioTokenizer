@@ -114,7 +114,7 @@ class AudioEmbedder:
         self.embedder.to(self.device)
         if self.half_precision:
             self.embedder = self.embedder.half()  # for A100/H100
-        self.embedder = torch.compile(self.embedder)
+#        self.embedder = torch.compile(self.embedder)
         self.embedder.eval()
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
