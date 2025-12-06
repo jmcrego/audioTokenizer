@@ -211,7 +211,7 @@ class AudioEmbedder:
 
 if __name__ == "__main__":
     import argparse
-
+    import time
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Comma separated list of paths to audio files")
@@ -221,5 +221,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
+    t = time.time()
     embeddings, masks = audio_embedder(args.wav.split(','))
-    print(f"embeddings {embeddings.shape}")
+    print(f"Output embeddings {embeddings.shape}, took {time.time()-t:.2f}sec")
