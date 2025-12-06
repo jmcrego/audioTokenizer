@@ -159,7 +159,6 @@ class AudioEmbedder:
         batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
         # Feature extraction
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
         inputs = inputs.pin_memory().to(self.device, non_blocking=True) #[C, F] (for raw audio) or [C, F, f] (for Whisper)
         #C ~ batch size (total number of chunks)
