@@ -131,6 +131,9 @@ class AudioEmbedder:
         all_chunks = []
         lengths = []
 
+        # ----------------------------------------------
+        # --- preprocess audios and build chunks
+        # ----------------------------------------------
         for audio in audio_inputs:
             wav = preprocess_audio(audio, sample_rate=self.sample_rate)
             n_samples = len(wav)
@@ -146,9 +149,11 @@ class AudioEmbedder:
             all_chunks.append(chunks) # [n_chunks, chunk_size]
             lengths.append(len(chunks)) # number of chunks per audio input
 
+        # ----------------------------------------------
+        # --- concat all chunks and extract features
+        # ----------------------------------------------
         # Concatenate all chunks for batch processing
         batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
-
         # Feature extraction
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
@@ -160,6 +165,9 @@ class AudioEmbedder:
         if self.half_precision:
             inputs = inputs.half()
 
+        # ----------------------------------------------
+        # --- extract embeddings from all features
+        # ----------------------------------------------
         # Forward pass
         with torch.inference_mode():
             out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
@@ -168,6 +176,9 @@ class AudioEmbedder:
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)
 
+        # ----------------------------------------------
+        # --- back to original format 
+        # ----------------------------------------------
         # Split outputs back into original audios (B), each audio input is an entry in batch
         embeddings = []
         masks = []
@@ -185,6 +196,9 @@ class AudioEmbedder:
         #embeddings ~ [B, nC_i*E, D] (nC_i*E is different on each list element)
         #masks = [B, nC_i*E]
 
+        # ----------------------------------------------
+        # --- Add padding and return tensors
+        # ----------------------------------------------
         # Pad all sequences to the max length of embeddings (T)
         max_len = max(e.shape[0] for e in embeddings)
         padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings]) #[B, T, D] 
