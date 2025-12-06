@@ -47,8 +47,7 @@ def build_mmap_from_audio(
     Convert audio files to embeddings and store them in a numpy memmap on disk.
     NOTE: max_e must be provided (memmap needs a fixed shape).
     """
-    meta = locals()
-    meta.pop('self', None)
+    meta = {k: v for k, v in locals().items() if k != "self"}
     meta['audio_embedder'] = audio_embedder.meta
 
     if max_e is None:

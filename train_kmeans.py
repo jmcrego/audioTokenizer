@@ -62,8 +62,7 @@ def train_kmeans_memmap(memmap_path: str,
         device: 'cpu' or 'cuda'
         sample_size: how many vectors to sample for training (if None use n_vectors)
     """
-    meta = locals()
-    meta.pop('self', None)
+    meta = {k: v for k, v in locals().items() if k != "self"}
     logging.info(f"Training FAISS KMeans from memmap, meta{meta}")
 
     if n_vectors == 0:
