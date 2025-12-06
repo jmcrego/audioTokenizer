@@ -14,7 +14,7 @@ logger = logging.getLogger("audio_embedder")
 
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0):
-    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), ..."""
+    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), normalize, ..."""
 
     if isinstance(audio_input, str):
         wav, sr = sf.read(audio_input)
@@ -136,31 +136,29 @@ class AudioEmbedder:
         all_chunks = []
         lengths = []
 
-        # Preprocess and slice each audio into overlapping chunks
         for audio in audio_inputs:
             wav = preprocess_audio(audio, sample_rate=self.sample_rate)
             n_samples = len(wav)
-            # Split into overlapping chunks
-            chunks = []
-            for start in range(0, n_samples, self.stride):
-                end = start + self.chunk_size
-                chunk = wav[start:end]
-                if len(chunk) < self.chunk_size:
-                    chunk = np.pad(chunk, (0, self.chunk_size - len(chunk)))
-                chunks.append(chunk)
-            all_chunks.append(np.stack(chunks))  # [n_chunks, chunk_size]
-            lengths.append(len(chunks))  # number of chunks per audio
+            # 1. Compute chunk start positions
+            starts = np.arange(0, n_samples, self.stride)
+            # 2. Pad wav ONCE so all end slices exist
+            padded_len = starts[-1] + self.chunk_size
+            if padded_len > n_samples:
+                wav = np.pad(wav, (0, padded_len - n_samples))
+            # 3. Extract chunks: fast vectorized slicing
+            chunks = np.stack([wav[s:s + self.chunk_size] for s in starts])
+            # results
+            all_chunks.append(chunks) # [n_chunks, chunk_size]
+            lengths.append(len(chunks)) # number of chunks per audio input
 
         # Concatenate all chunks for batch processing
-        batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs]  
-        # C ~ Total chunks
-        # cs ~ chunk size (number of samples in a chunk)
+        batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
 
         # Feature extraction
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
-        inputs = inputs.pin_memory().to(self.device, non_blocking=True) #[B, F] (for raw audio) or [B, F, f] (for Whisper)
-        #C ~ batch size (number of chunks)
+        inputs = inputs.pin_memory().to(self.device, non_blocking=True) #[C, F] (for raw audio) or [C, F, f] (for Whisper)
+        #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
 
@@ -169,39 +167,33 @@ class AudioEmbedder:
 
         # Forward pass
         with torch.inference_mode():
-            out = self.embedder(inputs).last_hidden_state  # [C, E, D] (each frame is now an embedding of size D)
-        #E ~ number of embeddings (same as previously number of frames)
-        #D ~ embedding dimension
+            out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
 
-        # Optional L2 normalization
+        # Optional L2 normalization (only for computing clusters)
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)
 
-        # Split outputs back into original audios (A)
+        # Split outputs back into original audios (B), each audio input is an entry in batch
         embeddings = []
         masks = []
         idx = 0
-        for n_chunks in lengths: #n_chunks is the number of chunks on each audio file
-            emb_audio = out[idx: idx + n_chunks]  # [nC, E, D]
-            #nC ~ number of chunks in this audio file
+        for n_chunks in lengths: #n_chunks (nC) is the number of chunks on each audio file
+            emb_audio = out[idx: idx + n_chunks]  # [nC_i, E, D] #nC_i ~ number of chunks in this audio file
             idx += n_chunks
 
             # Flatten chunks along time dimension
-            emb_audio = emb_audio.reshape(-1, self.D)  # [nC*E, D]
-            #nC*E is the number of embeddings in current audio file
+            emb_audio = emb_audio.reshape(-1, self.D)  # [nC_i*E, D] # nC_i*E is the number of embeddings in current audio file
             embeddings.append(emb_audio)
 
-            mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC*E]
+            mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC_i*E]
             masks.append(mask) 
-        #embeddings ~ [A, nC*E, D] (nC*E is different on each list element)
-        #masks = [A, nC*E]
+        #embeddings ~ [B, nC_i*E, D] (nC_i*E is different on each list element)
+        #masks = [B, nC_i*E]
 
-        # Pad all sequences to the max length
+        # Pad all sequences to the max length of embeddings (T)
         max_len = max(e.shape[0] for e in embeddings)
-        padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings])
-        #[A, T_max, D] # total number of frames/embeddings for this audio
-        padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks])
-        #[A, T_max]
+        padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings]) #[B, T, D] 
+        padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks]) #[B, T]
 
         return padded_embeddings, padded_masks
 
