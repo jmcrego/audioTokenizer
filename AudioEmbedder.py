@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Class to extract embeddings from audio using mHuBERT, wav2vec2, or Whisper encoder.
-Supports WAV/MP3 files or raw numpy audio arrays.
-"""
 
 import torch
 import logging
@@ -11,7 +7,6 @@ import soundfile as sf
 import soxr
 
 logger = logging.getLogger("audio_embedder")
-
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), normalize, ..."""
@@ -209,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     audio_embedder = AudioEmbedder(model=args.model, device=args.device)
     embeddings, masks = audio_embedder([args.wav])
