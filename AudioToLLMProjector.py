@@ -4,8 +4,8 @@ import torch.nn.functional as F
 
 class AudioToLLMProjector(nn.Module):
     """
-    Efficient Audio → LLM projector.
-    Reduces computation by projecting audio → low rank → LLM dimension.
+    Audio Embeddings → Low rank stacking projector → LLM embeddings.
+    Reduces computation by projecting audio embeddings into LLM dimension via stacking and low rank projector.
     """
 
     def __init__(
@@ -58,6 +58,10 @@ class AudioToLLMProjector(nn.Module):
         B, T, D = x.shape
         S = self.stack_size
 
+        # every sequence of audio embeddings (T) in batch must be merged into superframes (S embeddings -> 1 superframes)
+        # this may introduce pad embeddings at the end (to fit superframe size S)
+        # Superframes with any frame/embedding consisting of pad will then be discarded (the entire superframe is masked)
+
         # ---- pad to full superframe ----
         pad_len = (S - (T % S)) % S
         if pad_len > 0:
@@ -77,6 +81,7 @@ class AudioToLLMProjector(nn.Module):
         x = x + self.pos_embed[:, :N]
 
         # ---- build superframe mask ----
+        # padded frames contaminate superframes so all superframes become masked
         if mask is None:
             sf_mask = None
         else:
