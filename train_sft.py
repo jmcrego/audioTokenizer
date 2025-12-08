@@ -70,9 +70,9 @@ def compose_full_embeddings_with_padding_vectorized(
     _, L = target_ids.shape
 
     # Determine real lengths
-    audio_lens = audio_mask.sum(dim=1)        # [B]
-    prompt_lens = (prompt_ids != pad_token_id).sum(dim=1)  # [B]
-    target_lens = (target_ids != pad_token_id).sum(dim=1)  # [B]
+    audio_lens = audio_mask.sum(dim=1)                    # [B]
+    prompt_lens = (prompt_ids != pad_token_id).sum(dim=1) # [B]
+    target_lens = (target_ids != pad_token_id).sum(dim=1) # [B]
 
     # Total length per sequence
     total_lens = audio_lens + prompt_lens + target_lens
@@ -85,14 +85,14 @@ def compose_full_embeddings_with_padding_vectorized(
 
     # Audio embeddings
     audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
-    audio_valid = audio_idx < audio_lens.unsqueeze(1)                       # [B, S]
-    batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S)  # [B, S]
+    audio_valid = audio_idx < audio_lens.unsqueeze(1)                     # [B, S]
+    batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S) # [B, S]
     input_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
 
     # Prompt embeddings
-    prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1)  # [B, T]
+    prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1) # [B, T]
     prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
-    dest_positions = audio_lens.unsqueeze(1) + prompt_idx                    # [B, T]
+    dest_positions = audio_lens.unsqueeze(1) + prompt_idx                 # [B, T]
     dest_positions = torch.clamp(dest_positions, max=max_len-1)
     batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
     input_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
@@ -298,8 +298,10 @@ if __name__ == "__main__":
 
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
+
     # Log file name with timestamp
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
+
     # Configure logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
