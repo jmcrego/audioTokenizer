@@ -40,9 +40,6 @@ def read_covost_tsv(file):
                     continue
                 file_name = row[0]
                 name2entry[file_name] = row
-                if '19764307' in file_name:
-                    print(file_name, row)
-                    sys.exit()
         except Exception as e:
             raise Exception(f"Error on line {nrow}: {e}")
 
