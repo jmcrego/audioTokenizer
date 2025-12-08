@@ -2,6 +2,9 @@ import torch
 from torch.utils.data import Dataset
 
 def get_target(parts, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
+    if len(parts) < 5:
+        raise ValueError(f"Error: entry must contain at least 5 fields {parts}")
+    
     _, _, asr, _, stt = parts[:5]
     if asr and stt:
         return f"{asr} {stt_token} {stt} {end_token}"
