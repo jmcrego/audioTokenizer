@@ -1,4 +1,3 @@
-
 import os
 import torch
 import logging
@@ -37,11 +36,11 @@ def get_device_dtype():
 # Compose batch of embeddings/targets with right-padding (vectorized)
 # ============================================================
 def compose_full_embeddings_with_padding_vectorized(
-    proj_embs: torch.Tensor,  # [B, S, D]  (audio embeddings, right-padded)
-    audio_mask: torch.Tensor, # [B, S]     (1=real, 0=pad)
-    text_embs: torch.Tensor,  # [B, T, D]  (text embeddings, right-padded)
-    prompt_ids: torch.Tensor, # [B, T]     (for detecting padding)
-    target_ids: torch.Tensor, # [B, L]     (padded with pad_token_id)
+    proj_embs: torch.Tensor,  # [B, S, D] (audio embeddings, right-padded)
+    audio_mask: torch.Tensor, # [B, S]    (1=real, 0=pad)
+    prompt_embs: torch.Tensor,# [B, T, D] (prompt embeddings, right-padded)
+    prompt_ids: torch.Tensor, # [B, T]    (for detecting padding)
+    target_ids: torch.Tensor, # [B, L]    (padded with pad_token_id)
     device,
     dtype,
     max_seq_len: int,
@@ -49,7 +48,7 @@ def compose_full_embeddings_with_padding_vectorized(
     ignore_index: int = -100,
 ):
     """
-    Concatenate right-padded audio + prompt embeddings right-padded (already dropped first token)
+    Concatenate right-padded audio + prompt embeddings right-padded
     and return final padded input_embeds and labels.
     
     Returns:
@@ -58,7 +57,7 @@ def compose_full_embeddings_with_padding_vectorized(
     """
 
     B, S, D = proj_embs.shape
-    _, T, _ = text_embs.shape
+    _, T, _ = prompt_embs.shape
     _, L = target_ids.shape
 
     # ----------------------------
@@ -66,7 +65,6 @@ def compose_full_embeddings_with_padding_vectorized(
     # ----------------------------
     prompt_mask = (prompt_ids != pad_token_id)  # [B, T]
     prompt_lens = prompt_mask.sum(dim=1)        # [B]
-
     audio_lens = audio_mask.sum(dim=1)          # [B]
     combined_lens = audio_lens + prompt_lens    # [B]
     max_combined_len = min(combined_lens.max().item(), max_seq_len)
@@ -90,7 +88,7 @@ def compose_full_embeddings_with_padding_vectorized(
     # ----------------------------
     # Copy prompt embeddings after audio
     # ----------------------------
-    max_prompt_len = text_embs.shape[1]
+    max_prompt_len = prompt_embs.shape[1]
     prompt_idx = torch.arange(max_prompt_len, device=device).unsqueeze(0).expand(B, -1)
     prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
 
@@ -99,7 +97,7 @@ def compose_full_embeddings_with_padding_vectorized(
 
     flat_dest = dest_positions[prompt_valid]
     flat_batch = torch.arange(B, device=device).unsqueeze(1).expand(-1, max_prompt_len)[prompt_valid]
-    flat_values = text_embs[prompt_valid]
+    flat_values = prompt_embs[prompt_valid]
 
     out_embs[flat_batch, flat_dest, :] = flat_values
 
@@ -147,7 +145,7 @@ def build_model_and_trainer(
     bucket_size,
     max_seq_len,
     lr,
-    weight_decay,
+#    weight_decay,
     eval_steps,
     logging_steps,
     output_dir,
@@ -193,22 +191,24 @@ def build_model_and_trainer(
     ### 2. Datasets
     ### ============================================================
 
-    train_dataset = AudioDatasetIterable(path=train, split="train")
-    eval_dataset  = AudioDataset(path=eval, split="eval")
-        
+    asr_token = "[ASR]"
+    stt_token = "[STT]"
+    end_token = "[END]"
+    train_dataset = AudioDataset(path=train, asr_token=asr_token, stt_token=stt_token, end_token=end_token)
+    eval_dataset  = AudioDataset(path=eval, asr_token=asr_token, stt_token=stt_token, end_token=end_token)        
 
     def build_prompt(sample):
         has_src = bool(sample.get("lang"))
         has_tgt = bool(sample.get("tgt_lang"))
 
         if has_src and has_tgt:
-            return f"\nTranscribe then translate into {sample['tgt_lang']}.\n[ASR]"
+            return f"\nTranscribe then translate into {sample['tgt_lang']}.\n{asr_token}"
         elif has_src:
-            return f"\nTranscribe.\n[ASR]"
+            return f"\nTranscribe.\n{asr_token}"
         elif has_tgt:
-            return f"\nTranslate into {sample['tgt_lang']}.\n[STT]"
+            return f"\nTranslate into {sample['tgt_lang']}.\n{stt_token}"
         else:
-            raise ValueError("Either 'lang' or 'tgt_lang' must be provided in the dataset.")
+            raise ValueError(f"Either 'lang' or 'tgt_lang' must be provided in the dataset: {sample}")
 
 
     def preprocess_fn(batch):
@@ -219,37 +219,28 @@ def build_model_and_trainer(
         """
         audios = batch["audio"] # [B, 1, T]
         target_texts = batch["target"] # target reference texts
+        prompt_texts = [build_prompt(sample) for sample in batch]
         B = len(audios)
 
-        # Audio embeddings
-        #####################
-        # wavtok (frozen) - encode audio to embeddings
+        # encode audio to audio embeddings
         with torch.no_grad():
-            wav_list = wavtok.encode(audios) # list of B tensors [frame_i_lengh, audio_dim]
-        audio_lens = torch.tensor([w.shape[0] for w in wav_list], device=device)  # [B]
-        max_frames = audio_lens.max().item()
-        # Create audio mask
-        audio_mask = (torch.arange(max_frames, device=device).unsqueeze(0) < audio_lens.unsqueeze(1)).long()
-        # stack with right-padded
-        wav_embs = torch.nn.utils.rnn.pad_sequence(wav_list, batch_first=True, padding_value=0.0).to(device=device, dtype=dtype)     # [B, max_frames, audio_dim]
-        # Projector - audio embeddings → superframes → projected embeddings
-        proj_embs = projector(wav_embs).to(device=device, dtype=dtype) # [B, max_frames, llm_dim] (right-padded)
+            embs, embs_mask = audio_embedder(audios) # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
 
-        # Prompt embeddings
-        #####################
-        # Build prompts with <extra_id_0> at beginning
-        prompt_texts = [build_prompt(sample) for sample in batch]
+        # project embeddings to LLM dimension
+        proj_embs = projector(embs).to(device=device, dtype=dtype) # [B, N3, D2] (right-padded)
+
         # Tokenize prompts and targets
-        prompt_ids = tokenizer(prompt_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device)[:,1:].contiguous()  # [B, T_max_prompt-1] remove first token (<extra_id_0>)
-        target_ids = tokenizer(target_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device)        # [B, L_max_target]
+        prompt_ids = tokenizer(prompt_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device) # [B, T_max_prompt-1] remove first token (<extra_id_0>)
+        target_ids = tokenizer(target_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device) # [B, L_max_target]
+
         # token embeddings from LLM embedding layer with right-padded
         with torch.no_grad():
-            text_embs = llm.get_input_embeddings()(prompt_ids).to(device=device, dtype=dtype)  # [B, T_max_prompt-1, llm_dim] (right-padded)
+            prompt_embs = llm.get_input_embeddings()(prompt_ids).to(device=device, dtype=dtype)  # [B, T_max_prompt-1, llm_dim] (right-padded)
 
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
-            audio_mask=audio_mask,
-            text_embs=text_embs,
+            audio_mask=embs_mask,
+            prompt_embs=prompt_embs,
             prompt_ids=prompt_ids,
             target_ids=target_ids,
             device_local=device,
@@ -312,7 +303,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
 
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
+#    parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
 
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
@@ -351,7 +342,7 @@ if __name__ == "__main__":
         bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
-        weight_decay=args.weight_decay,
+#        weight_decay=args.weight_decay,
         eval_steps=args.eval_steps,
         logging_steps=args.logging_steps,
         output_dir=args.output_dir,
