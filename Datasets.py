@@ -9,7 +9,7 @@ class AudioIterableDataset(IterableDataset):
     audio_file_path \t lang \t transcription \t tgt_lang \t translation
     (lang, transcription) and (tgt_lang, translation) can be empty strings if not available (one of them must be present).
     """
-    def __init__(self, path, tokenizer, bucket_size, 
+    def __init__(self, path, tokenizer, bucket_size=32768, 
                  asr_token="[ASR]", stt_token="[STT]", end_token="[END]", 
                  sample_rate=16000, chunk_size=3200, stride=1600, stack_size=16):
         self.path = path
