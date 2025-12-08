@@ -46,7 +46,7 @@ def read_covost_tsv(file):
     print(f"Found {len(name2entry)} entries in {file}")
     return name2entry
 
-def read_audio_files(mp3dir, name2entry):
+def read_audio_files(mp3_dir, name2entry):
     name2path = {}
     for path in mp3_dir.rglob("*.mp3"):
         if path.name in name2path:
