@@ -58,6 +58,7 @@ def main():
 
     src_lang, tgt_lang = get_langs(args.tsv)
     name2entry = read_covost_tsv(args.tsv)
+    sys.exit()
 
     # Now read CommonVoice TSVs under the source language
     dir_lang = Path(args.cv) / src_lang
@@ -81,15 +82,12 @@ def main():
                 #print(f"\tskipping bad header file {cv_tsv}")
                 continue
 
-
             # Expected columns: client_id       path    sentence_id     sentence        sentence_domain up_votes        down_votes      age     gender  accents variant locale  segment
             for row in reader:
                 if len(row) < 4:
                     continue
 
-                print(row)
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
-                print(path)
                 fname = os.path.basename(path)
 
                 #if path in seen:                                                                                                                                                                                                                                                                 
@@ -119,7 +117,6 @@ def main():
                     n += 1
                     N += 1
                     seen.add(fname)
-                    #seen.add(str(path))
 
         if n:
             print(f"\t{n} entries found from {cv_tsv}")
