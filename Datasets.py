@@ -31,9 +31,10 @@ class AudioIterableDataset(IterableDataset):
 
                 if len(parts) >= 5:
                     audio, prompt, target = self.get_audio_prompt_and_target(parts)
-                    length = self.audio_length_in_tokens(audio)
+                    duration, n_audio = self.audio_length_in_tokens(audio)
                     if length is not None:
-                        length += len(prompt) + len(target)
+                        print(audio, duration, n_audio, len(prompt), len(target))
+                        length = n_audio + len(prompt) + len(target)
                         samples.append({"length": length, "audio": audio, "prompt": prompt, "target": target}) 
                         if len(samples) >= self.bucket_size:
                             yield from sorted(samples, key=lambda x: x["length"])
@@ -81,11 +82,10 @@ class AudioIterableDataset(IterableDataset):
                 total_samples = int(info.duration * sample_rate)
                 n_chunks = max(0, (total_samples - chunk_size) // stride + 1) # number of chunks
                 n_tokens = (n_chunks + stack_size - 1) // stack_size  # number of frames/embeddings/tokens
-                print(filepath, info.duration, n_tokens)
-                return n_tokens
+                return info.duration, n_tokens
         except Exception as e:
-            return None
-        return None
+            return None, None
+        return None, None
 
 if __name__ == "__main__":
     import sys
