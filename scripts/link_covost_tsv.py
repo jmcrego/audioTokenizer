@@ -96,9 +96,6 @@ def main():
                 if len(row) < 4:
                     continue
 
-                if '/' not in row[1]:
-                    continue
-
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
                 fname = path.name
 
