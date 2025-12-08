@@ -24,13 +24,13 @@ def get_device_dtype():
         device = "cuda:0"
         try:
             props = torch.cuda.get_device_properties(device)
-            llm_dtype = torch.bfloat16 if "H100" in props.name else torch.float16
+            dtype = torch.bfloat16 if "H100" in props.name else torch.float16
         except Exception:
-            llm_dtype = torch.float16
+            dtype = torch.float16
     else:
         device = "cpu"
-        llm_dtype = torch.float32
-    return device, llm_dtype
+        dtype = torch.float32
+    return device, dtype
 
 # ============================================================
 # Compose batch of embeddings/targets with right-padding (vectorized)
@@ -48,9 +48,18 @@ def compose_full_embeddings_with_padding_vectorized(
     ignore_index: int = -100,
 ):
     """
-    Concatenate right-padded audio + prompt embeddings right-padded
+    Concatenate audio embeddings + prompt embeddings right-padded
     and return final padded input_embeds and labels.
-    
+
+    For instance, input EMBEDDINGS should be: (a means audio embedding, p means prompt embedding 0 means pad embedding)
+    [ a a a a p p p 0 0 0 0 0 0] 
+    [ a a p p 0 0 0 0 0 0 0 0 0] 
+    [ a a a p p p 0 0 0 0 0 0 0]
+    While LABELS should be:  (t means label token)
+    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t -100]
+    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t -100 -100]
+    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t    t]
+
     Returns:
         input_embeds: [B, L_final, D]
         labels:       [B, L_final]
@@ -60,71 +69,48 @@ def compose_full_embeddings_with_padding_vectorized(
     _, T, _ = prompt_embs.shape
     _, L = target_ids.shape
 
-    # ----------------------------
-    # Masks and lengths
-    # ----------------------------
-    prompt_mask = (prompt_ids != pad_token_id)  # [B, T]
-    prompt_lens = prompt_mask.sum(dim=1)        # [B]
-    audio_lens = audio_mask.sum(dim=1)          # [B]
-    combined_lens = audio_lens + prompt_lens    # [B]
-    max_combined_len = min(combined_lens.max().item(), max_seq_len)
+    # Determine real lengths
+    audio_lens = audio_mask.sum(dim=1)        # [B]
+    prompt_lens = (prompt_ids != pad_token_id).sum(dim=1)  # [B]
+    target_lens = (target_ids != pad_token_id).sum(dim=1)  # [B]
 
-    # ----------------------------
-    # Prepare output embeddings
-    # ----------------------------
-    out_embs = torch.zeros((B, max_combined_len, D), device=device, dtype=dtype)
+    # Total length per sequence
+    total_lens = audio_lens + prompt_lens + target_lens
+    max_len = min(total_lens.max().item(), max_seq_len)
 
-    # ----------------------------
-    # Copy audio embeddings
-    # ----------------------------
-    max_audio_len = S
-    audio_idx = torch.arange(max_audio_len, device=device).unsqueeze(0).expand(B, -1)
-    audio_valid = audio_idx < audio_lens.unsqueeze(1)
-    #(use better the next 3 lines) out_embs[:, :S, :].masked_scatter_(audio_valid.unsqueeze(-1), proj_embs[audio_valid])
-    batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S)[audio_valid]
-    time_idx  = torch.arange(S, device=device).unsqueeze(0).expand(B, -1)[audio_valid]
-    out_embs[batch_idx, time_idx, :] = proj_embs[audio_valid]
+    # -----------------------
+    # Input embeddings
+    # -----------------------
+    input_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
 
-    # ----------------------------
-    # Copy prompt embeddings after audio
-    # ----------------------------
-    max_prompt_len = prompt_embs.shape[1]
-    prompt_idx = torch.arange(max_prompt_len, device=device).unsqueeze(0).expand(B, -1)
+    # Audio embeddings
+    audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
+    audio_valid = audio_idx < audio_lens.unsqueeze(1)                       # [B, S]
+    batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S)  # [B, S]
+    input_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
+
+    # Prompt embeddings
+    prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1)  # [B, T]
     prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
+    dest_positions = audio_lens.unsqueeze(1) + prompt_idx                    # [B, T]
+    dest_positions = torch.clamp(dest_positions, max=max_len-1)
+    batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
+    input_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
 
-    dest_positions = audio_lens.unsqueeze(1) + prompt_idx
-    dest_positions = torch.clamp(dest_positions, max=max_combined_len - 1)
+    # -------------------
+    # Labels
+    # -------------------
+    labels = torch.full((B, max_len), ignore_index, dtype=torch.long, device=device)
 
-    flat_dest = dest_positions[prompt_valid]
-    flat_batch = torch.arange(B, device=device).unsqueeze(1).expand(-1, max_prompt_len)[prompt_valid]
-    flat_values = prompt_embs[prompt_valid]
+    target_idx = torch.arange(L, device=device).view(1, -1).expand(B, -1)
+    target_valid = target_idx < target_lens.unsqueeze(1)
+    dest_target_positions = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
+    dest_target_positions = torch.clamp(dest_target_positions, max=max_len-1)
+    batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(-1, L)
+    labels[batch_idx_target[target_valid], dest_target_positions[target_valid]] = target_ids[target_valid]
 
-    out_embs[flat_batch, flat_dest, :] = flat_values
+    return input_embeds, labels
 
-    # ----------------------------
-    # Build labels (right-aligned targets)
-    # ----------------------------
-    labels = torch.full((B, max_combined_len), ignore_index, dtype=torch.long, device=device)
-
-    tgt_mask = target_ids != pad_token_id
-    tgt_lens = tgt_mask.sum(dim=1) # [B]
-    max_tgt_len = tgt_lens.max().item()
-
-    tgt_idx = torch.arange(max_tgt_len, device=device).unsqueeze(0).expand(B, -1)
-    tgt_valid = tgt_idx < tgt_lens.unsqueeze(1)
-
-    dest_tgt_pos = max_combined_len - tgt_lens.unsqueeze(1) + tgt_idx
-    dest_tgt_pos = torch.clamp(dest_tgt_pos, max=max_combined_len - 1)
-
-    flat_dest_tgt = dest_tgt_pos[tgt_valid]
-    flat_batch_tgt = torch.arange(B, device=device).unsqueeze(1).expand(-1, max_tgt_len)[tgt_valid]
-    flat_tgt_values = target_ids[tgt_valid]
-
-    labels[flat_batch_tgt, flat_dest_tgt] = flat_tgt_values
-    # input_embeds:  [ audio frames ] [ prompt tokens ] [ padding if any ]
-    # labels:        [ -100         ] [ -100          ] [ target tokens  ]
-
-    return out_embs, labels
 
 
 # ============================================================
@@ -152,7 +138,6 @@ def build_model_and_trainer(
 ):
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
-    half_precision = (dtype==torch.bfloat16)
 
     ### 1. Load models    
     ### ============================================================
@@ -161,10 +146,10 @@ def build_model_and_trainer(
     audio_embedder = AudioEmbedder(
         model=audio_path, 
         l2_norm=False, 
-        half_precision=half_precision, 
         chunk_size=chunk_size, 
         stride=stride, 
-        device=args.device)
+        device=args.device,
+        dtype=dtype)
 
     audio_embedder.eval()
     for p in audio_embedder.parameters():
