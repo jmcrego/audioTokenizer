@@ -284,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--bucket_size", type=int, default=32768, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-    parser.add_argument("--val_steps", type=int, default=1000, help="Run evaluation after this many steps")
+    parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
     # optimization pars
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
