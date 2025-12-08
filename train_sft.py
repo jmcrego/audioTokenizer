@@ -115,9 +115,9 @@ def compose_full_embeddings_with_padding_vectorized(
 # Trainer Builder
 # ============================================================
 def build_model_and_trainer(
-    llm_path,
-    audio_path,
-    project_path,
+    llm,
+    audio,
+    proj,
     chunk_size,
     stride,
     stack_size,
@@ -141,7 +141,7 @@ def build_model_and_trainer(
 
     # AudioEmbedder (frozen)
     audio_embedder = AudioEmbedder(
-        model=audio_path, 
+        model=audio, 
         l2_norm=False, 
         chunk_size=chunk_size, 
         stride=stride, 
@@ -153,8 +153,8 @@ def build_model_and_trainer(
         p.requires_grad = False
 
     # LLM (frozen)
-    tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
-    llm = AutoModelForCausalLM.from_pretrained(llm_path, torch_dtype=dtype, device_map="auto")
+    tokenizer = AutoTokenizer.from_pretrained(llm, use_fast=True)
+    llm = AutoModelForCausalLM.from_pretrained(llm, torch_dtype=dtype, device_map="auto")
     llm.eval()
     for p in llm.parameters():
         p.requires_grad = False
@@ -167,8 +167,8 @@ def build_model_and_trainer(
         rank_dim=rank_dim, 
         max_seq_len=max_seq_len)
 
-    if project_path is not None:
-        projector.load(project_path, device=device)
+    if proj is not None:
+        projector.load(proj, device=device)
 
     ### 2. Datasets
     ### ============================================================
@@ -311,9 +311,9 @@ if __name__ == "__main__":
     logger.info(f"Git commit: {get_git_commit()}")
 
     trainer = build_model_and_trainer(        
-        llm_path=args.llm,
-        audio_path=args.audio,
-        project_path=args.proj,
+        llm=args.llm,
+        audio=args.audio,
+        proj=args.proj,
         chunk_size = args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
