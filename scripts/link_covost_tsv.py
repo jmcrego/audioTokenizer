@@ -62,6 +62,13 @@ def main():
     # row ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
 
+    name2path = {}
+    mp3_dir = Path(args.cv) / src_lang / "clips"
+    for path in mp3_dir.rglob("*.mp3"):
+        if path.name in name2path:
+            continue
+        name2path[path.name] = path   # name = filename name (not path)
+
     # Now read CommonVoice TSVs under the source language
     dir_lang = Path(args.cv) / src_lang
 
@@ -93,7 +100,7 @@ def main():
                     continue
 
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
-                fname = os.path.basename(path)
+                fname = path.name
 
                 #if path in seen:                                                                                                                                                                                                                                                                 
                 if str(fname) in seen:
@@ -106,7 +113,8 @@ def main():
 
                 transc = row[3]
 
-                if fname in name2entry:
+                if fname in name2entry and fname in name2path:
+                    path = name2path[fname]
                     entry = name2entry[fname]
                     transl = entry[1]
                     split = entry[2]
