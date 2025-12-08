@@ -280,7 +280,7 @@ if __name__ == "__main__":
     # model vars
     parser.add_argument("--chunk_size", type=int, default=3200, help="Group this many samples when building chunks in audio processor")
     parser.add_argument("--stride", type=int, default=1600, help="Overlap this many samples when building chunks in audio processor")
-    parser.add_argument("--stack_size", type=int, default=16, help="Stack this many frames in audio to LLM projector")
+    parser.add_argument("--stack_size", type=int, default=8, help="Stack this many frames in audio to LLM projector")
     parser.add_argument("--rank_dim", type=int, default=256, help="Low-rank intermediate dimension for audio to LLM projector")
     # optimization pars
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
