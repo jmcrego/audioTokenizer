@@ -129,7 +129,6 @@ def build_model_and_trainer(
     bucket_size,
     max_seq_len,
     lr,
-#    weight_decay,
     eval_steps,
     logging_steps,
     output_dir,
@@ -268,28 +267,27 @@ def build_model_and_trainer(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
-    parser.add_argument("--project_path", type=str, default=None)
-
+    # model paths
+    parser.add_argument("--llm", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    parser.add_argument("--audio", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
+    parser.add_argument("--proj", type=str, default=None)
+    # dataset paths
+    parser.add_argument("--train", required=True, help="Training dataset file")
+    parser.add_argument("--eval", required=True, help="Evaluation dataset file")
+    # model vars
     parser.add_argument("--chunk_size", type=int, default=3200, help="Group this many samples when building chunks in audio processor")
     parser.add_argument("--stride", type=int, default=1600, help="Overlap this many samples when building chunks in audio processor")
     parser.add_argument("--stack_size", type=int, default=16, help="Stack this many frames in audio to LLM projector")
     parser.add_argument("--rank_dim", type=int, default=256, help="Rank dimension for audio to LLM projector")
-
-    parser.add_argument("--train", required=True, help="Training dataset file")
-    parser.add_argument("--eval", required=True, help="Evaluation dataset file")
-
+    # training pars
     parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--bucket_size", type=int, default=32768, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-#    parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
-
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
+    # optimization pars
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     args = parser.parse_args()
@@ -313,9 +311,9 @@ if __name__ == "__main__":
     logger.info(f"Git commit: {get_git_commit()}")
 
     trainer = build_model_and_trainer(        
-        llm_path=args.llm_path,
-        audio_path=args.audio_path,
-        project_path=args.project_path,
+        llm_path=args.llm,
+        audio_path=args.audio,
+        project_path=args.proj,
         chunk_size = args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
@@ -327,7 +325,6 @@ if __name__ == "__main__":
         bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
-#        weight_decay=args.weight_decay,
         eval_steps=args.eval_steps,
         logging_steps=args.logging_steps,
         output_dir=args.output_dir,
