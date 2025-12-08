@@ -78,6 +78,7 @@ class AudioIterableDataset(IterableDataset):
         print(filepath)
         try:
             info = sf.info(filepath)
+            print(info)
             if info.duration:
                 total_samples = int(info.duration * sample_rate)
                 n_chunks = max(0, (total_samples - chunk_size) // stride + 1) # number of chunks
