@@ -40,6 +40,9 @@ def read_covost_tsv(file):
                     continue
                 file_name = row[0]
                 name2entry[file_name] = row
+                if '19764307' in file_name:
+                    print(file_name, row)
+                    sys.exit()
         except Exception as e:
             raise Exception(f"Error on line {nrow}: {e}")
 
@@ -68,7 +71,7 @@ def main():
     N = 0
     for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
         n = 0
-        print(f"\tParsing file {cv_tsv}")
+#        print(f"\tParsing file {cv_tsv}")
         with open(cv_tsv, "r", encoding="utf-8") as f:
             reader = csv.reader(f, delimiter="\t")
             try:
@@ -95,7 +98,7 @@ def main():
                     continue
 
                 if args.verify and not path.is_file():
-                    print(f"\tskipping missing linked file {str(path)}")
+#                    print(f"\tskipping missing linked file {str(path)}")
                     continue
 
                 transc = row[3]
