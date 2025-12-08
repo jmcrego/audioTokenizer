@@ -57,6 +57,7 @@ def main():
     args = parser.parse_args()
 
     src_lang, tgt_lang = get_langs(args.tsv)
+    print(src_lang, tgt_lang)
     name2entry = read_covost_tsv(args.tsv)
     sys.exit()
 
