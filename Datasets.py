@@ -59,6 +59,7 @@ class AudioIterableDataset(IterableDataset):
         else:
             raise ValueError(f"Either 'lang' or 'tgt_lang' must be provided in the dataset: {parts}")
         prompt = self.tokenizer(prompt, return_tensors="pt", padding=False, truncation=False).input_ids
+        print(prompt)
 
 
         if len(asr) and len(stt):
@@ -71,7 +72,8 @@ class AudioIterableDataset(IterableDataset):
             raise ValueError(f"Either 'lang' or 'tgt_lang' must be provided in the dataset: {parts}")
 
         target = self.tokenizer(target, return_tensors="pt", padding=False, truncation=False).input_ids
-
+        print(target)
+        
         return audio, prompt, target
 
     def audio_length_in_tokens(self, filepath, sample_rate=16000, chunk_size=3200, stride=1600, stack_size=8):
