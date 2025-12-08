@@ -86,7 +86,9 @@ class AudioIterableDataset(IterableDataset):
                 print(n_tokens)
                 return n_tokens
         except Exception as e:
+            print('Exception')
             return None
+        print('no info')
         return None
 
 if __name__ == "__main__":
