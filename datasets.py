@@ -23,13 +23,18 @@ class AudioDataset(Dataset):
     def __init__(self, path, sep_token="<sep>", end_token="<end>"):
         self.path = path
         with open(path, "r", encoding="utf-8") as f:
-            self.samples = [line for line in f]
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 5:
+                    self.samples.append(parts[:5])
+                else:
+                    pass
 
     def __len__(self):
         return len(self.samples)
     
     def __getitem__(self, idx):
-        parts = self.samples[idx].strip().split("\t")
+        parts = self.samples[idx]
         if len(parts) >= 5:
             return {
                 "audio": parts[0], 
