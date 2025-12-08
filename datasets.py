@@ -41,8 +41,9 @@ class AudioDataset(Dataset):
             raise ValueError(f"Invalid line {idx} in {self.path}: {self.samples[idx]}")
 
 if __name__ == "__main__":
+    import sys
     # Simple test
-    dataset = AudioDataset("../audioLLM/data/covost_v2.es_en.tsv ")
+    dataset = AudioDataset(sys.argv[1])
     print(f"Dataset size: {len(dataset)}")
     
     sample = dataset[0]
