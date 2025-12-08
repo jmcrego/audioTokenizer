@@ -78,17 +78,17 @@ def main():
     N = 0
     for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
         n = 0
-#        print(f"\tParsing file {cv_tsv}")
+        #print(f"\tParsing file {cv_tsv}")
         with open(cv_tsv, "r", encoding="utf-8") as f:
             reader = csv.reader(f, delimiter="\t")
             try:
                 header = next(reader)
             except StopIteration:
-#                print(f"\tskipping empty file {cv_tsv}")
+                #print(f"\tskipping empty file {cv_tsv}")
                 continue
 
             if "path" not in header or "sentence" not in header:
-#                print(f"\tskipping bad header file {cv_tsv}")
+                #print(f"\tskipping bad header file {cv_tsv}")
                 continue
 
             # Expected columns: client_id path sentence_id sentence sentence_domain up_votes down_votes age gender accents variant locale segment
@@ -104,11 +104,11 @@ def main():
 
                 #if path in seen:                                                                                                                                                                                                                                                                 
                 if str(fname) in seen:
-#                    print(f"Repeated entry {fname}")
+                    #print(f"Repeated entry {fname}")
                     continue
 
                 if args.verify and not path.is_file():
-#                    print(f"\tskipping missing linked file {str(path)}")
+                    #print(f"\tskipping missing linked file {str(path)}")
                     continue
 
                 transc = row[3]
