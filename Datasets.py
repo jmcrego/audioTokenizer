@@ -32,7 +32,7 @@ class AudioIterableDataset(IterableDataset):
                 if len(parts) >= 5:
                     audio, prompt, target = self.get_audio_prompt_and_target(parts)
                     duration, n_audio = self.audio_length_in_tokens(audio)
-                    if length is not None:
+                    if n_audio is not None:
                         print(audio, duration, n_audio, len(prompt), len(target))
                         length = n_audio + len(prompt) + len(target)
                         samples.append({"length": length, "audio": audio, "prompt": prompt, "target": target}) 
@@ -95,3 +95,4 @@ if __name__ == "__main__":
     dataset = AudioIterableDataset(sys.argv[1], tokenizer)
     for i,e in enumerate(dataset): 
         print(f"{i}: {e}")
+
