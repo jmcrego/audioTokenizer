@@ -60,6 +60,9 @@ def main():
     src_lang, tgt_lang = get_langs(args.tsv)
     print(src_lang, tgt_lang)
 
+    ### read from args.tsv the valid entries:
+    # file_name: common_voice_es_19764307.mp3
+    # row ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
 
     # Now read CommonVoice TSVs under the source language
@@ -84,9 +87,12 @@ def main():
 #                print(f"\tskipping bad header file {cv_tsv}")
                 continue
 
-            # Expected columns: client_id       path    sentence_id     sentence        sentence_domain up_votes        down_votes      age     gender  accents variant locale  segment
+            # Expected columns: client_id path sentence_id sentence sentence_domain up_votes down_votes age gender accents variant locale segment
             for row in reader:
                 if len(row) < 4:
+                    continue
+
+                if '/' not in row[1]:
                     continue
 
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
