@@ -37,6 +37,7 @@ def read_covost_tsv(file):
         # Example header: ["path", "translation", "split"]
         try:
             for nrow, row in enumerate(reader):
+                print(f"TSV {nrow} => {row}")
                 if not row:
                     continue
                 file_name = row[0]
