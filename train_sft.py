@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
-from datasets import AudioDataset, AudioDatasetIterable
+from Datasets import AudioDataset, AudioDatasetIterable
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
