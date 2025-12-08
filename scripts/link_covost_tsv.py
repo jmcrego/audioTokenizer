@@ -67,6 +67,8 @@ def main():
     for path in mp3_dir.rglob("*.mp3"):
         if path.name in name2path:
             continue
+        if path.name not in name2entry:
+            continue
         name2path[path.name] = path   # name = filename name (not path)
 
     # Now read CommonVoice TSVs under the source language
