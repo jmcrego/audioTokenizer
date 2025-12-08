@@ -3,7 +3,7 @@ import torchaudio
 from torch.utils.data import Dataset, IterableDataset
 
 def get_target(parts, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
-    _, _, asr, _, stt = parts
+    _, _, asr, _, stt = parts[:5]
     if asr and not stt:
         return f"{asr_token} {asr} {end_token}"
     elif not asr and stt:
