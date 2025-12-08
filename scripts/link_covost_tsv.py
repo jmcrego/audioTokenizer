@@ -56,6 +56,8 @@ def main():
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
 
+    kk
+
     src_lang, tgt_lang = get_langs(args.tsv)
     print(src_lang, tgt_lang)
     name2entry = read_covost_tsv(args.tsv)
