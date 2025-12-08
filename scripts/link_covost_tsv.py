@@ -87,8 +87,11 @@ def main():
                 if len(row) < 4:
                     continue
 
+                print(row)
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
+                print(path)
                 fname = os.path.basename(path)
+
                 #if path in seen:                                                                                                                                                                                                                                                                 
                 if str(fname) in seen:
                     #print(f"Repeated entry {fname}")
