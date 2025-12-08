@@ -22,7 +22,6 @@ def get_langs(file):
     src_lang = parts[0] if len(parts) > 1 else src_lang
     parts = tgt_lang.split("-")
     tgt_lang = parts[0] if len(parts) > 1 else tgt_lang
-    print(f"{src_lang} {tgt_lang}")
     return src_lang, tgt_lang
 
 def read_covost_tsv(file):
@@ -37,7 +36,6 @@ def read_covost_tsv(file):
         # Example header: ["path", "translation", "split"]
         try:
             for nrow, row in enumerate(reader):
-                print(f"TSV {nrow} => {row}")
                 if not row:
                     continue
                 file_name = row[0]
@@ -58,8 +56,8 @@ def main():
 
     src_lang, tgt_lang = get_langs(args.tsv)
     print(src_lang, tgt_lang)
+
     name2entry = read_covost_tsv(args.tsv)
-    sys.exit()
 
     # Now read CommonVoice TSVs under the source language
     dir_lang = Path(args.cv) / src_lang
