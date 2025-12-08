@@ -51,14 +51,18 @@ def compose_full_embeddings_with_padding_vectorized(
     Concatenate audio embeddings + prompt embeddings right-padded
     and return final padded input_embeds and labels.
 
-    For instance, input EMBEDDINGS should be: (a means audio embedding, p means prompt embedding 0 means pad embedding)
+    For instance, 
+    Input EMBEDDINGS should be:
     [ a a a a p p p 0 0 0 0 0 0] 
     [ a a p p 0 0 0 0 0 0 0 0 0] 
     [ a a a p p p 0 0 0 0 0 0 0]
-    While LABELS should be:  (t means label token)
+    (a means audio embedding, p means prompt embedding 0 means pad embedding)
+
+    While LABELS should be:
     [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t -100]
     [ -100 -100 -100 -100 -100 -100 -100 -100 t t t -100 -100]
     [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t    t]
+    (t means label token)
 
     Returns:
         input_embeds: [B, L_final, D]
@@ -126,7 +130,6 @@ def build_model_and_trainer(
     eval,
     max_steps,
     batch_size,
-    bucket_size,
     max_seq_len,
     lr,
     eval_steps,
@@ -167,6 +170,7 @@ def build_model_and_trainer(
         rank_dim=rank_dim, 
         max_seq_len=max_seq_len)
 
+    # load if given path
     if proj is not None:
         projector.load(proj, device=device)
 
@@ -256,7 +260,6 @@ def build_model_and_trainer(
         learning_rate=lr,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        bucket_size=bucket_size,
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
     )
@@ -284,7 +287,6 @@ if __name__ == "__main__":
     # training pars
     parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
-    parser.add_argument("--bucket_size", type=int, default=32768, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
@@ -322,7 +324,6 @@ if __name__ == "__main__":
         eval=args.eval,
         max_steps=args.max_steps,
         batch_size=args.batch_size,
-        bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
         eval_steps=args.eval_steps,
