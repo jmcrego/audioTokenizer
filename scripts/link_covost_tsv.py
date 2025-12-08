@@ -43,9 +43,19 @@ def read_covost_tsv(file):
         except Exception as e:
             raise Exception(f"Error on line {nrow}: {e}")
 
-
     print(f"Found {len(name2entry)} entries in {file}")
     return name2entry
+
+def read_audio_files(path, name2entry):
+    name2path = {}
+    mp3_dir = Path(args.cv) / src_lang / "clips"
+    for path in mp3_dir.rglob("*.mp3"):
+        if path.name in name2path:
+            continue
+        if path.name not in name2entry:
+            continue
+        name2path[path.name] = path   # name = filename name (not path)
+    return name2path
 
 def main():
     parser = argparse.ArgumentParser(description="Link CoVoST 2 TSV file with corresponding CommonVoice audio files.")
@@ -61,15 +71,7 @@ def main():
     # file_name: common_voice_es_19764307.mp3
     # row ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
-
-    name2path = {}
-    mp3_dir = Path(args.cv) / src_lang / "clips"
-    for path in mp3_dir.rglob("*.mp3"):
-        if path.name in name2path:
-            continue
-        if path.name not in name2entry:
-            continue
-        name2path[path.name] = path   # name = filename name (not path)
+    name2path = read_audio_files(Path(args.cv) / src_lang / "clips", name2entry)
 
     # Now read CommonVoice TSVs under the source language
     dir_lang = Path(args.cv) / src_lang
