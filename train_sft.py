@@ -133,45 +133,59 @@ def compose_full_embeddings_with_padding_vectorized(
 # Trainer Builder
 # ============================================================
 def build_model_and_trainer(
-    train,
-    eval,
     llm_path,
     audio_path,
-    project_net,
     project_path,
-    audio_id,
-    stack_size,
+    chunk_size,
     stride,
-    tgt_lang,
+    stack_size,
+    rank_dim,
+    train,
+    eval,
+    max_steps,
     batch_size,
     bucket_size,
     max_seq_len,
     lr,
-    max_steps,
+    weight_decay,
     eval_steps,
     logging_steps,
     output_dir,
 ):
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
+    half_precision = (dtype==torch.bfloat16)
 
     ### 1. Load models    
     ### ============================================================
 
-    # WavTokenizer (frozen)
-    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
+    # AudioEmbedder (frozen)
+    audio_embedder = AudioEmbedder(
+        model=audio_path, 
+        l2_norm=False, 
+        half_precision=half_precision, 
+        chunk_size=chunk_size, 
+        stride=stride, 
+        device=args.device)
+
     audio_embedder.eval()
     for p in audio_embedder.parameters():
         p.requires_grad = False
 
-    # EuroLLM (frozen)
+    # LLM (frozen)
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
     llm = AutoModelForCausalLM.from_pretrained(llm_path, torch_dtype=dtype, device_map="auto")
     llm.eval()
     for p in llm.parameters():
         p.requires_grad = False
 
-    projector = AudioToLLMProjector(audio_embedding_dim=audio_embedder.config.hidden_size, stack_size=stack_size, stride=stride, llm_dimension=llm.config.hidden_size)
+    # Projector (trainable)
+    projector = AudioToLLMProjector(
+        audio_embedding_dim=audio_embedder.config.hidden_size, 
+        stack_size=stack_size, 
+        llm_dimension=llm.config.hidden_size,
+        rank_dim=rank_dim, 
+        max_seq_len=max_seq_len)
 
     if project_path is not None:
         projector.load(project_path, device=device)
@@ -179,11 +193,8 @@ def build_model_and_trainer(
     ### 2. Datasets
     ### ============================================================
 
-    audio_token = tokenizer.convert_ids_to_tokens(audio_id)
-    logger.info(f"Using audio token id={audio_id}: '{audio_token}'")
-
-    train_dataset = AudioDatasetIterable(path=train, tgt_lang=tgt_lang, split="train")
-    eval_dataset  = AudioDataset(path=eval, tgt_lang=tgt_lang, split="eval")
+    train_dataset = AudioDatasetIterable(path=train, split="train")
+    eval_dataset  = AudioDataset(path=eval, split="eval")
         
 
     def build_prompt(sample):
@@ -191,11 +202,11 @@ def build_model_and_trainer(
         has_tgt = bool(sample.get("tgt_lang"))
 
         if has_src and has_tgt:
-            return f"{audio_token}\nTranscribe then translate into {sample['tgt_lang']}.\n<transcription>"
+            return f"\nTranscribe then translate into {sample['tgt_lang']}.\n[ASR]"
         elif has_src:
-            return f"{audio_token}\nTranscribe.\n<transcription>"
+            return f"\nTranscribe.\n[ASR]"
         elif has_tgt:
-            return f"{audio_token}\nTranslate into {sample['tgt_lang']}.\n<translation>"
+            return f"\nTranslate into {sample['tgt_lang']}.\n[STT]"
         else:
             raise ValueError("Either 'lang' or 'tgt_lang' must be provided in the dataset.")
 
@@ -293,7 +304,7 @@ if __name__ == "__main__":
     parser.add_argument("--rank_dim", type=int, default=256, help="Rank dimension for audio to LLM projector")
 
     parser.add_argument("--train", required=True, help="Training dataset file")
-    parser.add_argument("--valid", required=True, help="Validation dataset file")
+    parser.add_argument("--eval", required=True, help="Evaluation dataset file")
 
     parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
@@ -325,22 +336,22 @@ if __name__ == "__main__":
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
     logger.info(f"Git commit: {get_git_commit()}")
 
-    trainer = build_model_and_trainer(
-        train=args.train,
-        eval=args.eval,
+    trainer = build_model_and_trainer(        
         llm_path=args.llm_path,
         audio_path=args.audio_path,
-        project_net=args.project_net,
         project_path=args.project_path,
-        audio_id = args.audio_id,
-        stack_size=args.stack_size,
+        chunk_size = args.chunk_size,
         stride=args.stride,
-        tgt_lang=args.tgt_lang,
+        stack_size=args.stack_size,
+        rank_dim=args.rank_dim,
+        train=args.train,
+        eval=args.eval,
+        max_steps=args.max_steps,
         batch_size=args.batch_size,
         bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
-        max_steps=args.max_steps,
+        weight_decay=args.weight_decay,
         eval_steps=args.eval_steps,
         logging_steps=args.logging_steps,
         output_dir=args.output_dir,

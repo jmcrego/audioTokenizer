@@ -13,7 +13,7 @@ class AudioToLLMProjector(nn.Module):
         audio_embedding_dim,
         stack_size,
         llm_dimension=768,
-        rank=256,          # low-rank bottleneck
+        rank_dim=256,          # low-rank bottleneck
         max_seq_len=4096,
     ):
         """
@@ -21,7 +21,7 @@ class AudioToLLMProjector(nn.Module):
             audio_embedding_dim: Original audio frame dimension (e.g., 768 for mHuBERT)
             stack_size: Frames per superframe (e.g., 10)
             llm_dimension: Target LLM embedding size (e.g., 2048)
-            rank: Low-rank internal dimension (default 256)
+            rank_dim: Low-rank internal dimension (default 256)
         """
         super().__init__()
 
@@ -29,18 +29,18 @@ class AudioToLLMProjector(nn.Module):
         self.stack_size = stack_size
         self.llm_dimension = llm_dimension
         self.stacked_dim = audio_embedding_dim * stack_size
-        self.rank = rank
+        self.rank_dim = rank_dim
         self.max_seq_len = max_seq_len
 
         # Positional encoding for superframes
         self.pos_embed = nn.Parameter(torch.randn(1, max_seq_len, llm_dimension) * 0.01)
 
         # --- Low-Rank MLP ---
-        # Equivalent to Linear(stacked_dim → rank → llm_dim)
+        # Equivalent to Linear(stacked_dim → rank_dim → llm_dim)
         self.proj = nn.Sequential(
-            nn.Linear(self.stacked_dim, rank),
+            nn.Linear(self.stacked_dim, rank_dim),
             nn.GELU(),
-            nn.Linear(rank, llm_dimension),
+            nn.Linear(rank_dim, llm_dimension),
             nn.LayerNorm(llm_dimension),
         )
 
