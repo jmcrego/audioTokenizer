@@ -75,20 +75,16 @@ class AudioIterableDataset(IterableDataset):
 
     def audio_length_in_tokens(self, filepath, sample_rate=16000, chunk_size=3200, stride=1600, stack_size=16):
         """Get duration of an audio file in seconds, and compute a prediction of number of tokens"""
-        print(filepath)
         try:
             info = sf.info(filepath)
-            print(info)
             if info.duration:
                 total_samples = int(info.duration * sample_rate)
                 n_chunks = max(0, (total_samples - chunk_size) // stride + 1) # number of chunks
                 n_tokens = (n_chunks + stack_size - 1) // stack_size  # ceil division
-                print(n_tokens)
+                print(filepath, info.duration, n_tokens)
                 return n_tokens
         except Exception as e:
-            print('Exception')
             return None
-        print('no info')
         return None
 
 if __name__ == "__main__":
