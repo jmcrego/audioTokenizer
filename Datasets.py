@@ -1,17 +1,19 @@
 import torch
-import torchaudio
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 
 def get_target(parts, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
+    if len(parts) < 5:
+        raise ValueError(f"Error: entry must contain at least 5 fields {parts}")
+    
     _, _, asr, _, stt = parts[:5]
-    if asr and not stt:
-        return f"{asr_token} {asr} {end_token}"
-    elif not asr and stt:
-        return f"{stt_token} {stt} {end_token}"
-    elif asr and stt:
-        return f"{asr_token} {asr} {stt_token} {stt} {end_token}"
+    if asr and stt:
+        return f"{asr} {stt_token} {stt} {end_token}"
+    elif asr:
+        return f"{asr} {end_token}"
+    elif stt:
+        return f"{stt} {end_token}"
     else:
-        raise ValueError(f"Invalid dataset entry with neithr asr nor stt: {parts}")
+        raise ValueError(f"Either 'lang' or 'tgt_lang' must be provided in the dataset: {parts}")
 
 class AudioDataset(Dataset):
     """
@@ -20,8 +22,11 @@ class AudioDataset(Dataset):
     audio_file_path \t lang \t transcription \t tgt_lang \t translation
     (lang, transcription) and (tgt_lang, translation) can be empty strings if not available (one of them must be present).
     """
-    def __init__(self, path, sep_token="<sep>", end_token="<end>"):
+    def __init__(self, path, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
         self.path = path
+        self.asr_token = asr_token
+        self.stt_token = stt_token
+        self.end_token = end_token
         self.samples = []
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
@@ -41,7 +46,7 @@ class AudioDataset(Dataset):
                 "audio": parts[0], 
                 "lang": parts[1] if parts[1] else None,
                 "tgt_lang": parts[3] if parts[3] else None,
-                "target": get_target(parts)
+                "target": get_target(parts, asr_token=self.asr_token, stt_token=self.stt_token, end_token=self.end_token)
             }
         else:
             raise ValueError(f"Invalid line {idx} in {self.path}: {self.samples[idx]}")

@@ -72,17 +72,17 @@ class AudioEmbedder:
     def __init__(self, 
                  model: str = "utter-project/mhubert-147",
                  l2_norm: bool=False, 
-                 half_precision: bool=False,
                  chunk_size: int = 3200, #number of samples of each chunk passed to the model (the chunk will contain N/320 embeddings)
                  stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
+                 dtype: torch.dtype = None,
                  device: str = "cpu",):
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
 
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         self.device = torch.device(device)
+        self.dtype = dtype
         self.l2_norm = l2_norm
-        self.half_precision = half_precision
         self.model = model.lower()
         self.chunk_size = chunk_size
         self.stride = stride
@@ -115,9 +115,8 @@ class AudioEmbedder:
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.embedder.to(self.device)
-        if self.half_precision:
-            self.embedder = self.embedder.half()  # for A100/H100
-#        self.embedder = torch.compile(self.embedder)
+        if self.dtype is not None:
+            self.embedder.to(dtype=self.dtype)
         self.embedder.eval()
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
