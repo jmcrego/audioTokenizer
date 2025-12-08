@@ -1,6 +1,5 @@
 import torch
-import torchaudio
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 
 def get_target(parts, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
     _, _, asr, _, stt = parts[:5]
@@ -22,6 +21,9 @@ class AudioDataset(Dataset):
     """
     def __init__(self, path, asr_token="[ASR]", stt_token="[STT]", end_token="[END]"):
         self.path = path
+        self.asr_token = asr_token
+        self.stt_token = stt_token
+        self.end_token = end_token
         self.samples = []
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
