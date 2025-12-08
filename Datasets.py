@@ -86,6 +86,9 @@ class AudioIterableDataset(IterableDataset):
 
 if __name__ == "__main__":
     import sys
-    dataset = AudioIterableDataset(sys.argv[1])
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
+    dataset = AudioIterableDataset(sys.argv[1], tokenizer, 32768)
     for i,e in enumerate(dataset): 
         print(f"{i}: {e}")
