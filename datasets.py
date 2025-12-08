@@ -46,4 +46,4 @@ if __name__ == "__main__":
     print(f"Dataset size: {len(dataset)}")
     
     sample = dataset[0]
-    print(f"Sample: {sample}")
+    print(f"Sample[0]: {sample}")
