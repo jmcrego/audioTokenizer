@@ -42,7 +42,7 @@ class AudioDataset(Dataset):
 
 if __name__ == "__main__":
     # Simple test
-    dataset = AudioDataset("data/train.en.tsv")
+    dataset = AudioDataset("../audioLLM/data/covost_v2.es_en.tsv ")
     print(f"Dataset size: {len(dataset)}")
     
     sample = dataset[0]
