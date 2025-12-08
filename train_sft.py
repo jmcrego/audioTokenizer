@@ -112,7 +112,6 @@ def compose_full_embeddings_with_padding_vectorized(
     return input_embeds, labels
 
 
-
 # ============================================================
 # Trainer Builder
 # ============================================================
