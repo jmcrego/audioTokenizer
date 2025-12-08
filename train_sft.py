@@ -199,7 +199,7 @@ def build_model_and_trainer(
         batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
-        audios = batch["audio"] # [B, 1, T]
+        audios = batch["audio"] 
         target_texts = batch["target"] # target reference texts
         prompt_texts = [build_prompt(sample) for sample in batch]
         B = len(audios)
@@ -225,8 +225,8 @@ def build_model_and_trainer(
             prompt_embs=prompt_embs,
             prompt_ids=prompt_ids,
             target_ids=target_ids,
-            device_local=device,
-            dtype_local=dtype,
+            device=device,
+            dtype=dtype,
             max_seq_len=max_seq_len,
             pad_token_id=tokenizer.pad_token_id,
             ignore_index=-100,
@@ -278,7 +278,9 @@ if __name__ == "__main__":
     parser.add_argument("--chunk_size", type=int, default=3200, help="Group this many samples when building chunks in audio processor")
     parser.add_argument("--stride", type=int, default=1600, help="Overlap this many samples when building chunks in audio processor")
     parser.add_argument("--stack_size", type=int, default=16, help="Stack this many frames in audio to LLM projector")
-    parser.add_argument("--rank_dim", type=int, default=256, help="Rank dimension for audio to LLM projector")
+    parser.add_argument("--rank_dim", type=int, default=256, help="Low-rank intermediate dimension for audio to LLM projector")
+    # optimization pars
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     # training pars
     parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
@@ -286,8 +288,6 @@ if __name__ == "__main__":
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
-    # optimization pars
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     args = parser.parse_args()
