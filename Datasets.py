@@ -31,8 +31,9 @@ class AudioIterableDataset(IterableDataset):
 
                 if len(parts) >= 5:
                     audio, prompt, target = self.get_audio_prompt_and_target(parts)
-                    length = self.audio_length_in_tokens(audio) + len(prompt) + len(target)
+                    length = self.audio_length_in_tokens(audio)
                     if length is not None:
+                        length += len(prompt) + len(target)
                         samples.append({"length": length, "audio": audio, "prompt": prompt, "target": target}) 
                         if len(samples) >= self.bucket_size:
                             yield from sorted(samples, key=lambda x: x["length"])
