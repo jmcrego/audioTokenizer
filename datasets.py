@@ -30,7 +30,7 @@ class AudioDataset(Dataset):
     
     def __getitem__(self, idx):
         parts = self.samples[idx].strip().split("\t")
-        if len(parts) == 5:
+        if len(parts) >= 5:
             return {
                 "audio": parts[0], 
                 "lang": parts[1] if parts[1] else None,
