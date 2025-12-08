@@ -67,16 +67,18 @@ def main():
     print(src_lang, tgt_lang)
 
     ### read from args.tsv the valid entries:
-    # file_name: common_voice_es_19764307.mp3
-    # row ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
+    # name: common_voice_es_19764307.mp3
+    # entry ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
+    ### read audio mp3 files from args.csv / src_lang / clips:
+    # name: common_voice_es_19764307.mp3
+    # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
     name2path = read_audio_files(Path(args.cv) / src_lang / "clips", name2entry)
 
-    # Now read CommonVoice TSVs under the source language
+    # Now read CommonVoice TSVs under the source language as indicated by *.tsv{.old} (contain file / lang / transcript)
     dir_lang = Path(args.cv) / src_lang
 
     fdo = open(args.tsv[:-4] + '.linked.tsv', 'w')
-
     seen = set()
     N = 0
     for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
