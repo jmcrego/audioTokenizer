@@ -22,6 +22,7 @@ class AudioDataset(Dataset):
     """
     def __init__(self, path, sep_token="<sep>", end_token="<end>"):
         self.path = path
+        self.samples = []
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.strip().split('\t')
