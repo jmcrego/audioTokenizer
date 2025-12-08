@@ -1,0 +1,110 @@
+
+#!/usr/bin/env python3
+import time
+import torch
+import queue
+import logging
+import argparse
+import numpy as np
+
+try:
+    import sounddevice as sd
+    SOUNDDEVICE_AVAILABLE = True
+except (ImportError, OSError) as e:
+    sd = None
+    SOUNDDEVICE_AVAILABLE = False
+    print(f"Warning: sounddevice not available ({e}). Microphone streaming disabled.")
+
+from AudioEmbedder import AudioEmbedder
+from AudioTokenizer import AudioTokenizer
+
+def secs2human(t):
+    sec = int(t)
+    ms = int((t - sec) * 1000)
+    return f"{sec // 3600:02d}:{(sec % 3600) // 60:02d}:{sec % 60:02d}.{ms:03d}"
+
+
+def mic_stream(chunk_duration=5., sample_rate=16000):
+    """
+    Generator that yields consecutive audio chunks from the microphone.
+    Uses a background callback to ensure no audio is lost.
+    Args:
+        sample_rate (int): Sampling rate in Hz.
+        chunk_duration (float): Duration of each yielded chunk in seconds.
+    Yields:
+        np.ndarray: 1D float32 array of audio samples of length chunk_duration*sample_rate
+    """
+    if sd is None:
+        raise ImportError("sounddevice is required for microphone input")
+
+    q = queue.Queue()
+    nchunks = 0 # num of chunks retrieved
+
+    def callback(indata, frames, time, status):
+        """This callback runs in a separate thread and puts audio into the queue."""
+        nonlocal nchunks # allow writing to outer variables
+        if frames != sample_rate * chunk_duration:
+            print("Warning: audio buffer irregularity")
+        if status:
+            print(f"Microphone status: {status}")
+        logging.info(f"sample_rate={sample_rate} Hz, "
+                    f"frames={frames}, "
+                    f"time=[{secs2human(nchunks*frames/sample_rate)}, {secs2human((nchunks+1)*frames/sample_rate)}], "
+                    f"chunk_latency={time.currentTime - time.inputBufferAdcTime:.6f} sec"
+        )
+        nchunks += 1
+        q.put(indata.copy())
+
+    chunk_frames = int(chunk_duration * sample_rate)
+    buffer = np.zeros((0, 1), dtype=np.float32)
+
+    with sd.InputStream(blocksize=int(sample_rate*chunk_duration), samplerate=sample_rate, channels=1, callback=callback):
+        print(f"Recording indefinitely. Tokenizing every {chunk_duration} sec. Press CTRL-C to stop.")
+        while True:
+            # Fill buffer until we have enough frames for one chunk
+            while buffer.shape[0] < chunk_frames:
+                buffer = np.vstack([buffer, q.get()])
+            # Take exactly one chunk from buffer
+            chunk = buffer[:chunk_frames]
+            buffer = buffer[chunk_frames:]  # keep remaining audio
+            yield chunk.flatten()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
+    parser.add_argument("--centroids", type=str, default="centroids.mhubert-147.100.npy or faiss index")
+    parser.add_argument("--wav", type=str, default=None, help="Audio file to tokenize (otherwise mic streaming)")
+    parser.add_argument("--wavs", type=str, default=None, help="File with audio files to tokenize (otherwise mic streaming)")
+    parser.add_argument("--duration", type=float, default=2.0, help="Duration of each audio chunk in seconds (when streaming)")
+    parser.add_argument("--device", type=str, default='cuda', help="Device to use ('cpu' or 'cuda')")
+    args = parser.parse_args()
+    args.device="cuda" if args.device == 'cuda' and torch.cuda.is_available() else "cpu"
+
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    audio_embedder = AudioEmbedder(model=args.model, device=args.device)
+    audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids, device=args.device)
+
+    if args.wav is None and args.wavs is None:
+        try:
+            for i, chunk in enumerate(mic_stream(chunk_duration=args.duration, sample_rate=16000)):
+                t = time.time()
+                tokens = audio_tokenizer(chunk)
+                logging.info(f"Chunk {i+1}, process took {time.time()-t:.3f} sec, tokens={tokens.shape[0]}\n{tokens}")
+        except KeyboardInterrupt:
+            print("\nStreaming stopped.")
+
+    else:
+        if args.wavs is not None:
+            with open(args.wavs.replace('.tsv','.tok.tsv'), 'w') as fdo:
+                with open(args.wavs, 'r') as fdi:
+                    for l in fdi:
+                        parts = l.strip().split('\t')
+                        tokens = audio_tokenizer(parts[0])
+                        parts.append(" ".join(str(x) for x in tokens))
+                        fdo.write('\t'.join(parts) + '\n')
+
+        elif args.wav is not None:
+            t = time.time()
+            tokens = audio_tokenizer(args.wav)
+            logging.info(f"Tokenization took {time.time()-t:.3f} sec\n{tokens}")
