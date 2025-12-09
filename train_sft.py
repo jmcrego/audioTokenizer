@@ -89,9 +89,9 @@ def compose_full_embeddings_with_padding_vectorized(
     total_lens = audio_lens + prompt_lens + target_lens
     max_len = min(total_lens.max().item(), max_seq_len)
 
-    # -----------------------
+    # -------------------
     # Input embeddings
-    # -----------------------
+    # -------------------
     input_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
 
     # Audio embeddings
@@ -147,8 +147,9 @@ def build_model_and_trainer(
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
+    ### =================
     ### 1. Load models    
-    ### ============================================================
+    ### =================
 
     # AudioEmbedder (frozen)
     audio_embedder = AudioEmbedder(
@@ -184,8 +185,9 @@ def build_model_and_trainer(
     if proj is not None:
         projector.load(proj, device=device)
 
+    ### =================
     ### 2. Datasets
-    ### ============================================================
+    ### =================
 
     def collator_fn(batch):
         """
@@ -296,8 +298,9 @@ def build_model_and_trainer(
     )
 
 
+    ### =================
     ### 3. SFTTrainer
-    ### ============================================================
+    ### =================
     sft_config = SFTConfig(
         output_dir=output_dir,
         max_steps=max_steps,
