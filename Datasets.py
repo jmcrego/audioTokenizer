@@ -85,7 +85,8 @@ def build_dataset(file_path: str,
                 "audio_path": audio_path,
                 "prompt_ids": prompt_ids.tolist(),  # convert tensor -> list for Dataset
                 "target_ids": target_ids.tolist(),
-                "total_length": total_length
+                "total_length": total_length,
+                "text": ""  # dummy field to satisfy SFTTrainer
             })
 
     return Dataset.from_list(data)
