@@ -276,42 +276,40 @@ def build_model_and_trainer(
         """
         device_local, dtype_local = device, dtype  # capture outer scope
 
-        # Extract batch fields
-        audios = batch["audio_path"]
+        # batch is a list of dicts
+        audios = [sample["audio_path"] for sample in batch]
 
         prompt_list = [
-            torch.tensor(x, dtype=torch.long)
-            for x in batch["prompt_ids"]
+            torch.tensor(sample["prompt_ids"], dtype=torch.long)
+            for sample in batch
         ]
         target_list = [
-            torch.tensor(x, dtype=torch.long)
-            for x in batch["target_ids"]
+            torch.tensor(sample["target_ids"], dtype=torch.long)
+            for sample in batch
         ]
 
         pad_id = tokenizer.pad_token_id
 
-        # Stack prompt and target sequences directly on GPU
         prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
         target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
 
-        # Encode audio to embeddings on GPU
+        # Encode audio
         with torch.no_grad():
-            embs, embs_mask = audio_embedder(audios)  # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
-            # Only move to dtype if needed, assume embedder outputs on correct device
+            embs, embs_mask = audio_embedder(audios)
             if embs.dtype != dtype_local:
                 embs = embs.to(dtype=dtype_local)
-            embs_mask = embs_mask.bool()  # ensure mask is boolean
+            embs_mask = embs_mask.bool()
 
-        # Project audio embeddings to LLM dimension
-        proj_embs = projector(embs) # [B, N3, D2] (right-padded)
+        # Project
+        proj_embs = projector(embs)
 
-        # Get token embeddings for prompt
+        # Prompt embeddings
         with torch.no_grad():
-            prompt_embs = llm_model.get_input_embeddings()(prompt_ids) # [B, T_max_prompt-1, llm_dim] (right-padded)
+            prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
             if prompt_embs.dtype != dtype_local:
                 prompt_embs = prompt_embs.to(dtype=dtype_local)
 
-        # Compose final input embeddings and labels
+        # Compose full sequence
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
             audio_mask=embs_mask,
@@ -326,9 +324,63 @@ def build_model_and_trainer(
         )
 
         return {
-            "input_embeds": input_embeds,  # [B, L_in, D]
-            "labels": labels,              # [B, L_in] with -100 for ignored positions
+            "input_embeds": input_embeds,
+            "labels": labels,
         }
+
+        # # Extract batch fields
+        # audios = batch["audio_path"]
+
+        # prompt_list = [
+        #     torch.tensor(x, dtype=torch.long)
+        #     for x in batch["prompt_ids"]
+        # ]
+        # target_list = [
+        #     torch.tensor(x, dtype=torch.long)
+        #     for x in batch["target_ids"]
+        # ]
+
+        # pad_id = tokenizer.pad_token_id
+
+        # # Stack prompt and target sequences directly on GPU
+        # prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
+        # target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
+
+        # # Encode audio to embeddings on GPU
+        # with torch.no_grad():
+        #     embs, embs_mask = audio_embedder(audios)  # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
+        #     # Only move to dtype if needed, assume embedder outputs on correct device
+        #     if embs.dtype != dtype_local:
+        #         embs = embs.to(dtype=dtype_local)
+        #     embs_mask = embs_mask.bool()  # ensure mask is boolean
+
+        # # Project audio embeddings to LLM dimension
+        # proj_embs = projector(embs) # [B, N3, D2] (right-padded)
+
+        # # Get token embeddings for prompt
+        # with torch.no_grad():
+        #     prompt_embs = llm_model.get_input_embeddings()(prompt_ids) # [B, T_max_prompt-1, llm_dim] (right-padded)
+        #     if prompt_embs.dtype != dtype_local:
+        #         prompt_embs = prompt_embs.to(dtype=dtype_local)
+
+        # # Compose final input embeddings and labels
+        # input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
+        #     proj_embs=proj_embs,
+        #     audio_mask=embs_mask,
+        #     prompt_embs=prompt_embs,
+        #     prompt_ids=prompt_ids,
+        #     target_ids=target_ids,
+        #     device=device_local,
+        #     dtype=dtype_local,
+        #     max_seq_len=max_seq_len,
+        #     pad_token_id=pad_id,
+        #     ignore_index=-100,
+        # )
+
+        # return {
+        #     "input_embeds": input_embeds,  # [B, L_in, D]
+        #     "labels": labels,              # [B, L_in] with -100 for ignored positions
+        # }
 
     ### 3. SFTTrainer
     ### ============================================================
