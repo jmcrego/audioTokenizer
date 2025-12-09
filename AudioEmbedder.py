@@ -3,6 +3,7 @@
 import torch
 import logging
 import numpy as np
+import torch.nn as nn
 import soundfile as sf
 import soxr
 
@@ -63,7 +64,7 @@ def get_model_stride(embedder, feature_extractor, model_name):
             stride *= layer.conv.stride[0]
         return stride
 
-class AudioEmbedder:
+class AudioEmbedder(nn.Module):
     """
     Audio embeddings extractor with chunk/stride support.
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
@@ -76,6 +77,7 @@ class AudioEmbedder:
                  stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
                  dtype: torch.dtype = None,
                  device: str = "cpu",):
+        super().__init__()
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
 
@@ -114,9 +116,7 @@ class AudioEmbedder:
         #chunk_size must be a multiple of model stride to avoid padding
 
         self.sample_rate = self.feature_extractor.sampling_rate
-        self.embedder.to(self.device)
-        if self.dtype is not None:
-            self.embedder.to(dtype=self.dtype)
+        self.embedder.to(device=self.device, dtype=self.dtype)
         self.embedder.eval()
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
