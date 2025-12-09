@@ -5,13 +5,13 @@ import argparse
 import subprocess
 import numpy as np
 from trl import SFTTrainer, SFTConfig
-from torch.utils.data import Sampler, DataLoader
+#from torch.utils.data import Sampler, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
-from Datasets import AudioDataset
+from Datasets import build_dataset
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -42,39 +42,39 @@ def get_device_dtype():
     return device, dtype
 
 
-class BucketedLengthSampler(Sampler):
-    """
-    Buckets dataset by total_length, shuffles within each bucket, and yields batches.
-    """
-    def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.bucket_size = bucket_size
-        self.shuffle = shuffle
+# class BucketedLengthSampler(Sampler):
+#     """
+#     Buckets dataset by total_length, shuffles within each bucket, and yields batches.
+#     """
+#     def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
+#         self.dataset = dataset
+#         self.batch_size = batch_size
+#         self.bucket_size = bucket_size
+#         self.shuffle = shuffle
 
-        # extract total_length from dataset
-        self.lengths = np.array([s["total_length"] for s in dataset])
-        self.sorted_indices = np.argsort(self.lengths)
+#         # extract total_length from dataset
+#         self.lengths = np.array([s["total_length"] for s in dataset])
+#         self.sorted_indices = np.argsort(self.lengths)
 
-    def __iter__(self):
-        # split sorted indices into buckets
-        buckets = [
-            self.sorted_indices[i:i+self.bucket_size]
-            for i in range(0, len(self.sorted_indices), self.bucket_size)
-        ]
+#     def __iter__(self):
+#         # split sorted indices into buckets
+#         buckets = [
+#             self.sorted_indices[i:i+self.bucket_size]
+#             for i in range(0, len(self.sorted_indices), self.bucket_size)
+#         ]
 
-        all_indices = []
-        for b in buckets:
-            if self.shuffle:
-                b = np.random.permutation(b)
-            all_indices.extend(b.tolist())
+#         all_indices = []
+#         for b in buckets:
+#             if self.shuffle:
+#                 b = np.random.permutation(b)
+#             all_indices.extend(b.tolist())
 
-        # yield batches
-        for i in range(0, len(all_indices), self.batch_size):
-            yield all_indices[i:i+self.batch_size]
+#         # yield batches
+#         for i in range(0, len(all_indices), self.batch_size):
+#             yield all_indices[i:i+self.batch_size]
 
-    def __len__(self):
-        return len(self.dataset)
+#     def __len__(self):
+#         return len(self.dataset)
     
 # ============================================================
 # Compose batch of embeddings/targets with right-padding (vectorized)
@@ -229,17 +229,44 @@ def build_model_and_trainer(
     end_token = "[END]"
     sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
 
-    train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
-                                 asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)    
-    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
-    train_loader = DataLoader(train_dataset, batch_sampler=train_sampler, collate_fn=lambda batch: batch)
+    # train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
+    #                              asr_token=asr_token, stt_token=stt_token, end_token=end_token,
+    #                              sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)    
+    # train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
+    # train_loader = DataLoader(train_dataset, batch_sampler=train_sampler, collate_fn=lambda batch: batch)
 
-    eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
-                                 asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)
-    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size, shuffle=False)
-    eval_loader = DataLoader(eval_dataset, batch_sampler=eval_sampler, collate_fn=lambda batch: batch) 
+    # eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
+    #                              asr_token=asr_token, stt_token=stt_token, end_token=end_token,
+    #                              sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)
+    # eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size, shuffle=False)
+    # eval_loader = DataLoader(eval_dataset, batch_sampler=eval_sampler, collate_fn=lambda batch: batch) 
+
+    train_dataset = build_dataset(
+        file_path=train,
+        tokenizer=tokenizer,
+        asr_token=asr_token,
+        stt_token=stt_token,
+        end_token=end_token,
+        sample_rate=sample_rate,
+        chunk_size=chunk_size,
+        stride=stride,
+        stack_size=stack_size,
+        max_seq_len=max_seq_len
+    )
+
+    eval_dataset = build_dataset(
+        file_path=eval,
+        tokenizer=tokenizer,
+        asr_token=asr_token,
+        stt_token=stt_token,
+        end_token=end_token,
+        sample_rate=sample_rate,
+        chunk_size=chunk_size,
+        stride=stride,
+        stack_size=stack_size,
+        max_seq_len=max_seq_len
+    )
+
 
     def preprocess_fn(batch):
         """
@@ -251,8 +278,9 @@ def build_model_and_trainer(
 
         # Extract batch fields
         audios = [item["audio_path"] for item in batch]
-        prompt_list = [item["prompt_ids"] for item in batch]
-        target_list = [item["target_ids"] for item in batch]
+        prompt_list = [torch.tensor(item["prompt_ids"], dtype=torch.long) for item in batch]
+        target_list = [torch.tensor(item["target_ids"], dtype=torch.long) for item in batch]
+
 
         pad_id = tokenizer.pad_token_id
 
@@ -310,15 +338,15 @@ def build_model_and_trainer(
         bf16=(dtype == torch.bfloat16),
     )
 
-    def data_collator(batch):
-        return preprocess_fn(batch)
+    # def data_collator(batch):
+    #     return preprocess_fn(batch)
 
     trainer = SFTTrainer(
         model=llm_model,
         args=sft_config,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        data_collator=data_collator,
+        data_collator=preprocess_fn,
         processing_class=tokenizer,
     )
 
