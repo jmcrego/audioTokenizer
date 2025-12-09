@@ -73,8 +73,8 @@ class AudioDataset(Dataset):
 
                 self.data.append({
                     "audio_path": audio_path,
-                    "input_ids": prompt_ids,
-                    "labels": target_ids,
+                    "prompt_ids": prompt_ids,
+                    "target_ids": target_ids,
                     "total_length": total_length,
                 })
 
@@ -107,8 +107,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
     dataset = AudioDataset(sys.argv[1], tokenizer)
     for i,e in enumerate(dataset): 
-        n_input = len(e["input_ids"])
-        n_labels = len(e["labels"])
-        n_audio = e["total_length"] - n_input - n_labels
-        print(n_audio, n_input, n_labels)
+        n_prompts = len(e["prompt_ids"])
+        n_targets = len(e["target_ids"])
+        n_audio = e["total_length"] - n_prompts - n_targets
+        print(n_audio, n_prompts, n_targets)
 

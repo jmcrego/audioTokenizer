@@ -183,19 +183,6 @@ def build_model_and_trainer(
     train_dataset = AudioDataset(path=train, asr_token=asr_token, stt_token=stt_token, end_token=end_token)
     eval_dataset  = AudioDataset(path=eval, asr_token=asr_token, stt_token=stt_token, end_token=end_token)        
 
-    def build_prompt(sample):
-        has_src = bool(sample.get("lang"))
-        has_tgt = bool(sample.get("tgt_lang"))
-
-        if has_src and has_tgt:
-            return f"\nTranscribe then translate into {sample['tgt_lang']}.\n{asr_token}"
-        elif has_src:
-            return f"\nTranscribe.\n{asr_token}"
-        elif has_tgt:
-            return f"\nTranslate into {sample['tgt_lang']}.\n{stt_token}"
-        else:
-            raise ValueError(f"Either 'lang' or 'tgt_lang' must be provided in the dataset: {sample}")
-
 
     def preprocess_fn(batch):
         """
@@ -203,9 +190,9 @@ def build_model_and_trainer(
         batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
-        audios = batch["audio"] 
-        target_texts = batch["target"] # target reference texts
-        prompt_texts = [build_prompt(sample) for sample in batch]
+        audios = batch["audio_path"] 
+        labels = batch["labels"].to(device)
+        input_ids = batch["input_ids"].to(device)
         B = len(audios)
 
         # encode audio to audio embeddings
