@@ -22,18 +22,25 @@ def get_git_commit():
     except Exception:
         return "unknown"
 
-def get_device_dtype(): 
+def get_device_dtype():
     if torch.cuda.is_available():
-        device = "cuda:0"
+        device = torch.device("cuda")  # picks default CUDA device
         try:
             props = torch.cuda.get_device_properties(device)
-            dtype = torch.bfloat16 if "H100" in props.name else torch.float16
+            name = props.name.lower()
+            if "h100" in name:
+                dtype = torch.bfloat16
+            elif "a100" in name:
+                dtype = torch.bfloat16  # optional, you could also use fp16
+            else:  # V100, T4, etc.
+                dtype = torch.float16
         except Exception:
             dtype = torch.float16
     else:
-        device = "cpu"
+        device = torch.device("cpu")
         dtype = torch.float32
     return device, dtype
+
 
 class BucketedLengthSampler(Sampler):
     """
