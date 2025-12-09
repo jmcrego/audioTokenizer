@@ -277,10 +277,16 @@ def build_model_and_trainer(
         device_local, dtype_local = device, dtype  # capture outer scope
 
         # Extract batch fields
-        audios = [item["audio_path"] for item in batch]
-        prompt_list = [torch.tensor(item["prompt_ids"], dtype=torch.long) for item in batch]
-        target_list = [torch.tensor(item["target_ids"], dtype=torch.long) for item in batch]
+        audios = batch["audio_path"]
 
+        prompt_list = [
+            torch.tensor(x, dtype=torch.long)
+            for x in batch["prompt_ids"]
+        ]
+        target_list = [
+            torch.tensor(x, dtype=torch.long)
+            for x in batch["target_ids"]
+        ]
 
         pad_id = tokenizer.pad_token_id
 
