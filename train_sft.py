@@ -5,15 +5,13 @@ import argparse
 import subprocess
 import numpy as np
 from trl import SFTTrainer, SFTConfig
+from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
-from Datasets import build_dataset
-from torch.utils.data import DataLoader
-
-from Datasets import BucketedLengthSampler
+from Datasets import AudioDataset, BucketedLengthSampler
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -194,47 +192,6 @@ def build_model_and_trainer(
     end_token = "[END]"
     sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
 
-    train_dataset = build_dataset(
-        file_path=train,
-        tokenizer=tokenizer,
-        asr_token=asr_token,
-        stt_token=stt_token,
-        end_token=end_token,
-        sample_rate=sample_rate,
-        chunk_size=chunk_size,
-        stride=stride,
-        stack_size=stack_size,
-        max_seq_len=max_seq_len
-    )
-    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
-        collate_fn=my_collate_fn       # collate function pads and builds tensors
-    )
-
-    eval_dataset = build_dataset(
-        file_path=eval,
-        tokenizer=tokenizer,
-        asr_token=asr_token,
-        stt_token=stt_token,
-        end_token=end_token,
-        sample_rate=sample_rate,
-        chunk_size=chunk_size,
-        stride=stride,
-        stack_size=stack_size,
-        max_seq_len=max_seq_len
-    )
-    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size)
-
-    eval_loader = DataLoader(
-        train_dataset,
-        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
-        collate_fn=my_collate_fn       # collate function pads and builds tensors
-    )
-
-
     def preprocess_fn(batch):
         """
         Expects `batch` to be a list-like batch from the datasets library where
@@ -297,6 +254,46 @@ def build_model_and_trainer(
             "labels": labels,
         }
 
+    train_dataset = AudioDataset(
+        file_path=train,
+        tokenizer=tokenizer,
+        asr_token=asr_token,
+        stt_token=stt_token,
+        end_token=end_token,
+        sample_rate=sample_rate,
+        chunk_size=chunk_size,
+        stride=stride,
+        stack_size=stack_size,
+        max_seq_len=max_seq_len
+    )
+    eval_dataset = AudioDataset(
+        file_path=eval,
+        tokenizer=tokenizer,
+        asr_token=asr_token,
+        stt_token=stt_token,
+        end_token=end_token,
+        sample_rate=sample_rate,
+        chunk_size=chunk_size,
+        stride=stride,
+        stack_size=stack_size,
+        max_seq_len=max_seq_len
+    )
+
+    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
+    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
+        collate_fn=preprocess_fn       # collate function pads and builds tensors
+    )
+    eval_loader = DataLoader(
+        eval_dataset,
+        batch_sampler=eval_sampler,  # batch_size is ignored because sampler yields batches
+        collate_fn=preprocess_fn       # collate function pads and builds tensors
+    )
+
+
     ### 3. SFTTrainer
     ### ============================================================
     sft_config = SFTConfig(
@@ -317,18 +314,9 @@ def build_model_and_trainer(
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         data_collator=preprocess_fn,
-        processing_class=tokenizer,
-        # To use SFTTrainer with your own batch format:
-        tokenizer=None
-        dataset_text_field=None,  # disables internal SFT tokenization
-        formatting_func=None
-        packing=False
-        max_seq_length=None,          # disable truncation/tokenizer pipeline
-        num_of_sequences=None        
-
-        format_instruction=None,
+        tokenizer=None,
+        dataset_text_field=None
     )
-
     return trainer
 
 
