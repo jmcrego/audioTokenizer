@@ -194,7 +194,6 @@ def build_model_and_trainer(
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
 
-        # Extract lists of dicts
         audio_paths     = [sample["audio_path"] for sample in batch]
         prompt_ids_list = [sample["prompt_ids"] for sample in batch]
         target_ids_list = [sample["target_ids"] for sample in batch]

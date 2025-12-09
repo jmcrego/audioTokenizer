@@ -77,14 +77,14 @@ class AudioDataset(Dataset):
                     return_tensors="pt",
                     padding=False,
                     truncation=False
-                ).input_ids[0].long()
+                ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 target_ids = tokenizer(
                     self.build_target(asr, stt),
                     return_tensors="pt",
                     padding=False,
                     truncation=False
-                ).input_ids[0].long()
+                ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
