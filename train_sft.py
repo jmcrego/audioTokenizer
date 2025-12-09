@@ -224,13 +224,13 @@ def build_model_and_trainer(
 
     train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
                                  asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)    
+                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)    
     train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
     train_loader = DataLoader(train_dataset, batch_sampler=train_sampler, collate_fn=lambda batch: batch)
 
     eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
                                  asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)
+                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)
     eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size, shuffle=False)
     eval_loader = DataLoader(eval_dataset, batch_sampler=eval_sampler, collate_fn=lambda batch: batch) 
 

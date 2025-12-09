@@ -43,6 +43,7 @@ class AudioDataset(Dataset):
         chunk_size=3200,
         stride=1600,
         stack_size=8,
+        max_seq_len=1000,
     ):
         self.tokenizer = tokenizer
         self.asr_token = asr_token
@@ -55,6 +56,7 @@ class AudioDataset(Dataset):
 
         self.data = []
         with open(path, "r", encoding="utf-8") as f:
+            n_filtered = 0
             for line in f:
                 parts = line.strip().split("\t")
                 if len(parts) < 5:
@@ -70,6 +72,10 @@ class AudioDataset(Dataset):
 
                 # compute total length estimating the length in tokens of the audio too
                 total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
+
+                if total_length > max_seq_len:
+                    n_filtered += 1
+                    continue
 
                 self.data.append({
                     "audio_path": audio_path, # string, path to audio file
@@ -105,7 +111,7 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
-    dataset = AudioDataset(sys.argv[1], tokenizer)
+    dataset = AudioDataset(sys.argv[1], tokenizer, max_seq_len=35)
     for i,e in enumerate(dataset): 
         n_prompts = len(e["prompt_ids"])
         n_targets = len(e["target_ids"])
