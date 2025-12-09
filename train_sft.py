@@ -198,9 +198,9 @@ def build_model_and_trainer(
         prompt_ids_list = [sample["prompt_ids"] for sample in batch]
         target_ids_list = [sample["target_ids"] for sample in batch]
 
-        # Convert prompt + target to padded tensors
         pad_id = tokenizer.pad_token_id
 
+        # Convert prompt + target to padded tensors
         prompt_ids = pad_sequence(
             [torch.tensor(p, dtype=torch.long) for p in prompt_ids_list],
             batch_first=True,
