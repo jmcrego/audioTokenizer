@@ -11,6 +11,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
 from Datasets import build_dataset
+from torch.utils.data import DataLoader
+
+from Datasets import BucketedLengthSampler
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -203,6 +206,13 @@ def build_model_and_trainer(
         stack_size=stack_size,
         max_seq_len=max_seq_len
     )
+    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
+        collate_fn=my_collate_fn       # collate function pads and builds tensors
+    )
 
     eval_dataset = build_dataset(
         file_path=eval,
@@ -215,6 +225,13 @@ def build_model_and_trainer(
         stride=stride,
         stack_size=stack_size,
         max_seq_len=max_seq_len
+    )
+    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size)
+
+    eval_loader = DataLoader(
+        train_dataset,
+        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
+        collate_fn=my_collate_fn       # collate function pads and builds tensors
     )
 
 
@@ -301,11 +318,15 @@ def build_model_and_trainer(
         eval_dataset=eval_dataset,
         data_collator=preprocess_fn,
         processing_class=tokenizer,
+        # To use SFTTrainer with your own batch format:
+        tokenizer=None
         dataset_text_field=None,  # disables internal SFT tokenization
-        format_instruction=None,
-        packing=False,
+        formatting_func=None
+        packing=False
         max_seq_length=None,          # disable truncation/tokenizer pipeline
-        num_of_sequences=None,
+        num_of_sequences=None        
+
+        format_instruction=None,
     )
 
     return trainer
