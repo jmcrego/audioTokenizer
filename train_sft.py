@@ -148,25 +148,27 @@ def build_model_and_trainer(
         l2_norm=False, 
         chunk_size=chunk_size, 
         stride=stride, 
-        device=args.device,
+        device=device,
         dtype=dtype)
 
     audio_embedder.eval()
     for p in audio_embedder.parameters():
         p.requires_grad = False
 
-    # LLM (frozen)
+    # Tokenizer + LLM (frozen)
     tokenizer = AutoTokenizer.from_pretrained(llm, use_fast=True)
-    llm = AutoModelForCausalLM.from_pretrained(llm, torch_dtype=dtype, device_map="auto")
-    llm.eval()
-    for p in llm.parameters():
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    llm_model = AutoModelForCausalLM.from_pretrained(llm, torch_dtype=dtype, device_map="auto")
+    llm_model.eval()
+    for p in llm_model.parameters():
         p.requires_grad = False
 
     # Projector (trainable)
     projector = AudioToLLMProjector(
         audio_embedding_dim=audio_embedder.config.hidden_size, 
         stack_size=stack_size, 
-        llm_dimension=llm.config.hidden_size,
+        llm_dimension=llm_model.config.hidden_size,
         rank_dim=rank_dim, 
         max_seq_len=max_seq_len)
 
@@ -180,8 +182,15 @@ def build_model_and_trainer(
     asr_token = "[ASR]"
     stt_token = "[STT]"
     end_token = "[END]"
-    train_dataset = AudioDataset(path=train, asr_token=asr_token, stt_token=stt_token, end_token=end_token)
-    eval_dataset  = AudioDataset(path=eval, asr_token=asr_token, stt_token=stt_token, end_token=end_token)        
+    sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
+    train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
+                                 asr_token=asr_token, stt_token=stt_token, end_token=end_token,
+                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)    
+    eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
+                                 asr_token=asr_token, stt_token=stt_token, end_token=end_token,
+                                 sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)
+
+
 
 
     def preprocess_fn(batch):
@@ -190,9 +199,11 @@ def build_model_and_trainer(
         batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
+        device_local, dtype_local = device, dtype  # capture outer scope
+
         audios = batch["audio_path"] 
-        labels = batch["labels"].to(device)
-        input_ids = batch["input_ids"].to(device)
+        prompt_ids = batch["prompt_ids"].to(device_local) # [B, T_max_prompt] 
+        target_ids = batch["target_ids"].to(device_local) # [B, L_max_target]
         B = len(audios)
 
         # encode audio to audio embeddings
@@ -200,15 +211,11 @@ def build_model_and_trainer(
             embs, embs_mask = audio_embedder(audios) # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
 
         # project embeddings to LLM dimension
-        proj_embs = projector(embs).to(device=device, dtype=dtype) # [B, N3, D2] (right-padded)
-
-        # Tokenize prompts and targets
-        prompt_ids = tokenizer(prompt_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device) # [B, T_max_prompt-1] remove first token (<extra_id_0>)
-        target_ids = tokenizer(target_texts, return_tensors="pt", padding=True, truncation=False).input_ids.to(device) # [B, L_max_target]
+        proj_embs = projector(embs).to(device=device_local, dtype=dtype_local) # [B, N3, D2] (right-padded)
 
         # token embeddings from LLM embedding layer with right-padded
         with torch.no_grad():
-            prompt_embs = llm.get_input_embeddings()(prompt_ids).to(device=device, dtype=dtype)  # [B, T_max_prompt-1, llm_dim] (right-padded)
+            prompt_embs = llm_model.get_input_embeddings()(prompt_ids).to(device=device_local, dtype=dtype_local)  # [B, T_max_prompt-1, llm_dim] (right-padded)
 
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
@@ -216,8 +223,8 @@ def build_model_and_trainer(
             prompt_embs=prompt_embs,
             prompt_ids=prompt_ids,
             target_ids=target_ids,
-            device=device,
-            dtype=dtype,
+            device=device_local,
+            dtype=dtype_local,
             max_seq_len=max_seq_len,
             pad_token_id=tokenizer.pad_token_id,
             ignore_index=-100,
@@ -233,11 +240,11 @@ def build_model_and_trainer(
     ### ============================================================
 
     trainer = SFTTrainer(
-        model=llm,
+        model=llm_model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        dataset_text_field="target",
+        dataset_text_field="labels",
         preprocessor=preprocess_fn,
         max_seq_length=max_seq_len,
         max_steps=max_steps,
