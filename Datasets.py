@@ -48,7 +48,6 @@ class AudioIterableDataset(IterableDataset):
             raise ValueError(f"Error: entry must contain at least 5 fields {parts}")
 
         audio, lang, asr, tgt_lang, stt = parts[:5]
-        audio.replace('clip','clips')
 
         if len(lang) and len(tgt_lang):
             prompt = f"\nTranscribe then translate into {tgt_lang}.\n{self.asr_token}"
