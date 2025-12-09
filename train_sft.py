@@ -3,7 +3,10 @@ import torch
 import logging
 import argparse
 import subprocess
+import numpy as np
 from trl import SFTTrainer
+from torch.utils.data import Sampler, DataLoader
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
@@ -130,6 +133,7 @@ def build_model_and_trainer(
     eval,
     max_steps,
     batch_size,
+    bucket_size,
     max_seq_len,
     lr,
     eval_steps,
@@ -183,15 +187,18 @@ def build_model_and_trainer(
     stt_token = "[STT]"
     end_token = "[END]"
     sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
+
     train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
                                  asr_token=asr_token, stt_token=stt_token, end_token=end_token,
                                  sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)    
+    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
+    train_loader = DataLoader(train_dataset, batch_sampler=train_sampler, collate_fn=lambda batch: batch)  # SFTTrainer will call preprocess_fn on the batch
+
     eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
                                  asr_token=asr_token, stt_token=stt_token, end_token=end_token,
                                  sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size)
-
-
-
+    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size, shuffle=False)
+    eval_loader = DataLoader(eval_dataset, batch_sampler=eval_sampler, collate_fn=lambda batch: batch)  # SFTTrainer will call preprocess_fn on the batch
 
     def preprocess_fn(batch):
         """
@@ -201,10 +208,14 @@ def build_model_and_trainer(
         """
         device_local, dtype_local = device, dtype  # capture outer scope
 
-        audios = batch["audio_path"] 
-        prompt_ids = batch["prompt_ids"].to(device_local) # [B, T_max_prompt] 
-        target_ids = batch["target_ids"].to(device_local) # [B, L_max_target]
-        B = len(audios)
+        audios = [s["audio_path"] for s in batch]  # list of file paths
+        prompt_list = [s["prompt_ids"] for s in batch]
+        target_list = [s["target_ids"] for s in batch]
+
+        # Pad prompt and target sequences
+        pad_id = tokenizer.pad_token_id
+        prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device)
+        target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device)
 
         # encode audio to audio embeddings
         with torch.no_grad():
@@ -246,12 +257,16 @@ def build_model_and_trainer(
         eval_dataset=eval_dataset,
         dataset_text_field="labels",
         preprocessor=preprocess_fn,
+        train_loader=train_loader,
+        eval_loader=eval_loader,
         max_seq_length=max_seq_len,
         max_steps=max_steps,
         eval_steps=eval_steps,
         logging_steps=logging_steps,
         output_dir=output_dir,
         learning_rate=lr,
+        group_by_length=True,
+        length_column_name="total_length",
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         fp16=(dtype == torch.float16),
@@ -260,6 +275,41 @@ def build_model_and_trainer(
 
     return trainer
 
+
+class BucketedLengthSampler(Sampler):
+    """
+    Buckets dataset by total_length, shuffles within each bucket, and yields batches.
+    """
+    def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.bucket_size = bucket_size
+        self.shuffle = shuffle
+
+        # extract total_length from dataset
+        self.lengths = np.array([s["total_length"] for s in dataset])
+        self.sorted_indices = np.argsort(self.lengths)
+
+    def __iter__(self):
+        # split sorted indices into buckets
+        buckets = [
+            self.sorted_indices[i:i+self.bucket_size]
+            for i in range(0, len(self.sorted_indices), self.bucket_size)
+        ]
+
+        all_indices = []
+        for b in buckets:
+            if self.shuffle:
+                b = np.random.permutation(b)
+            all_indices.extend(b.tolist())
+
+        # yield batches
+        for i in range(0, len(all_indices), self.batch_size):
+            yield all_indices[i:i+self.batch_size]
+
+    def __len__(self):
+        return len(self.dataset)
+    
 
 if __name__ == "__main__":
 
@@ -281,6 +331,7 @@ if __name__ == "__main__":
     # training pars
     parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
+    parser.add_argument("--bucket_size", type=int, default=1000, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
@@ -318,6 +369,7 @@ if __name__ == "__main__":
         eval=args.eval,
         max_steps=args.max_steps,
         batch_size=args.batch_size,
+        bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
         eval_steps=args.eval_steps,
