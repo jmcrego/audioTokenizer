@@ -110,5 +110,5 @@ if __name__ == "__main__":
         n_input = len(e["input_ids"])
         n_labels = len(e["labels"])
         n_audio = e["total_length"] - n_input - n_labels
-        print(e, n_audio, n_labels, n_audio)
+        print(n_audio, n_input, n_labels)
 
