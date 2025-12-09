@@ -63,19 +63,19 @@ class AudioDataset(Dataset):
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
 
                 # build and tokenize prompt
-                prompt_ids = tokenizer(build_prompt(lang, tgt_lang, self.asr_token, self.stt_token), return_tensors="pt", padding=False, truncation=False).input_ids[0]
+                prompt_ids = tokenizer(build_prompt(lang, tgt_lang, self.asr_token, self.stt_token), return_tensors="pt", padding=False, truncation=False).input_ids[0].long()
 
                 # build and tokenize target (labels)
-                target_ids = tokenizer(build_target(asr, stt, self.stt_token, self.end_token), return_tensors="pt", padding=False, truncation=False).input_ids[0]
+                target_ids = tokenizer(build_target(asr, stt, self.stt_token, self.end_token), return_tensors="pt", padding=False, truncation=False).input_ids[0].long()
 
                 # compute total length estimating the length in tokens of the audio too
                 total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
 
                 self.data.append({
-                    "audio_path": audio_path,
-                    "prompt_ids": prompt_ids,
-                    "target_ids": target_ids,
-                    "total_length": total_length,
+                    "audio_path": audio_path, # string, path to audio file
+                    "prompt_ids": prompt_ids, # tensor, tokenized prompt
+                    "target_ids": target_ids, # tensor, tokenized target/labels
+                    "total_length": total_length, # int, n_audio_tokens + len(prompt_ids) + len(target_ids)
                 })
 
     def __len__(self):

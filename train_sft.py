@@ -35,6 +35,40 @@ def get_device_dtype():
         dtype = torch.float32
     return device, dtype
 
+class BucketedLengthSampler(Sampler):
+    """
+    Buckets dataset by total_length, shuffles within each bucket, and yields batches.
+    """
+    def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.bucket_size = bucket_size
+        self.shuffle = shuffle
+
+        # extract total_length from dataset
+        self.lengths = np.array([s["total_length"] for s in dataset])
+        self.sorted_indices = np.argsort(self.lengths)
+
+    def __iter__(self):
+        # split sorted indices into buckets
+        buckets = [
+            self.sorted_indices[i:i+self.bucket_size]
+            for i in range(0, len(self.sorted_indices), self.bucket_size)
+        ]
+
+        all_indices = []
+        for b in buckets:
+            if self.shuffle:
+                b = np.random.permutation(b)
+            all_indices.extend(b.tolist())
+
+        # yield batches
+        for i in range(0, len(all_indices), self.batch_size):
+            yield all_indices[i:i+self.batch_size]
+
+    def __len__(self):
+        return len(self.dataset)
+    
 # ============================================================
 # Compose batch of embeddings/targets with right-padding (vectorized)
 # ============================================================
@@ -208,26 +242,41 @@ def build_model_and_trainer(
         """
         device_local, dtype_local = device, dtype  # capture outer scope
 
-        audios = [s["audio_path"] for s in batch]  # list of file paths
-        prompt_list = [s["prompt_ids"] for s in batch]
-        target_list = [s["target_ids"] for s in batch]
+        # Extract batch fields
+        audios = [item["audio_path"] for item in batch]
+        prompt_list = [item["prompt_ids"] for item in batch]
+        target_list = [item["target_ids"] for item in batch]
 
-        # Pad prompt and target sequences
         pad_id = tokenizer.pad_token_id
-        prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device)
-        target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device)
 
-        # encode audio to audio embeddings
+        # Compute max lengths for this batch (vectorized)
+        max_len_p = max(p.size(0) for p in prompt_list)
+        max_len_t = max(t.size(0) for t in target_list)
+
+        # Stack prompt and target directly on GPU
+        prompt_ids = torch.zeros((len(batch), max_len_p), dtype=torch.long, device=device_local)
+        target_ids = torch.zeros((len(batch), max_len_t), dtype=torch.long, device=device_local)
+
+        for i, p in enumerate(prompt_list):
+            prompt_ids[i, :p.size(0)] = p.to(device_local)
+        for i, t in enumerate(target_list):
+            target_ids[i, :t.size(0)] = t.to(device_local)
+
+        # Encode audio to embeddings on GPU
         with torch.no_grad():
-            embs, embs_mask = audio_embedder(audios) # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
+            embs, embs_mask = audio_embedder(audios)  # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
+            embs = embs.to(device=device_local, dtype=dtype_local)
+            embs_mask = embs_mask.to(device=device_local)
 
-        # project embeddings to LLM dimension
+        # Project audio embeddings to LLM dimension
         proj_embs = projector(embs).to(device=device_local, dtype=dtype_local) # [B, N3, D2] (right-padded)
 
-        # token embeddings from LLM embedding layer with right-padded
+        # Get token embeddings for prompt
         with torch.no_grad():
-            prompt_embs = llm_model.get_input_embeddings()(prompt_ids).to(device=device_local, dtype=dtype_local)  # [B, T_max_prompt-1, llm_dim] (right-padded)
+            prompt_embs = llm_model.get_input_embeddings()(prompt_ids).to(device=device_local, dtype=dtype_local) # [B, T_max_prompt-1, llm_dim] (right-padded)
 
+
+        # Compose final input embeddings and labels
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
             audio_mask=embs_mask,
@@ -237,9 +286,10 @@ def build_model_and_trainer(
             device=device_local,
             dtype=dtype_local,
             max_seq_len=max_seq_len,
-            pad_token_id=tokenizer.pad_token_id,
+            pad_token_id=pad_id,
             ignore_index=-100,
         )
+
         return {
             "input_embeds": input_embeds,  # [B, L_in, D]
             "labels": labels,              # [B, L_in] with -100 for ignored positions
@@ -255,7 +305,7 @@ def build_model_and_trainer(
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        dataset_text_field="labels",
+#        dataset_text_field="labels",
         preprocessor=preprocess_fn,
         train_loader=train_loader,
         eval_loader=eval_loader,
@@ -265,8 +315,8 @@ def build_model_and_trainer(
         logging_steps=logging_steps,
         output_dir=output_dir,
         learning_rate=lr,
-        group_by_length=True,
-        length_column_name="total_length",
+#        group_by_length=True,
+#        length_column_name="total_length",
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         fp16=(dtype == torch.float16),
@@ -276,40 +326,6 @@ def build_model_and_trainer(
     return trainer
 
 
-class BucketedLengthSampler(Sampler):
-    """
-    Buckets dataset by total_length, shuffles within each bucket, and yields batches.
-    """
-    def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.bucket_size = bucket_size
-        self.shuffle = shuffle
-
-        # extract total_length from dataset
-        self.lengths = np.array([s["total_length"] for s in dataset])
-        self.sorted_indices = np.argsort(self.lengths)
-
-    def __iter__(self):
-        # split sorted indices into buckets
-        buckets = [
-            self.sorted_indices[i:i+self.bucket_size]
-            for i in range(0, len(self.sorted_indices), self.bucket_size)
-        ]
-
-        all_indices = []
-        for b in buckets:
-            if self.shuffle:
-                b = np.random.permutation(b)
-            all_indices.extend(b.tolist())
-
-        # yield batches
-        for i in range(0, len(all_indices), self.batch_size):
-            yield all_indices[i:i+self.batch_size]
-
-    def __len__(self):
-        return len(self.dataset)
-    
 
 if __name__ == "__main__":
 
