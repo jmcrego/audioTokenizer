@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn as nn
 import soundfile as sf
 import soxr
+import time
 
 logger = logging.getLogger("audio_embedder")
 # next are to speed up the embedding
@@ -78,6 +79,7 @@ class AudioEmbedder(nn.Module):
                  dtype: torch.dtype = None,
                  device: str = "cpu",):
         super().__init__()
+
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
 
@@ -115,12 +117,13 @@ class AudioEmbedder(nn.Module):
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
 
+        self.embedder.to(device=self.device, dtype=self.dtype).eval()
+
         self.sample_rate = self.feature_extractor.sampling_rate
-        self.embedder.to(device=self.device, dtype=self.dtype)
-        self.embedder.eval()
+
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
-
+    @torch.inference_mode()
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
@@ -168,8 +171,9 @@ class AudioEmbedder(nn.Module):
         #f ~ feature dimension (for spectrograms)
         t_features = time.time()-t
 
-        if self.half_precision:
-            inputs = inputs.half()
+        inputs = inputs.to(dtype=self.dtype)
+        # if self.half_precision:
+        #     inputs = inputs.half()
 
         # ----------------------------------------------
         # --- extract embeddings from all features -----
@@ -222,7 +226,6 @@ class AudioEmbedder(nn.Module):
 
 if __name__ == "__main__":
     import argparse
-    import time
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--wav", type=str, help="Comma separated list of paths to audio files")

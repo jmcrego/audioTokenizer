@@ -4,7 +4,7 @@ import logging
 import argparse
 import subprocess
 import numpy as np
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from torch.utils.data import Sampler, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -291,25 +291,28 @@ def build_model_and_trainer(
 
     ### 3. SFTTrainer
     ### ============================================================
-
-    trainer = SFTTrainer(
-        model=llm_model,
-        tokenizer=tokenizer,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        preprocessor=preprocess_fn,
-        train_loader=train_loader,
-        eval_loader=eval_loader,
-        max_seq_length=max_seq_len,
+    sft_config = SFTConfig(
+        output_dir=output_dir,
         max_steps=max_steps,
         eval_steps=eval_steps,
         logging_steps=logging_steps,
-        output_dir=output_dir,
-        learning_rate=lr,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
+        learning_rate=lr,
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
+    )
+
+    def data_collator(batch):
+        return preprocess_fn(batch)
+
+    trainer = SFTTrainer(
+        model=llm_model,
+        args=sft_config,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        data_collator=data_collator,
+        processing_class=tokenizer,
     )
 
     return trainer
