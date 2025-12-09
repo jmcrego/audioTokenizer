@@ -204,7 +204,7 @@ def build_model_and_trainer(
 
     # Projector (trainable)
     projector = AudioToLLMProjector(
-        audio_embedding_dim=audio_embedder.config.hidden_size, 
+        audio_embedding_dim=audio_embedder.D, 
         stack_size=stack_size, 
         llm_dimension=llm_model.config.hidden_size,
         rank_dim=rank_dim, 
