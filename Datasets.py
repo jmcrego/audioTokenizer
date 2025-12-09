@@ -1,10 +1,9 @@
-import soundfile as sf
-import numpy as np
-from datasets import Dataset
-from transformers import PreTrainedTokenizerBase
 
-from torch.utils.data import Sampler
+import torch
 import numpy as np
+import soundfile as sf
+from torch.utils.data import Dataset, Sampler
+from transformers import PreTrainedTokenizerBase
 
 class BucketedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
@@ -37,9 +36,6 @@ class BucketedLengthSampler(Sampler):
     def __len__(self):
         return len(self.dataset)
 
-import torch
-from torch.utils.data import Dataset
-import soundfile as sf
 
 class AudioDataset(Dataset):
     """
@@ -161,11 +157,6 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         max_seq_len=50
     )
-
-    # Print dummy column names compatible with SFTTrainer
-    # We'll assume the same columns as in build_dataset
-    column_names = ["audio_path", "prompt_ids", "target_ids", "total_length", "text"]
-    print(column_names)
 
     # Inspect some samples
     for i, e in enumerate(eval_dataset):
