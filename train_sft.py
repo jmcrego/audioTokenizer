@@ -249,32 +249,26 @@ def build_model_and_trainer(
 
         pad_id = tokenizer.pad_token_id
 
-        # Compute max lengths for this batch (vectorized)
-        max_len_p = max(p.size(0) for p in prompt_list)
-        max_len_t = max(t.size(0) for t in target_list)
-
-        # Stack prompt and target directly on GPU
-        prompt_ids = torch.zeros((len(batch), max_len_p), dtype=torch.long, device=device_local)
-        target_ids = torch.zeros((len(batch), max_len_t), dtype=torch.long, device=device_local)
-
-        for i, p in enumerate(prompt_list):
-            prompt_ids[i, :p.size(0)] = p.to(device_local)
-        for i, t in enumerate(target_list):
-            target_ids[i, :t.size(0)] = t.to(device_local)
+        # Stack prompt and target sequences directly on GPU
+        prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
+        target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
 
         # Encode audio to embeddings on GPU
         with torch.no_grad():
             embs, embs_mask = audio_embedder(audios)  # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
-            embs = embs.to(device=device_local, dtype=dtype_local)
-            embs_mask = embs_mask.to(device=device_local)
+            # Only move to dtype if needed, assume embedder outputs on correct device
+            if embs.dtype != dtype_local:
+                embs = embs.to(dtype=dtype_local)
+            embs_mask = embs_mask.bool()  # ensure mask is boolean
 
         # Project audio embeddings to LLM dimension
-        proj_embs = projector(embs).to(device=device_local, dtype=dtype_local) # [B, N3, D2] (right-padded)
+        proj_embs = projector(embs) # [B, N3, D2] (right-padded)
 
         # Get token embeddings for prompt
         with torch.no_grad():
-            prompt_embs = llm_model.get_input_embeddings()(prompt_ids).to(device=device_local, dtype=dtype_local) # [B, T_max_prompt-1, llm_dim] (right-padded)
-
+            prompt_embs = llm_model.get_input_embeddings()(prompt_ids) # [B, T_max_prompt-1, llm_dim] (right-padded)
+            if prompt_embs.dtype != dtype_local:
+                prompt_embs = prompt_embs.to(dtype=dtype_local)
 
         # Compose final input embeddings and labels
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
@@ -305,7 +299,6 @@ def build_model_and_trainer(
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-#        dataset_text_field="labels",
         preprocessor=preprocess_fn,
         train_loader=train_loader,
         eval_loader=eval_loader,
@@ -315,8 +308,6 @@ def build_model_and_trainer(
         logging_steps=logging_steps,
         output_dir=output_dir,
         learning_rate=lr,
-#        group_by_length=True,
-#        length_column_name="total_length",
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         fp16=(dtype == torch.float16),
