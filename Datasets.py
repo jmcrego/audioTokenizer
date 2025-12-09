@@ -107,5 +107,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
     dataset = AudioDataset(sys.argv[1], tokenizer)
     for i,e in enumerate(dataset): 
-        print(e)
+        n_input = len(e["input_ids"])
+        n_labels = len(e["labels"])
+        n_audio = e["total_length"] - n_input - n_labels
+        print(e, n_audio, n_labels, n_audio)
 
