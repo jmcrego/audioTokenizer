@@ -111,7 +111,7 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
-    dataset = AudioDataset(sys.argv[1], tokenizer, max_seq_len=100)
+    dataset = AudioDataset(sys.argv[1], tokenizer, max_seq_len=50)
     for i,e in enumerate(dataset): 
         n_prompt = len(e["prompt_ids"])
         n_target = len(e["target_ids"])
