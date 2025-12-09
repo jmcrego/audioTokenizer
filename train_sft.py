@@ -197,7 +197,7 @@ def build_model_and_trainer(
     tokenizer = AutoTokenizer.from_pretrained(llm, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    llm_model = AutoModelForCausalLM.from_pretrained(llm, torch_dtype=dtype, device_map="auto")
+    llm_model = AutoModelForCausalLM.from_pretrained(llm, dtype=dtype, device_map="auto")
     llm_model.eval()
     for p in llm_model.parameters():
         p.requires_grad = False
