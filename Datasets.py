@@ -105,7 +105,7 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
-    dataset = AudioIterableDataset(sys.argv[1], tokenizer)
+    dataset = AudioDataset(sys.argv[1], tokenizer)
     for i,e in enumerate(dataset): 
         pass
 
