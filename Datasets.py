@@ -11,7 +11,6 @@ class BucketedLengthSampler(Sampler):
         self.batch_size = batch_size
         self.bucket_size = bucket_size
         self.shuffle = shuffle
-
         # Extract total_length for each sample
         self.lengths = np.array([s["total_length"] for s in dataset])
         self.sorted_indices = np.argsort(self.lengths)
@@ -24,10 +23,10 @@ class BucketedLengthSampler(Sampler):
         ]
 
         all_indices = []
-        for b in buckets:
+        for bucket in buckets:
             if self.shuffle:
-                b = np.random.permutation(b)
-            all_indices.extend(b.tolist())
+                bucket = np.random.permutation(bucket)
+            all_indices.extend(bucket.tolist())
 
         # Yield batches
         for i in range(0, len(all_indices), self.batch_size):
