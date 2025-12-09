@@ -267,6 +267,8 @@ def build_model_and_trainer(
         max_seq_len=max_seq_len
     )
 
+    train_dataset = train_dataset.with_format("python")
+    eval_dataset = eval_dataset.with_format("python")
 
     def preprocess_fn(batch):
         """
