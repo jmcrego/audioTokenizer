@@ -334,7 +334,7 @@ if __name__ == "__main__":
     # optimization pars
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     # training pars
-    parser.add_argument("--max_steps", type=int, default=50000, help="Maximum number of training steps")
+    parser.add_argument("--max_steps", type=int, default=10000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--bucket_size", type=int, default=1000, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
