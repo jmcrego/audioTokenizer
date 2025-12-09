@@ -187,24 +187,17 @@ def build_model_and_trainer(
     ### 2. Datasets
     ### ============================================================
 
-    asr_token = "[ASR]"
-    stt_token = "[STT]"
-    end_token = "[END]"
-    sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
-
-    def preprocess_fn(batch):
+    def collator_fn(batch):
         """
         Expects `batch` to be a list-like batch from the datasets library where
         batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
 
-        device_local, dtype_local = device, dtype
-
         # Extract lists of dicts
-        audio_paths = [ex["audio_path"] for ex in batch]
-        prompt_ids_list = [ex["prompt_ids"] for ex in batch]
-        target_ids_list = [ex["target_ids"] for ex in batch]
+        audio_paths     = [sample["audio_path"] for sample in batch]
+        prompt_ids_list = [sample["prompt_ids"] for sample in batch]
+        target_ids_list = [sample["target_ids"] for sample in batch]
 
         # Convert prompt + target to padded tensors
         pad_id = tokenizer.pad_token_id
@@ -213,18 +206,18 @@ def build_model_and_trainer(
             [torch.tensor(p, dtype=torch.long) for p in prompt_ids_list],
             batch_first=True,
             padding_value=pad_id,
-        ).to(device_local)
+        ).to(device)
 
         target_ids = pad_sequence(
             [torch.tensor(t, dtype=torch.long) for t in target_ids_list],
             batch_first=True,
             padding_value=pad_id,
-        ).to(device_local)
+        ).to(device)
 
         # Audio embeddings
         with torch.no_grad():
             embs, embs_mask = audio_embedder(audio_paths)
-            embs = embs.to(dtype_local)
+            embs = embs.to(dtype)
             embs_mask = embs_mask.bool()
 
         # Project audio embeddings
@@ -233,7 +226,7 @@ def build_model_and_trainer(
         # Prompt embeddings
         with torch.no_grad():
             prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
-            prompt_embs = prompt_embs.to(dtype_local)
+            prompt_embs = prompt_embs.to(dtype)
 
         # Compose full multimodal sequence
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
@@ -242,17 +235,19 @@ def build_model_and_trainer(
             prompt_embs=prompt_embs,
             prompt_ids=prompt_ids,
             target_ids=target_ids,
-            device=device_local,
-            dtype=dtype_local,
+            device=device,
+            dtype=dtype,
             max_seq_len=max_seq_len,
             pad_token_id=pad_id,
             ignore_index=-100,
         )
 
-        return {
-            "input_embeds": input_embeds,
-            "labels": labels,
-        }
+        return { "input_embeds": input_embeds, "labels": labels }
+
+    asr_token = "[ASR]"
+    stt_token = "[STT]"
+    end_token = "[END]"
+    sample_rate = audio_embedder.sample_rate
 
     train_dataset = AudioDataset(
         file_path=train,
@@ -279,18 +274,26 @@ def build_model_and_trainer(
         max_seq_len=max_seq_len
     )
 
-    train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
-    eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size)
+    train_sampler = BucketedLengthSampler(
+        train_dataset, 
+        batch_size=batch_size, 
+        bucket_size=bucket_size
+    )
+    eval_sampler = BucketedLengthSampler(
+        eval_dataset, 
+        batch_size=batch_size, 
+        bucket_size=bucket_size
+    )
 
     train_loader = DataLoader(
         train_dataset,
-        batch_sampler=train_sampler,  # batch_size is ignored because sampler yields batches
-        collate_fn=preprocess_fn       # collate function pads and builds tensors
+        batch_sampler=train_sampler, # batch_size is ignored because sampler yields batches
+        collate_fn=collator_fn     # collate function pads and builds tensors
     )
     eval_loader = DataLoader(
         eval_dataset,
         batch_sampler=eval_sampler,  # batch_size is ignored because sampler yields batches
-        collate_fn=preprocess_fn       # collate function pads and builds tensors
+        collate_fn=collator_fn     # collate function pads and builds tensors
     )
 
 
