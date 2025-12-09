@@ -17,7 +17,8 @@ class BucketedLengthSampler(Sampler):
         sorted_indices = np.argsort(lengths)
         # Split sorted indices into buckets
         buckets = [
-            sorted_indices[i:i+self.bucket_size] for i in range(0, len(sorted_indices), self.bucket_size)
+            sorted_indices[i:i+self.bucket_size] 
+            for i in range(0, len(sorted_indices), self.bucket_size)
         ]
         # sort buckets and concat indices in buckets
         self.all_indices = []
@@ -104,7 +105,7 @@ class AudioDataset(Dataset):
         item = self.data[idx]
         return item
 
-    # --- helper functions ---
+
     def build_prompt(self, lang, tgt_lang):
         if lang and tgt_lang:
             return f"\nTranscribe then translate into {tgt_lang}.\n{self.asr_token}"
