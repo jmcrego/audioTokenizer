@@ -274,42 +274,43 @@ def build_model_and_trainer(
         batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
         Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
         """
-        device_local, dtype_local = device, dtype  # capture outer scope
 
-        # batch is a list of dicts
-        audios = [sample["audio_path"] for sample in batch]
+        device_local, dtype_local = device, dtype
+
+        # batch is dict of lists
+        audios = batch["audio_path"]
 
         prompt_list = [
-            torch.tensor(sample["prompt_ids"], dtype=torch.long)
-            for sample in batch
+            torch.tensor(ids, dtype=torch.long)
+            for ids in batch["prompt_ids"]
         ]
         target_list = [
-            torch.tensor(sample["target_ids"], dtype=torch.long)
-            for sample in batch
+            torch.tensor(ids, dtype=torch.long)
+            for ids in batch["target_ids"]
         ]
 
+        # Padding
         pad_id = tokenizer.pad_token_id
-
         prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
         target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
 
-        # Encode audio
+        # Audio embedder
         with torch.no_grad():
             embs, embs_mask = audio_embedder(audios)
             if embs.dtype != dtype_local:
                 embs = embs.to(dtype=dtype_local)
             embs_mask = embs_mask.bool()
 
-        # Project
+        # Projection
         proj_embs = projector(embs)
 
-        # Prompt embeddings
+        # Prompt embedding lookup
         with torch.no_grad():
             prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
             if prompt_embs.dtype != dtype_local:
                 prompt_embs = prompt_embs.to(dtype=dtype_local)
 
-        # Compose full sequence
+        # Compose multimodal sequence
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
             audio_mask=embs_mask,
@@ -327,6 +328,60 @@ def build_model_and_trainer(
             "input_embeds": input_embeds,
             "labels": labels,
         }
+
+        # device_local, dtype_local = device, dtype  # capture outer scope
+
+        # # batch is a list of dicts
+        # audios = [sample["audio_path"] for sample in batch]
+
+        # prompt_list = [
+        #     torch.tensor(sample["prompt_ids"], dtype=torch.long)
+        #     for sample in batch
+        # ]
+        # target_list = [
+        #     torch.tensor(sample["target_ids"], dtype=torch.long)
+        #     for sample in batch
+        # ]
+
+        # pad_id = tokenizer.pad_token_id
+
+        # prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
+        # target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
+
+        # # Encode audio
+        # with torch.no_grad():
+        #     embs, embs_mask = audio_embedder(audios)
+        #     if embs.dtype != dtype_local:
+        #         embs = embs.to(dtype=dtype_local)
+        #     embs_mask = embs_mask.bool()
+
+        # # Project
+        # proj_embs = projector(embs)
+
+        # # Prompt embeddings
+        # with torch.no_grad():
+        #     prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
+        #     if prompt_embs.dtype != dtype_local:
+        #         prompt_embs = prompt_embs.to(dtype=dtype_local)
+
+        # # Compose full sequence
+        # input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
+        #     proj_embs=proj_embs,
+        #     audio_mask=embs_mask,
+        #     prompt_embs=prompt_embs,
+        #     prompt_ids=prompt_ids,
+        #     target_ids=target_ids,
+        #     device=device_local,
+        #     dtype=dtype_local,
+        #     max_seq_len=max_seq_len,
+        #     pad_token_id=pad_id,
+        #     ignore_index=-100,
+        # )
+
+        # return {
+        #     "input_embeds": input_embeds,
+        #     "labels": labels,
+        # }
 
         # # Extract batch fields
         # audios = batch["audio_path"]
