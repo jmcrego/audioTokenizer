@@ -229,18 +229,6 @@ def build_model_and_trainer(
     end_token = "[END]"
     sample_rate = audio_embedder.sample_rate if hasattr(audio_embedder, "sample_rate") else 16000
 
-    # train_dataset = AudioDataset(path=train, tokenizer=tokenizer, 
-    #                              asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-    #                              sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)    
-    # train_sampler = BucketedLengthSampler(train_dataset, batch_size=batch_size, bucket_size=bucket_size)
-    # train_loader = DataLoader(train_dataset, batch_sampler=train_sampler, collate_fn=lambda batch: batch)
-
-    # eval_dataset  = AudioDataset(path=eval, tokenizer=tokenizer, 
-    #                              asr_token=asr_token, stt_token=stt_token, end_token=end_token,
-    #                              sample_rate=sample_rate, chunk_size=chunk_size, stride=stride, stack_size=stack_size, max_seq_len=max_seq_len)
-    # eval_sampler = BucketedLengthSampler(eval_dataset, batch_size=batch_size, bucket_size=bucket_size, shuffle=False)
-    # eval_loader = DataLoader(eval_dataset, batch_sampler=eval_sampler, collate_fn=lambda batch: batch) 
-
     train_dataset = build_dataset(
         file_path=train,
         tokenizer=tokenizer,
@@ -267,8 +255,6 @@ def build_model_and_trainer(
         max_seq_len=max_seq_len
     )
 
-    train_dataset = train_dataset.with_format("python")
-    eval_dataset = eval_dataset.with_format("python")
 
     def preprocess_fn(batch):
         """
@@ -279,40 +265,41 @@ def build_model_and_trainer(
 
         device_local, dtype_local = device, dtype
 
-        # batch is dict of lists
-        audios = batch["audio_path"]
+        # Extract lists of dicts
+        audio_paths = [ex["audio_path"] for ex in batch]
+        prompt_ids_list = [ex["prompt_ids"] for ex in batch]
+        target_ids_list = [ex["target_ids"] for ex in batch]
 
-        prompt_list = [
-            torch.tensor(ids, dtype=torch.long)
-            for ids in batch["prompt_ids"]
-        ]
-        target_list = [
-            torch.tensor(ids, dtype=torch.long)
-            for ids in batch["target_ids"]
-        ]
-
-        # Padding
+        # Convert prompt + target to padded tensors
         pad_id = tokenizer.pad_token_id
-        prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
-        target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
 
-        # Audio embedder
+        prompt_ids = pad_sequence(
+            [torch.tensor(p, dtype=torch.long) for p in prompt_ids_list],
+            batch_first=True,
+            padding_value=pad_id,
+        ).to(device_local)
+
+        target_ids = pad_sequence(
+            [torch.tensor(t, dtype=torch.long) for t in target_ids_list],
+            batch_first=True,
+            padding_value=pad_id,
+        ).to(device_local)
+
+        # Audio embeddings
         with torch.no_grad():
-            embs, embs_mask = audio_embedder(audios)
-            if embs.dtype != dtype_local:
-                embs = embs.to(dtype=dtype_local)
+            embs, embs_mask = audio_embedder(audio_paths)
+            embs = embs.to(dtype_local)
             embs_mask = embs_mask.bool()
 
-        # Projection
+        # Project audio embeddings
         proj_embs = projector(embs)
 
-        # Prompt embedding lookup
+        # Prompt embeddings
         with torch.no_grad():
             prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
-            if prompt_embs.dtype != dtype_local:
-                prompt_embs = prompt_embs.to(dtype=dtype_local)
+            prompt_embs = prompt_embs.to(dtype_local)
 
-        # Compose multimodal sequence
+        # Compose full multimodal sequence
         input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
             proj_embs=proj_embs,
             audio_mask=embs_mask,
@@ -534,5 +521,9 @@ if __name__ == "__main__":
         logging_steps=args.logging_steps,
         output_dir=args.output_dir,
     )
+
+    first_batch = next(iter(trainer.get_train_dataloader()))
+    print(type(first_batch))
+    print(first_batch[0].keys())
 
     trainer.train()
