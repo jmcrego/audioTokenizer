@@ -5,7 +5,6 @@ import argparse
 import subprocess
 import numpy as np
 from trl import SFTTrainer, SFTConfig
-#from torch.utils.data import Sampler, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -41,44 +40,7 @@ def get_device_dtype():
         dtype = torch.float32
     return device, dtype
 
-
-# class BucketedLengthSampler(Sampler):
-#     """
-#     Buckets dataset by total_length, shuffles within each bucket, and yields batches.
-#     """
-#     def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
-#         self.dataset = dataset
-#         self.batch_size = batch_size
-#         self.bucket_size = bucket_size
-#         self.shuffle = shuffle
-
-#         # extract total_length from dataset
-#         self.lengths = np.array([s["total_length"] for s in dataset])
-#         self.sorted_indices = np.argsort(self.lengths)
-
-#     def __iter__(self):
-#         # split sorted indices into buckets
-#         buckets = [
-#             self.sorted_indices[i:i+self.bucket_size]
-#             for i in range(0, len(self.sorted_indices), self.bucket_size)
-#         ]
-
-#         all_indices = []
-#         for b in buckets:
-#             if self.shuffle:
-#                 b = np.random.permutation(b)
-#             all_indices.extend(b.tolist())
-
-#         # yield batches
-#         for i in range(0, len(all_indices), self.batch_size):
-#             yield all_indices[i:i+self.batch_size]
-
-#     def __len__(self):
-#         return len(self.dataset)
     
-# ============================================================
-# Compose batch of embeddings/targets with right-padding (vectorized)
-# ============================================================
 def compose_full_embeddings_with_padding_vectorized(
     proj_embs: torch.Tensor,  # [B, S, D] (audio embeddings, right-padded)
     audio_mask: torch.Tensor, # [B, S]    (1=real, 0=pad)
@@ -318,114 +280,6 @@ def build_model_and_trainer(
             "labels": labels,
         }
 
-        # device_local, dtype_local = device, dtype  # capture outer scope
-
-        # # batch is a list of dicts
-        # audios = [sample["audio_path"] for sample in batch]
-
-        # prompt_list = [
-        #     torch.tensor(sample["prompt_ids"], dtype=torch.long)
-        #     for sample in batch
-        # ]
-        # target_list = [
-        #     torch.tensor(sample["target_ids"], dtype=torch.long)
-        #     for sample in batch
-        # ]
-
-        # pad_id = tokenizer.pad_token_id
-
-        # prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
-        # target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
-
-        # # Encode audio
-        # with torch.no_grad():
-        #     embs, embs_mask = audio_embedder(audios)
-        #     if embs.dtype != dtype_local:
-        #         embs = embs.to(dtype=dtype_local)
-        #     embs_mask = embs_mask.bool()
-
-        # # Project
-        # proj_embs = projector(embs)
-
-        # # Prompt embeddings
-        # with torch.no_grad():
-        #     prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
-        #     if prompt_embs.dtype != dtype_local:
-        #         prompt_embs = prompt_embs.to(dtype=dtype_local)
-
-        # # Compose full sequence
-        # input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
-        #     proj_embs=proj_embs,
-        #     audio_mask=embs_mask,
-        #     prompt_embs=prompt_embs,
-        #     prompt_ids=prompt_ids,
-        #     target_ids=target_ids,
-        #     device=device_local,
-        #     dtype=dtype_local,
-        #     max_seq_len=max_seq_len,
-        #     pad_token_id=pad_id,
-        #     ignore_index=-100,
-        # )
-
-        # return {
-        #     "input_embeds": input_embeds,
-        #     "labels": labels,
-        # }
-
-        # # Extract batch fields
-        # audios = batch["audio_path"]
-
-        # prompt_list = [
-        #     torch.tensor(x, dtype=torch.long)
-        #     for x in batch["prompt_ids"]
-        # ]
-        # target_list = [
-        #     torch.tensor(x, dtype=torch.long)
-        #     for x in batch["target_ids"]
-        # ]
-
-        # pad_id = tokenizer.pad_token_id
-
-        # # Stack prompt and target sequences directly on GPU
-        # prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=pad_id).to(device_local)
-        # target_ids = pad_sequence(target_list, batch_first=True, padding_value=pad_id).to(device_local)
-
-        # # Encode audio to embeddings on GPU
-        # with torch.no_grad():
-        #     embs, embs_mask = audio_embedder(audios)  # [B, T, D], [B, T] : B batch size, T frame lengh, D audio dim (right-padded)
-        #     # Only move to dtype if needed, assume embedder outputs on correct device
-        #     if embs.dtype != dtype_local:
-        #         embs = embs.to(dtype=dtype_local)
-        #     embs_mask = embs_mask.bool()  # ensure mask is boolean
-
-        # # Project audio embeddings to LLM dimension
-        # proj_embs = projector(embs) # [B, N3, D2] (right-padded)
-
-        # # Get token embeddings for prompt
-        # with torch.no_grad():
-        #     prompt_embs = llm_model.get_input_embeddings()(prompt_ids) # [B, T_max_prompt-1, llm_dim] (right-padded)
-        #     if prompt_embs.dtype != dtype_local:
-        #         prompt_embs = prompt_embs.to(dtype=dtype_local)
-
-        # # Compose final input embeddings and labels
-        # input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
-        #     proj_embs=proj_embs,
-        #     audio_mask=embs_mask,
-        #     prompt_embs=prompt_embs,
-        #     prompt_ids=prompt_ids,
-        #     target_ids=target_ids,
-        #     device=device_local,
-        #     dtype=dtype_local,
-        #     max_seq_len=max_seq_len,
-        #     pad_token_id=pad_id,
-        #     ignore_index=-100,
-        # )
-
-        # return {
-        #     "input_embeds": input_embeds,  # [B, L_in, D]
-        #     "labels": labels,              # [B, L_in] with -100 for ignored positions
-        # }
-
     ### 3. SFTTrainer
     ### ============================================================
     sft_config = SFTConfig(
@@ -440,9 +294,6 @@ def build_model_and_trainer(
         bf16=(dtype == torch.bfloat16),
     )
 
-    # def data_collator(batch):
-    #     return preprocess_fn(batch)
-
     trainer = SFTTrainer(
         model=llm_model,
         args=sft_config,
@@ -450,6 +301,11 @@ def build_model_and_trainer(
         eval_dataset=eval_dataset,
         data_collator=preprocess_fn,
         processing_class=tokenizer,
+        dataset_text_field=None,  # disables internal SFT tokenization
+        format_instruction=None,
+        packing=False,
+        max_seq_length=None,          # disable truncation/tokenizer pipeline
+        num_of_sequences=None,
     )
 
     return trainer
