@@ -138,36 +138,17 @@ if __name__ == "__main__":
     import sys
     from AudioEmbedder import AudioEmbedder
 
-    # -----------------------
-    # 1. Load audio embeddings
-    # -----------------------
     audio_files = [sys.argv[1]]
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    #device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
 
     embedder = AudioEmbedder(model="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", device=device)
+    proj = AudioToLLMProjector(audio_embedding_dim=embedder.D, stack_size=4, llm_dimension=4096, rank_dim=256, max_seq_len=100).to(device)
+
     embeddings, masks = embedder(audio_files)  # embeddings: [B, T, D], masks: [B, T]
     print("Embeddings shape:", embeddings.shape)
     print("Masks shape:", masks.shape)
 
-    # -----------------------
-    # 2. Instantiate AudioToLLMProjector
-    # -----------------------
-    stack_size = 4       # number of audio frames per superframe
-    llm_dim = 4096          # target LLM embedding dimension
-    rank_dim = 256         # low-rank bottleneck
-    max_seq_len = 100    # max superframes
-
-    proj = AudioToLLMProjector(
-        audio_embedding_dim=embeddings.shape[-1],
-        stack_size=stack_size,
-        llm_dimension=llm_dim,
-        rank_dim=rank_dim,
-        max_seq_len=max_seq_len
-    ).to(device)
-
-    # -----------------------
-    # 3. Forward pass
-    # -----------------------
     embeddings = embeddings.to(device)
     masks = masks.to(device)
 
