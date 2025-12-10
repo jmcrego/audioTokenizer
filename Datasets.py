@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer, max_seq_len=50)
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
-    sampler = BucketedLengthSampler(ds, batch_size=4, bucket_size=50, shuffle=True)
+    sampler = BucketedLengthSampler(ds, batch_size=5, bucket_size=50, shuffle=True)
     print(f"Sampler size: {len(sampler)} batches")
     # Inspect some samples
     for i, e in enumerate(sampler):
