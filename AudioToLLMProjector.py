@@ -2,19 +2,62 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+def build_rope_freqs(n_positions: int, dim: int, base: float = 10000.0) -> torch.Tensor:
+    """
+    Build rotary positional embedding frequencies.
+
+    Args:
+        n_positions: maximum number of positions
+        dim: embedding dimension (should be even)
+        base: RoPE base (default 10000)
+
+    Returns:
+        freqs: [n_positions, dim//2] tensor
+    """
+    if dim % 2 != 0:
+        raise ValueError("RoPE dimension must be even.")
+    half = dim // 2
+    freqs = 1.0 / (base ** (torch.arange(0, half, 1).float() / half))
+    positions = torch.arange(n_positions).float()[:, None]
+    return positions * freqs[None, :]  # shape [n_positions, half]
+
+def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
+    """
+    Apply rotary positional embedding to input tensor.
+
+    Args:
+        x: [B, N, D] input embeddings
+        freqs: [N, D//2] RoPE frequencies
+
+    Returns:
+        x_rot: [B, N, D] embeddings with RoPE applied
+    """
+    B, N, D = x.shape
+    half = D // 2
+    x1 = x[..., :half]
+    x2 = x[..., half:]
+
+    cos = freqs.cos().unsqueeze(0)  # [1, N, D//2]
+    sin = freqs.sin().unsqueeze(0)
+
+    x1_rot = x1 * cos - x2 * sin
+    x2_rot = x1 * sin + x2 * cos
+
+    return torch.cat([x1_rot, x2_rot], dim=-1)
+
 class AudioToLLMProjector(nn.Module):
     """
-    Audio Embeddings → Low rank stacking projector → LLM embeddings.
-    Reduces computation by projecting audio embeddings into LLM dimension via stacking and low rank projector.
+    Projects audio embeddings into LLM embedding space using superframe stacking,
+    a low-rank MLP, and RoPE positional encoding.
     """
 
     def __init__(
         self,
-        audio_embedding_dim,
-        stack_size,
-        llm_dimension=768,
-        rank_dim=256,          # low-rank bottleneck
-        max_seq_len=4096,
+        audio_embedding_dim: int,
+        stack_size: int,
+        llm_dimension: int=768,
+        rank_dim: int=256,          # low-rank bottleneck
+        max_seq_len: int=4096,
     ):
         """
         Args:
@@ -32,9 +75,6 @@ class AudioToLLMProjector(nn.Module):
         self.rank_dim = rank_dim
         self.max_seq_len = max_seq_len
 
-        # Positional encoding for superframes
-        self.pos_embed = nn.Parameter(torch.randn(1, max_seq_len, llm_dimension) * 0.01)
-
         # --- Low-Rank MLP ---
         # Equivalent to Linear(stacked_dim → rank_dim → llm_dim)
         self.proj = nn.Sequential(
@@ -44,7 +84,10 @@ class AudioToLLMProjector(nn.Module):
             nn.LayerNorm(llm_dimension),
         )
 
-    def forward(self, x, mask=None):
+        # precompute the RoPE frequencies
+        self.RoPE_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         """
         Args:
             x        : [B, T, D]
@@ -72,19 +115,64 @@ class AudioToLLMProjector(nn.Module):
         T2 = x.shape[1] # after padding
         N = T2 // S  # number of superframes
 
-        x = x.view(B, N, S * D)  # merge frames (stack)
+        x = x.view(B, N, S * D)  # stack frames into superframes [B, N, S*D]
 
         # ---- low-rank projection ----
         x = self.proj(x)  # [B, N, llm_dim]
 
-        # ---- positional encoding ----
-        x = x + self.pos_embed[:, :N]
+        # Apply RoPE (scale positions by stack_size for superframes)
+        rope_freqs = self.rope_freqs[:N] * self.stack_size  # [N, llm_dim//2]
+        x = apply_rope(x, rope_freqs.to(x.device))
+
 
         # ---- build superframe mask ----
         # padded frames contaminate superframes so all superframes become masked
         if mask is None:
             sf_mask = None
         else:
-            sf_mask = mask[:, :T2].view(B, N, S).any(dim=-1)
+            sf_mask = mask[:, :T2].view(B, N, S).all(dim=-1)
 
         return x, sf_mask
+
+if __name__ == "__main__":
+    import sys
+    from AudioEmbedder import AudioEmbedder
+
+    # -----------------------
+    # 1. Load audio embeddings
+    # -----------------------
+    audio_files = [sys.argv[1]]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    embedder = AudioEmbedder(model="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", device=device)
+    embeddings, masks = embedder(audio_files)  # embeddings: [B, T, D], masks: [B, T]
+    print("Embeddings shape:", embeddings.shape)
+    print("Masks shape:", masks.shape)
+
+    # -----------------------
+    # 2. Instantiate AudioToLLMProjector
+    # -----------------------
+    stack_size = 4       # number of audio frames per superframe
+    llm_dim = 4096          # target LLM embedding dimension
+    rank_dim = 256         # low-rank bottleneck
+    max_seq_len = 100    # max superframes
+
+    proj = AudioToLLMProjector(
+        audio_embedding_dim=embeddings.shape[-1],
+        stack_size=stack_size,
+        llm_dimension=llm_dim,
+        rank_dim=rank_dim,
+        max_seq_len=max_seq_len
+    ).to(device)
+
+    # -----------------------
+    # 3. Forward pass
+    # -----------------------
+    embeddings = embeddings.to(device)
+    masks = masks.to(device)
+
+    llm_embeddings, sf_mask = proj(embeddings, masks)
+
+    print("Projected LLM embeddings shape:", llm_embeddings.shape)
+    print("Superframe mask shape:", sf_mask.shape)
+    print("Superframe mask:", sf_mask)

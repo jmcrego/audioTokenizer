@@ -235,7 +235,7 @@ def build_model_and_trainer(
             embs_mask = embs_mask.bool()
 
         # Project audio embeddings
-        proj_embs = projector(embs)
+        proj_embs, proj_mask = projector(embs)
 
         # Prompt embeddings
         with torch.no_grad():
