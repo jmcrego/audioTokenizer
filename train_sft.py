@@ -13,6 +13,8 @@ from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
 from Datasets import AudioDataset, BucketedLengthSampler
 
+from datasets import Dataset as HFDataset
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def get_git_commit():
@@ -41,7 +43,18 @@ def get_device_dtype():
         dtype = torch.float32
     return device, dtype
 
-    
+class MySFTTrainer(SFTTrainer):
+    def __init__(self, *args, train_loader=None, eval_loader=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._train_loader = train_loader
+        self._eval_loader = eval_loader
+
+    def get_train_dataloader(self):
+        return self._train_loader
+
+    def get_eval_dataloader(self, eval_dataset=None):
+        return self._eval_loader
+
 def compose_full_embeddings_with_padding_vectorized(
     proj_embs: torch.Tensor,  # [B, S, D] (audio embeddings, right-padded)
     audio_mask: torch.Tensor, # [B, S]    (1=real, 0=pad)
@@ -58,10 +71,10 @@ def compose_full_embeddings_with_padding_vectorized(
     Concatenate audio embeddings + prompt embeddings right-padded
     and return final padded input_embeds and labels.
 
-    For instance, 
+    For instance,
     Input EMBEDDINGS should be:
-    [ a a a a p p p 0 0 0 0 0 0] 
-    [ a a p p 0 0 0 0 0 0 0 0 0] 
+    [ a a a a p p p 0 0 0 0 0 0]
+    [ a a p p 0 0 0 0 0 0 0 0 0]
     [ a a a p p p 0 0 0 0 0 0 0]
     (a means audio embedding, p means prompt embedding 0 means pad embedding)
 
@@ -148,15 +161,15 @@ def build_model_and_trainer(
     logger.info(f"device: {device}, dtype: {dtype}")
 
     ### =================
-    ### 1. Load models    
+    ### 1. Load models
     ### =================
 
     # AudioEmbedder (frozen)
     audio_embedder = AudioEmbedder(
-        model=audio, 
-        l2_norm=False, 
-        chunk_size=chunk_size, 
-        stride=stride, 
+        model=audio,
+        l2_norm=False,
+        chunk_size=chunk_size,
+        stride=stride,
         device=device,
         dtype=dtype)
 
@@ -175,10 +188,10 @@ def build_model_and_trainer(
 
     # Projector (trainable)
     projector = AudioToLLMProjector(
-        audio_embedding_dim=audio_embedder.D, 
-        stack_size=stack_size, 
+        audio_embedding_dim=audio_embedder.D,
+        stack_size=stack_size,
         llm_dimension=llm_model.config.hidden_size,
-        rank_dim=rank_dim, 
+        rank_dim=rank_dim,
         max_seq_len=max_seq_len)
 
     # load if given path
@@ -276,13 +289,13 @@ def build_model_and_trainer(
     )
 
     train_sampler = BucketedLengthSampler(
-        train_dataset, 
-        batch_size=batch_size, 
+        train_dataset,
+        batch_size=batch_size,
         bucket_size=bucket_size
     )
     eval_sampler = BucketedLengthSampler(
-        eval_dataset, 
-        batch_size=batch_size, 
+        eval_dataset,
+        batch_size=batch_size,
         bucket_size=bucket_size
     )
 
@@ -297,6 +310,11 @@ def build_model_and_trainer(
         collate_fn=collator_fn     # collate function pads and builds tensors
     )
 
+    # ==================
+    # Dummy HF datasets for SFTTrainer
+    # ==================
+    dummy_train = HFDataset.from_list([{"text": ""}])
+    dummy_eval  = HFDataset.from_list([{"text": ""}])
 
     ### =================
     ### 3. SFTTrainer
@@ -313,15 +331,26 @@ def build_model_and_trainer(
         bf16=(dtype == torch.bfloat16),
     )
 
-    trainer = SFTTrainer(
+    trainer = MySFTTrainer(
         model=llm_model,
         args=sft_config,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        data_collator=preprocess_fn,
-        tokenizer=None,
-        dataset_text_field=None
+        train_dataset=dummy_train,
+        eval_dataset=dummy_eval,
+        data_collator=collator_fn,   # still needed
+        tokenizer=tokenizer,         # required by SFTTrainer
+        train_loader=train_loader,
+        eval_loader=eval_loader,
     )
+
+    # trainer = SFTTrainer(
+    #     model=llm_model,
+    #     args=sft_config,
+    #     train_dataset=train_dataset,
+    #     eval_dataset=eval_dataset,
+    #     data_collator=collator_fn,
+    #     tokenizer=None,
+    #     dataset_text_field=None
+    # )
     return trainer
 
 
@@ -372,7 +401,7 @@ if __name__ == "__main__":
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
     logger.info(f"Git commit: {get_git_commit()}")
 
-    trainer = build_model_and_trainer(        
+    trainer = build_model_and_trainer(
         llm=args.llm,
         audio=args.audio,
         proj=args.proj,
@@ -392,8 +421,12 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
     )
 
-    first_batch = next(iter(trainer.get_train_dataloader()))
-    print(type(first_batch))
-    print(first_batch[0].keys())
+    batch = next(iter(trainer.get_train_dataloader()))
+    print(batch.keys())  
+    # → dict_keys(['input_embeds', 'labels'])
+
+    print(batch["input_embeds"].shape)
+    print(batch["labels"].shape)
+
 
     trainer.train()
