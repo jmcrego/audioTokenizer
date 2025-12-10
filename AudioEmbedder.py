@@ -113,15 +113,12 @@ class AudioEmbedder(nn.Module):
         else:
             raise ValueError(f"Unknown model: {model}")
 
+        self.sample_rate = self.feature_extractor.sampling_rate
         self.model_stride = get_model_stride(self.embedder, self.feature_extractor, self.model)
         #model_stride is the downsampling factor from audio samples to embeddings (how many audio samples used for one embedding)
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
-
         self.embedder.to(device=self.device, dtype=self.dtype).eval()
-
-        self.sample_rate = self.feature_extractor.sampling_rate
-
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
     @torch.inference_mode()
