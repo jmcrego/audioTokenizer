@@ -11,7 +11,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
-from Datasets import AudioDataset, BucketedLengthSampler
+from Datasets import AudioDataset, BatchedLengthSampler
 
 from datasets import Dataset as HFDataset
 
@@ -288,12 +288,12 @@ def build_model_and_trainer(
         max_seq_len=max_seq_len
     )
 
-    train_sampler = BucketedLengthSampler(
+    train_sampler = BatchedLengthSampler(
         train_dataset,
         batch_size=batch_size,
         bucket_size=bucket_size
     )
-    eval_sampler = BucketedLengthSampler(
+    eval_sampler = BatchedLengthSampler(
         eval_dataset,
         batch_size=batch_size,
         bucket_size=bucket_size
