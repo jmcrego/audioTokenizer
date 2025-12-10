@@ -40,14 +40,14 @@ class BucketedLengthSampler(Sampler):
             # Randomize buckets
             if self.shuffle:
                 buckets = np.random.permutation(buckets)
-            print(f"randomized buckets = {buckets}")
+            print(f"random buckets = {buckets}")
 
             # Collect all indices
             self.all_indices = []
             for bucket in buckets:
                 # Shuffle samples within the bucket
-                if self.shuffle:
-                    bucket = np.random.permutation(bucket)
+#                if self.shuffle:
+#                    bucket = np.random.permutation(bucket)
                 self.all_indices.extend(bucket.tolist())
 
     def __iter__(self):
