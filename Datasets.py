@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
 
 class BucketedLengthSampler(Sampler):
-    def __init__(self, dataset, batch_size, bucket_size=1000, shuffle=True):
+    def __init__(self, dataset, batch_size=4, bucket_size=1000, shuffle=True):
         self.dataset = dataset
         self.batch_size = batch_size
         self.bucket_size = bucket_size
@@ -28,16 +28,19 @@ class BucketedLengthSampler(Sampler):
                 print(f"sorted_lengths = {sorted_lengths}")
             else:
                 sorted_indices = np.arange(len(lengths))
+            print(f"sorted_indices = {sorted_indices}")
 
             # Create buckets of sorted indices (contain samples of similar lengths)
             buckets = [
                 sorted_indices[i:i+self.bucket_size] 
                 for i in range(0, len(sorted_indices), self.bucket_size)
             ]
+            print(f"buckets = {buckets}")
 
             # Randomize buckets
             if self.shuffle:
                 buckets = np.random.permutation(buckets)
+            print(f"randomized buckets = {buckets}")
 
             # Collect all indices
             self.all_indices = []
@@ -169,7 +172,7 @@ if __name__ == "__main__":
     ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer)
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
-    sampler = BucketedLengthSampler(ds, batch_size=4, shuffle=True)
+    sampler = BucketedLengthSampler(ds, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
     # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
