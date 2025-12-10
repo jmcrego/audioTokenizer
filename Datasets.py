@@ -66,7 +66,8 @@ class AudioDataset(Dataset):
         chunk_size=3200,
         stride=1600,
         stack_size=8,
-        max_seq_len=1000
+        max_seq_len=1000,
+        seed=42,
     ):
         self.tokenizer = tokenizer
         self.asr_token = asr_token
@@ -77,6 +78,9 @@ class AudioDataset(Dataset):
         self.stride = stride
         self.stack_size = stack_size
         self.max_seq_len = max_seq_len
+
+        #random seed for reproducibility
+        np.random.seed(seed)
 
         self.data = []
         with open(file_path, "r", encoding="utf-8") as f:
