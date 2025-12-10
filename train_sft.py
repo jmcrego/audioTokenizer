@@ -337,7 +337,6 @@ def build_model_and_trainer(
         train_dataset=dummy_train,
         eval_dataset=dummy_eval,
         data_collator=collator_fn,   # still needed
-        tokenizer=tokenizer,         # required by SFTTrainer
         train_loader=train_loader,
         eval_loader=eval_loader,
     )
@@ -351,6 +350,7 @@ def build_model_and_trainer(
     #     tokenizer=None,
     #     dataset_text_field=None
     # )
+
     return trainer
 
 
