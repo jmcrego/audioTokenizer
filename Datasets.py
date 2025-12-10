@@ -160,7 +160,6 @@ class AudioDataset(Dataset):
 if __name__ == "__main__":
     import sys
     from transformers import AutoTokenizer
-    from AudioDataset import AudioDataset
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
