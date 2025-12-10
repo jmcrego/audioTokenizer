@@ -169,11 +169,12 @@ if __name__ == "__main__":
     # Create sampler from datset
     sampler = BucketedLengthSampler(ds, batch_size=5, bucket_size=50, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
-    # Inspect some samples
+    # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
         print(f"Batch {i}: indices = {idx}")
-        e = ds[idx[0]]
-        n_prompt = len(e["prompt_ids"])
-        n_target = len(e["target_ids"])
-        n_audio = e["total_length"] - n_prompt - n_target
-        print(f"\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
+        b = ds[idx[0]]
+        for e in b:
+            n_prompt = len(e["prompt_ids"])
+            n_target = len(e["target_ids"])
+            n_audio = e["total_length"] - n_prompt - n_target
+            print(f"\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
