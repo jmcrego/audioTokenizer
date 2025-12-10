@@ -171,6 +171,7 @@ if __name__ == "__main__":
     print(f"Sampler size: {len(sampler)} batches")
     # Inspect some samples
     for i, e in enumerate(sampler):
+        print(e)
         n_prompt = len(e["prompt_ids"])
         n_target = len(e["target_ids"])
         n_audio = e["total_length"] - n_prompt - n_target
