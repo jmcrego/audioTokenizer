@@ -150,7 +150,6 @@ def build_model_and_trainer(
     eval,
     max_steps,
     batch_size,
-    bucket_size,
     max_seq_len,
     lr,
     eval_steps,
@@ -291,12 +290,10 @@ def build_model_and_trainer(
     train_sampler = BatchedLengthSampler(
         train_dataset,
         batch_size=batch_size,
-        bucket_size=bucket_size
     )
     eval_sampler = BatchedLengthSampler(
         eval_dataset,
         batch_size=batch_size,
-        bucket_size=bucket_size
     )
 
     train_loader = DataLoader(
@@ -362,7 +359,6 @@ if __name__ == "__main__":
     # training pars
     parser.add_argument("--max_steps", type=int, default=10000, help="Maximum number of training steps")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
-    parser.add_argument("--bucket_size", type=int, default=1000, help="Bucket size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_steps", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--logging_steps", type=int, default=50, help="Logging after this many steps")
@@ -400,7 +396,6 @@ if __name__ == "__main__":
         eval=args.eval,
         max_steps=args.max_steps,
         batch_size=args.batch_size,
-        bucket_size=args.bucket_size,
         max_seq_len=args.max_seq_len,
         lr=args.lr,
         eval_steps=args.eval_steps,
