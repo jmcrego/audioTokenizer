@@ -165,7 +165,12 @@ class AudioEmbedder(nn.Module):
         # Feature extraction
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
-        inputs = inputs.pin_memory().to(self.device, non_blocking=True) #[C, F] (for raw audio) or [C, F, f] (for Whisper)
+        if self.device.type == "cuda":
+            inputs = inputs.pin_memory().to(self.device, non_blocking=True)
+        else:
+            inputs = inputs.to(self.device)
+
+
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
