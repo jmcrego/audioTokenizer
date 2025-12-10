@@ -5,14 +5,11 @@ import soundfile as sf
 from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
 
-class BucketedLengthSampler(Sampler):
-    def __init__(self, dataset, batch_size=4, bucket_size=1000, shuffle=True):
+class BatchedLengthSampler(Sampler):
+    def __init__(self, dataset, batch_size=4, shuffle=True):
         self.dataset = dataset
         self.batch_size = batch_size
-        self.bucket_size = bucket_size
         self.shuffle = shuffle
-        assert bucket_size >= batch_size, f"bucket_size ({bucket_size}) must be >= batch_size ({batch_size})"
-        assert bucket_size % batch_size == 0, f"bucket_size ({bucket_size}) must be multiple of batch_size ({batch_size})"
 
         if not shuffle:
             self.all_indices = list(range(len(dataset)))
@@ -30,26 +27,24 @@ class BucketedLengthSampler(Sampler):
                 sorted_indices = np.arange(len(lengths))
             print(f"sorted_indices = {sorted_indices}")
 
-            # Create buckets of sorted indices (contain samples of similar lengths)
-            buckets = [
-                sorted_indices[i:i+self.bucket_size] 
-                for i in range(0, len(sorted_indices), self.bucket_size)
+            # Create batches of sorted indices (contain samples of similar lengths)
+            batches = [
+                sorted_indices[i:i+self.batch_size] 
+                for i in range(0, len(sorted_indices), self.batch_size)
             ]
-            print(f"buckets = {buckets}")
+            print(f"batches = {batches}")
 
-            # Randomize buckets
+            # Randomize batches
             if self.shuffle:
-                np.random.shuffle(buckets)
-            print(f"random buckets = {buckets}")
+                np.random.shuffle(batches)
+            print(f"random batches = {batches}")
 
-            # Collect all indices
-            self.all_indices = []
-            for bucket in buckets:
-                self.all_indices.extend(bucket.tolist())
+            # flat list of indices
+            self.indices = [idx for batch in batches for idx in batch]
 
     def __iter__(self):
-        for i in range(0, len(self.all_indices), self.batch_size):
-            yield self.all_indices[i:i+self.batch_size]
+        for i in range(0, len(self.indices), self.batch_size):
+            yield self.indices[i:i+self.batch_size]
 
     def __len__(self):
         return len(self.dataset)
