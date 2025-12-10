@@ -24,7 +24,8 @@ class BucketedLengthSampler(Sampler):
             # sort indices by length
             if self.shuffle:
                 sorted_indices = np.argsort(lengths)
-                print(f"sorted lengths: {lengths[sorted_indices]}")
+                sorted_lengths = lengths[sorted_indices]
+                print(f"sorted_lengths = {sorted_lengths}")
             else:
                 sorted_indices = np.arange(len(lengths))
 
