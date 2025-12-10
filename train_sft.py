@@ -329,6 +329,9 @@ def build_model_and_trainer(
         learning_rate=lr,
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
+        dataset_text_field=None,    # <-- required
+        packing=False,
+        dataset_kwargs={"add_special_tokens": False},
     )
 
     trainer = MySFTTrainer(
