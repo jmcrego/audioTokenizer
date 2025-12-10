@@ -164,7 +164,7 @@ if __name__ == "__main__":
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
     # Create dataset from file
-    ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer, max_seq_len=50)
+    ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer)
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
     sampler = BucketedLengthSampler(ds, batch_size=5, bucket_size=50, shuffle=True)
