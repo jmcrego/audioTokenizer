@@ -167,13 +167,11 @@ if __name__ == "__main__":
     ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer, max_seq_len=50)
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
-    sampler = BucketedLengthSampler(ds, batch_size=4, bucket_size=4000, shuffle=True)
+    sampler = BucketedLengthSampler(ds, batch_size=4, bucket_size=50, shuffle=True)
     print(f"Sampler size: {len(sampler)} batches")
     # Inspect some samples
-    for i, b in enumerate(sampler):
-        print(f"Batch {i}:")
-        for e in b:
-            n_prompt = len(e["prompt_ids"])
-            n_target = len(e["target_ids"])
-            n_audio = e["total_length"] - n_prompt - n_target
-            print(f"\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
+    for i, e in enumerate(sampler):
+        n_prompt = len(e["prompt_ids"])
+        n_target = len(e["target_ids"])
+        n_audio = e["total_length"] - n_prompt - n_target
+        print(f"\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
