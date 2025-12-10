@@ -135,12 +135,20 @@ class AudioToLLMProjector(nn.Module):
         return x, sf_mask
 
 if __name__ == "__main__":
-    import sys
+    import argparse
+    import logging
     from AudioEmbedder import AudioEmbedder
 
-    audio_files = [sys.argv[1]]
-    #device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = "cpu"
+    parser = argparse.ArgumentParser(description="Test Projector using an Audio Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--model", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
+    parser.add_argument("--wav", type=str, help="Comma separated list of paths to audio files")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    audio_files = args.wav.split(",")
+    device = "cuda" if args.device == "cuda" and torch.cuda.is_available() else "cpu"
 
     embedder = AudioEmbedder(model="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", device=device)
     proj = AudioToLLMProjector(audio_embedding_dim=embedder.D, stack_size=4, llm_dimension=4096, rank_dim=256, max_seq_len=100).to(device)
