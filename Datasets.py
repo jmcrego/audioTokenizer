@@ -168,10 +168,11 @@ if __name__ == "__main__":
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
     sampler = BucketedLengthSampler(ds, batch_size=5, bucket_size=50, shuffle=True)
-    print(f"Sampler size: {len(sampler)} batches")
+    print(f"Sampler size: {len(sampler)} samples")
     # Inspect some samples
-    for i, e in enumerate(sampler):
-        print(e)
+    for i, idx in enumerate(sampler):
+        print(f"Batch {i}: indices = {idx}")
+        e = ds[idx[0]]
         n_prompt = len(e["prompt_ids"])
         n_target = len(e["target_ids"])
         n_audio = e["total_length"] - n_prompt - n_target
