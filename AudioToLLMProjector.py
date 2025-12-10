@@ -85,7 +85,7 @@ class AudioToLLMProjector(nn.Module):
         )
 
         # precompute the RoPE frequencies
-        self.RoPE_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+        self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         """
