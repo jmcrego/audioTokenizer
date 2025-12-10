@@ -168,10 +168,10 @@ if __name__ == "__main__":
     print(f"Sampler size: {len(sampler)} samples")
     # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
-        print(f"Batch {i}: indices = {idx}")
+        print(f"Batch {i}")
         for id in idx:
             e = ds[id]
             n_prompt = len(e["prompt_ids"])
             n_target = len(e["target_ids"])
             n_audio = e["total_length"] - n_prompt - n_target
-            print(f"\t{id}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
+            print(f"\tidx={id}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
