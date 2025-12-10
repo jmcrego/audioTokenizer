@@ -310,12 +310,6 @@ def build_model_and_trainer(
         collate_fn=collator_fn     # collate function pads and builds tensors
     )
 
-    # ==================
-    # Dummy HF datasets for SFTTrainer
-    # ==================
-    dummy_train = HFDataset.from_list([{"text": ""}])
-    dummy_eval  = HFDataset.from_list([{"text": ""}])
-
     ### =================
     ### 3. SFTTrainer
     ### =================
@@ -329,7 +323,7 @@ def build_model_and_trainer(
         learning_rate=lr,
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
-        dataset_text_field=None,    # <-- required
+        dataset_text_field=None, 
         packing=False,
         dataset_kwargs={"add_special_tokens": False},
     )
@@ -337,22 +331,12 @@ def build_model_and_trainer(
     trainer = MySFTTrainer(
         model=llm_model,
         args=sft_config,
-        train_dataset=dummy_train,
-        eval_dataset=dummy_eval,
-        data_collator=collator_fn,   # still needed
+        train_dataset=HFDataset.from_list([{"text": ""}]), # Dummy HF datasets for SFTTrainer
+        eval_dataset=HFDataset.from_list([{"text": ""}]), # Dummy HF datasets for SFTTrainer
+        data_collator=collator_fn, 
         train_loader=train_loader,
         eval_loader=eval_loader,
     )
-
-    # trainer = SFTTrainer(
-    #     model=llm_model,
-    #     args=sft_config,
-    #     train_dataset=train_dataset,
-    #     eval_dataset=eval_dataset,
-    #     data_collator=collator_fn,
-    #     tokenizer=None,
-    #     dataset_text_field=None
-    # )
 
     return trainer
 

@@ -11,24 +11,41 @@ class BucketedLengthSampler(Sampler):
         self.batch_size = batch_size
         self.bucket_size = bucket_size
         self.shuffle = shuffle
-        # Extract total_length for each sample
-        lengths = np.array([s["total_length"] for s in dataset])
-        # sort indices by length
-        sorted_indices = np.argsort(lengths)
-        # Split sorted indices into buckets
-        buckets = [
-            sorted_indices[i:i+self.bucket_size] 
-            for i in range(0, len(sorted_indices), self.bucket_size)
-        ]
-        # sort buckets and concat indices in buckets
-        self.all_indices = []
-        for bucket in buckets:
+        assert bucket_size >= batch_size, f"bucket_size ({bucket_size}) must be >= batch_size ({batch_size})"
+        assert bucket_size % batch_size == 0, f"bucket_size ({bucket_size}) must be multiple of batch_size ({batch_size})"
+
+        if not shuffle:
+            self.all_indices = list(range(len(dataset)))
+
+        else:
+            # Extract total_length for each sample
+            lengths = np.array([s["total_length"] for s in dataset])
+
+            # sort indices by length
             if self.shuffle:
-                bucket = np.random.permutation(bucket)
-            self.all_indices.extend(bucket.tolist())
+                sorted_indices = np.argsort(lengths)
+            else:
+                sorted_indices = np.arange(len(lengths))
+
+            # Create buckets of sorted indices (contain samples of similar lengths)
+            buckets = [
+                sorted_indices[i:i+self.bucket_size] 
+                for i in range(0, len(sorted_indices), self.bucket_size)
+            ]
+
+            # Randomize buckets
+            if self.shuffle:
+                buckets = np.random.permutation(buckets)
+
+            # Collect all indices
+            self.all_indices = []
+            for bucket in buckets:
+                # Shuffle samples within the bucket
+                if self.shuffle:
+                    bucket = np.random.permutation(bucket)
+                self.all_indices.extend(bucket.tolist())
 
     def __iter__(self):
-        # Yield batches of indices
         for i in range(0, len(self.all_indices), self.batch_size):
             yield self.all_indices[i:i+self.batch_size]
 
@@ -145,21 +162,19 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
 
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(
-        "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
-        use_fast=True
-    )
+    tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
 
     # Create dataset from file
-    eval_dataset = AudioDataset(
-        file_path=sys.argv[1],
-        tokenizer=tokenizer,
-        max_seq_len=50
-    )
+    ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer, max_seq_len=50)
 
+    # Create sampler from datset
+    sampler = BucketedLengthSampler(ds, batch_size=4, bucket_size=4000, shuffle=True)
+    
     # Inspect some samples
-    for i, e in enumerate(eval_dataset):
-        n_prompt = len(e["prompt_ids"])
-        n_target = len(e["target_ids"])
-        n_audio = e["total_length"] - n_prompt - n_target
-        print(f"n_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
+    for i, b in enumerate(sampler):
+        print(f"Batch {i}:")
+        for e in b:
+            n_prompt = len(e["prompt_ids"])
+            n_target = len(e["target_ids"])
+            n_audio = e["total_length"] - n_prompt - n_target
+            print(f"n_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
