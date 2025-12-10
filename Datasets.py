@@ -39,7 +39,8 @@ class BatchedLengthSampler(Sampler):
             #print(f"random batches = {batches}")
 
             # flat list of indices
-            self.indices = batches.flatten() #[idx for batch in batches for idx in batch]
+            self.indices = np.concatenate(batches) #[idx for batch in batches for idx in batch]
+            #print(f"indices = {self.indices}")
 
     def __iter__(self):
         for i in range(0, len(self.indices), self.batch_size):
