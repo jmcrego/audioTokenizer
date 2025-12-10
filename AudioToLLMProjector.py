@@ -151,7 +151,7 @@ if __name__ == "__main__":
     device = "cuda" if args.device == "cuda" and torch.cuda.is_available() else "cpu"
 
     embedder = AudioEmbedder(model="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", device=device)
-    proj = AudioToLLMProjector(audio_embedding_dim=embedder.D, stack_size=4, llm_dimension=4096, rank_dim=256, max_seq_len=100).to(device)
+    proj = AudioToLLMProjector(audio_embedding_dim=embedder.D, stack_size=8, llm_dimension=4096, rank_dim=256, max_seq_len=100).to(device)
 
     embeddings, masks = embedder(audio_files)  # embeddings: [B, T, D], masks: [B, T]
     print("Embeddings shape:", embeddings.shape)
