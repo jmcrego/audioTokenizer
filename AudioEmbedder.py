@@ -65,6 +65,7 @@ def get_model_stride(embedder, feature_extractor, model_name):
             stride *= layer.conv.stride[0]
         return stride
 
+
 class AudioEmbedder(nn.Module):
     """
     Audio embeddings extractor with chunk/stride support.
