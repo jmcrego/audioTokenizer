@@ -51,6 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
     parser.add_argument("--max_steps", type=int, default=10000, help="Maximum number of training steps")
+    parser.add_argument("--max_epochs", type=int, default=10000, help="Maximum number of training epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
@@ -135,6 +136,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         lr=args.lr,
         max_steps=args.max_steps,
+        max_epochs=args.max_epochs,
         eval_every=args.eval_every,
         log_every=args.log_every,
         accum_steps=args.accum_steps,

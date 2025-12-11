@@ -1,11 +1,15 @@
 import os
 import torch
+import random
+import numpy as np
+
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim import AdamW
 from datetime import datetime
+from torch.optim.lr_scheduler import LambdaLR
 
-from Datasets import BatchedLengthSampler  # your custom sampler
+from AudioToLLMDataset import BatchedLengthSampler 
 
 class AudioToLLMTrainer:
     def __init__(
@@ -16,19 +20,25 @@ class AudioToLLMTrainer:
         batch_size=4,
         lr=1e-4,
         max_steps=10000,
+        max_epochs=10,
         eval_every=1000,
         log_every=50,
         accum_steps=1,
+        warmup_steps=500,
         output_dir="./output",
         device=None,
         dtype=None,
+        seed=42,
     ):
+        self.seed_everything(seed)
+
         self.model = model
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
         self.lr = lr
         self.max_steps = max_steps
+        self.max_epochs = max_epochs
         self.eval_every = eval_every
         self.log_every = log_every
         self.accum_steps = accum_steps
@@ -39,13 +49,22 @@ class AudioToLLMTrainer:
 
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = dtype or torch.float32
-        self.model.to(self.device)
+        self.model.to(self.device, dtype=self.dtype)
 
         # Optimizer (only trainable params)
         self.optimizer = AdamW(
             filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=self.lr
         )
+
+        # Scheduler: Linear warmup + decay
+        def lr_lambda(current_step):
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+            return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))
+
+        self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
+
 
         # -----------------------
         # Sampler & DataLoader
@@ -70,7 +89,30 @@ class AudioToLLMTrainer:
 
         # For logging
         self.step = 0
+        self.epoch = 0
         self.start_time = datetime.now()
+
+        # -----------------------------
+        # Inspect first batch
+        # -----------------------------
+
+        first_batch = next(iter(self.train_loader))
+        print("First batch keys:", first_batch.keys())
+        print("Prompt_ids shape:", first_batch["prompt_ids"].shape)
+        print("Target_ids shape:", first_batch["target_ids"].shape)
+        print("Audio paths (first 5):", first_batch["audio_paths"][:5])
+
+    # -----------------------------
+    # Seed everything
+    # -----------------------------
+    @staticmethod
+    def seed_everything(seed=42):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     # -----------------------
     # Save checkpoint
@@ -79,7 +121,7 @@ class AudioToLLMTrainer:
         step_str = f"_step{step}" if step is not None else ""
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}.pt")
         state = {
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": self.model.state_dict(), #self.model.projector.state_dict()
             "optimizer_state_dict": self.optimizer.state_dict(),
             "step": self.step
         }
@@ -135,9 +177,9 @@ class AudioToLLMTrainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, step):
+    def log_fn(self, loss, step, epoch):
         elapsed = (datetime.now() - self.start_time).total_seconds()
-        print(f"[Step {step}] loss={loss:.4f} | elapsed={elapsed:.1f}s")
+        print(f"[Step {step} Epoch {epoch}] loss={loss:.4f} | elapsed={elapsed:.1f}s")
 
     # -----------------------
     # Evaluation
@@ -149,7 +191,11 @@ class AudioToLLMTrainer:
         n_batches = 0
         for batch in self.eval_loader:
             batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
-            outputs = self.model(**batch)
+            if self.device.type == "cuda":
+                with torch.autocast(device_type="cuda", dtype=self.dtype):
+                    outputs = self.model(**batch)
+            else:
+                outputs = self.model(**batch)
             total_loss += outputs["loss"].item()
             n_batches += 1
         avg_loss = total_loss / max(1, n_batches)
@@ -164,37 +210,34 @@ class AudioToLLMTrainer:
         self.model.train()
         optimizer = self.optimizer
         optimizer.zero_grad()
-        for batch in self.train_loader:
-            self.step += 1
-            # Move tensors to device
-            batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
+        while self.step < self.max_steps:
+            self.epoch += 1
 
-            outputs = self.model(**batch)
-            loss = outputs["loss"] / self.accum_steps
-            loss.backward()
+            for batch in self.train_loader:
+                self.step += 1
+                # Move tensors to device
+                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
 
-            if self.step % self.accum_steps == 0:
-                optimizer.step()
-                optimizer.zero_grad()
+                outputs = self.model(**batch)
+                loss = outputs["loss"] / self.accum_steps
+                loss.backward()
+                
+                if self.step % self.accum_steps == 0:
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    self.scheduler.step()
 
-            if self.step % self.log_every == 0:
-                self.log_fn(loss.item() * self.accum_steps, self.step)
+                if self.step % self.log_every == 0:
+                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
 
-            if self.eval_loader is not None and self.step % self.eval_every == 0:
-                self.evaluate()
+                if self.eval_loader is not None and self.step % self.eval_every == 0:
+                    self.evaluate()
+                    self.save_checkpoint(self.step)
 
-            if self.step >= self.max_steps:
+                if self.step >= self.max_steps:
+                    print(f"Reached max steps {self.max_steps}, stopping training.")
+                    break
+
+            if self.epoch >= self.max_epochs:
+                print(f"Reached max epochs {self.max_epochs}, stopping training.")
                 break
-
-
-
-
-    # -----------------------------
-    # Inspect first batch
-    # -----------------------------
-
-    first_batch = next(iter(train_loader))
-    print("First batch keys:", first_batch.keys())
-    print("Prompt_ids shape:", first_batch["prompt_ids"].shape)
-    print("Target_ids shape:", first_batch["target_ids"].shape)
-    print("Audio paths (first 5):", first_batch["audio_paths"][:5])
