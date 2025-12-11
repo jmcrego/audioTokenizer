@@ -6,7 +6,7 @@ import soundfile as sf
 from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
 
-logger = logging.getLogger("AudioDataset")
+logger = logging.getLogger("AudioToLLMDataset")
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
