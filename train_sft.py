@@ -233,9 +233,9 @@ if __name__ == "__main__":
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
     trainer = build_model_and_trainer(
-        audio_path=args.audio,
-        proj_path=args.proj,
-        llm_path=args.llm,
+        audio_path=args.audio_path,
+        proj_path=args.proj_path,
+        llm_path=args.llm_path,
         chunk_size = args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
