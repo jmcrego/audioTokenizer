@@ -97,11 +97,11 @@ class AudioEmbedder(nn.Module):
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
             self.embedder = HubertModel.from_pretrained(model)
             self.D = self.embedder.config.hidden_size
-            # cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
-            # cfg.mask_time_prob = 0.0
-            # cfg.mask_time_length = 2     # optional (small safe value)
-            # cfg.mask_feature_prob = 0.0
-            # cfg.apply_spec_augment = False   # if available in this model class
+            cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
+            cfg.mask_time_prob = 0.0
+            cfg.mask_time_length = 2     # optional (small safe value)
+            cfg.mask_feature_prob = 0.0
+            cfg.apply_spec_augment = False   # if available in this model class
 
         elif "wav2vec2" in model.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
