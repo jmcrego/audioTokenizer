@@ -9,21 +9,13 @@ import numpy as np
 from trl import SFTTrainer, SFTConfig
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import Dataset as HFDataset
 
-from AudioEmbedder import AudioEmbedder
-from AudioToLLMProjector import AudioToLLMProjector
 from Datasets import AudioDataset, BatchedLengthSampler
+from AudioToLLMWrapper import AudioToLLMWrapper
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-def get_git_commit():
-    try:
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
-        return commit
-    except Exception:
-        return "unknown"
 
 def get_device_dtype():
     if torch.cuda.is_available():
@@ -70,12 +62,12 @@ class MySFTTrainer(SFTTrainer):
     
 
 # ============================================================
-# Trainer Builder
+# Trainer Builder (wrapper version)
 # ============================================================
 def build_model_and_trainer(
-    llm,
-    audio,
-    proj,
+    audio_path,
+    proj_path,
+    llm_path,
     chunk_size,
     stride,
     stack_size,
@@ -93,204 +85,34 @@ def build_model_and_trainer(
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
-    ### =================
-    ### 1. Load models
-    ### =================
-
-    # AudioEmbedder (frozen)
-    audio_embedder = AudioEmbedder(
-        model=audio,
-        l2_norm=False,
+    # -----------------------------
+    # 1. Load models wrapper
+    # -----------------------------
+    model = AudioToLLMWrapper(
+        audio_path=audio_path,
+        proj_path=proj_path,
+        llm_path=llm_path,
         chunk_size=chunk_size,
         stride=stride,
-        device=device,
-        dtype=dtype)
-
-    audio_embedder.eval()
-    for p in audio_embedder.parameters():
-        p.requires_grad = False
-
-    # Tokenizer + LLM (frozen)
-    tokenizer = AutoTokenizer.from_pretrained(llm, use_fast=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    llm_model = AutoModelForCausalLM.from_pretrained(llm, dtype=dtype).to(device)
-    llm_model.eval()
-    for p in llm_model.parameters():
-        p.requires_grad = False
-
-    # Projector (trainable)
-    projector = AudioToLLMProjector(
-        audio_embedding_dim=audio_embedder.D,
         stack_size=stack_size,
-        llm_dimension=llm_model.config.hidden_size,
         rank_dim=rank_dim,
         max_seq_len=max_seq_len,
         device=device,
-        dtype=dtype)
+        dtype=dtype,
+    ).to(device, dtype=dtype) #is this .to needed? 
 
+    print("Trainable params in model:", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    # load if given path
-    if proj is not None:
-        projector.load(proj, device=device)
-
-    #projector = projector.to(device, dtype=dtype)
-    llm_model = llm_model.to(device, dtype=dtype)
-
-    # Which parameters require grad?
-    print("LLM trainable param count:", sum(p.numel() for p in llm_model.parameters() if p.requires_grad))
-    print("Projector trainable param count:", sum(p.numel() for p in projector.parameters() if p.requires_grad))
-
-    # Which modules are attached to the LLM object?
-    print("Has projector on llm_model?:", hasattr(llm_model, "projector"))
-
-    ### =================
-    ### 2. Datasets
-    ### =================
-
-    def collator_fn(batch):
-        """
-        Expects `batch` to be: a list like:
-        batch = [
-            {
-                "audio_path": "path/to/audio1.wav",
-                "prompt_ids": tensor([t1, t2, ...]),  # 1D tensor
-                "target_ids": tensor([t1, t2, ...]),  # 1D tensor
-                "total_length": 500,
-                "text": ""
-            },
-            ...
-        ]
-        Returns batched `inputs_embeds` [B, L_in, D] and `labels` [B, L_in] (with ignore_index=-100 in ignored positions).
-        """
-        audio_paths     = [sample["audio_path"] for sample in batch] # list of str
-        prompt_ids_list = [sample["prompt_ids"] for sample in batch] # list of 1D tensors
-        target_ids_list = [sample["target_ids"] for sample in batch] # list of 1D tensors
-
-        # Convert prompt + target to padded tensors
-        prompt_ids = pad_sequence(
-            [torch.tensor(p, dtype=torch.long) for p in prompt_ids_list],
-            batch_first=True,
-            padding_value=tokenizer.pad_token_id,
-        ).to(device)
-
-        target_ids = pad_sequence(
-            [torch.tensor(t, dtype=torch.long) for t in target_ids_list],
-            batch_first=True,
-            padding_value=tokenizer.pad_token_id,
-        ).to(device)
-
-        # Audio embeddings
-        with torch.no_grad():
-            embs, embs_mask = audio_embedder(audio_paths) # embs: [B, S, D], embs_mask: [B, S]
-            #embs_mask = embs_mask.bool()
-            embs = embs.to(device=device, dtype=dtype)  # Move to GPU
-            embs_mask = embs_mask.bool().to(device=device)  # Move to GPU
-
-
-        # Project audio embeddings
-        proj_embs, proj_embs_mask = projector(embs, embs_mask)  # proj_embs: [B, S, D], proj_embs_mask: [B, S]
-        proj_embs = proj_embs.to(dtype)
-
-        # Prompt embeddings
-        with torch.no_grad():
-            prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
-            prompt_embs = prompt_embs.to(device=device, dtype=dtype)
-
-        """
-        Concatenate audio embeddings + prompt embeddings (right-padded)
-        and return final padded inputs_embeds and labels.
-
-        For instance,
-        Input EMBEDDINGS should be:
-        [ a a a a p p p 0 0 0 0 0 0]
-        [ a a p p 0 0 0 0 0 0 0 0 0]
-        [ a a a p p p 0 0 0 0 0 0 0]
-        (a means audio embedding, p means prompt embedding 0 means pad embedding)
-
-        While LABELS should be:
-        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t -100]
-        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t -100 -100]
-        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t    t]
-        (t means label token)
-
-        Returns:
-            inputs_embeds: [B, L_final, D]
-            labels:       [B, L_final]
-        """
-
-        B, S, D = proj_embs.shape
-        _, T, _ = prompt_embs.shape
-        _, L = target_ids.shape
-
-        # Determine real lengths
-        audio_lens = proj_embs_mask.sum(dim=1) # [B]
-        prompt_lens = (prompt_ids != tokenizer.pad_token_id).sum(dim=1) # [B]
-        target_lens = (target_ids != tokenizer.pad_token_id).sum(dim=1) # [B]
-
-        # Total length per sequence
-        total_lens = audio_lens + prompt_lens + target_lens
-        max_len = min(total_lens.max().item(), max_seq_len)
-
-        # -------------------
-        # Input embeddings
-        # -------------------
-        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
-
-        # Audio embeddings
-        audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
-        audio_valid = audio_idx < audio_lens.unsqueeze(1)                     # [B, S]
-        batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S) # [B, S]
-        inputs_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
-
-        # Prompt embeddings
-        prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1) # [B, T]
-        prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
-        dest_positions = audio_lens.unsqueeze(1) + prompt_idx                 # [B, T]
-        dest_positions = torch.clamp(dest_positions, max=max_len-1)
-        batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
-        inputs_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
-
-        # -------------------
-        # Labels
-        # -------------------
-        ignore_index = -100
-        labels = torch.full((B, max_len), ignore_index, dtype=torch.long, device=device)
-
-        target_idx = torch.arange(L, device=device).view(1, -1).expand(B, -1)
-        target_valid = target_idx < target_lens.unsqueeze(1)
-        dest_target_positions = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
-        dest_target_positions = torch.clamp(dest_target_positions, max=max_len-1)
-        batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(-1, L)
-        labels[batch_idx_target[target_valid], dest_target_positions[target_valid]] = target_ids[target_valid]
-
-        # -------------------
-        # attention_mask
-        # -------------------
-
-        attention_mask = (
-            torch.arange(max_len, device=device)
-            .unsqueeze(0)
-            .expand(B, -1)
-            < total_lens.unsqueeze(1)
-        ).long()   # transformers accepts bool or 0/1; long() is safest
-
-        return { "inputs_embeds": inputs_embeds, "labels": labels, "attention_mask": attention_mask }
-    
-
-    asr_token = "[ASR]"
-    stt_token = "[STT]"
-    end_token = "[END]"
-    sample_rate = audio_embedder.sample_rate
-
+    # -----------------------------
+    # 3. Datasets and collator
+    # -----------------------------
     train_dataset = AudioDataset(
         file_path=train,
-        tokenizer=tokenizer,
-        asr_token=asr_token,
-        stt_token=stt_token,
-        end_token=end_token,
-        sample_rate=sample_rate,
+        tokenizer=model.tokenizer,
+        asr_token="[ASR]",
+        stt_token="[STT]",
+        end_token="[END]",
+        sample_rate=model.audio_embedder.sample_rate,
         chunk_size=chunk_size,
         stride=stride,
         stack_size=stack_size,
@@ -298,40 +120,45 @@ def build_model_and_trainer(
     )
     eval_dataset = AudioDataset(
         file_path=eval,
-        tokenizer=tokenizer,
-        asr_token=asr_token,
-        stt_token=stt_token,
-        end_token=end_token,
-        sample_rate=sample_rate,
+        tokenizer=model.tokenizer,
+        asr_token="[ASR]",
+        stt_token="[STT]",
+        end_token="[END]",
+        sample_rate=model.audio_embedder.sample_rate,
         chunk_size=chunk_size,
         stride=stride,
         stack_size=stack_size,
         max_seq_len=max_seq_len
     )
 
-    train_sampler = BatchedLengthSampler(
-        train_dataset,
-        batch_size=batch_size,
-    )
-    eval_sampler = BatchedLengthSampler(
-        eval_dataset,
-        batch_size=batch_size,
-    )
+    train_sampler = BatchedLengthSampler(train_dataset, batch_size=batch_size)
+    eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=batch_size)
+
+    # Collator returns audio_paths, prompt_ids, target_ids
+    def collator_fn(batch):
+        audio_paths = [x["audio_path"] for x in batch]
+        prompt_ids = pad_sequence([torch.tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
+        target_ids = pad_sequence([torch.tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
+        return {
+            "audio_paths": audio_paths,
+            "prompt_ids": prompt_ids,
+            "target_ids": target_ids
+        }
 
     train_loader = DataLoader(
         train_dataset,
-        batch_sampler=train_sampler, # batch_size is ignored because sampler yields batches
-        collate_fn=collator_fn     # collate function pads and builds tensors
+        batch_sampler=train_sampler,
+        collate_fn=collator_fn
     )
     eval_loader = DataLoader(
         eval_dataset,
-        batch_sampler=eval_sampler,  # batch_size is ignored because sampler yields batches
-        collate_fn=collator_fn     # collate function pads and builds tensors
+        batch_sampler=eval_sampler,
+        collate_fn=collator_fn
     )
 
-    ### =================
-    ### 3. SFTTrainer
-    ### =================
+    # -----------------------------
+    # 4. SFTTrainer
+    # -----------------------------
     sft_config = SFTConfig(
         output_dir=output_dir,
         max_steps=max_steps,
@@ -343,18 +170,18 @@ def build_model_and_trainer(
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
         dataset_text_field=None,
-        dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x}, #dummy
+        dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x},
         packing=False,
     )
 
     trainer = MySFTTrainer(
-        model=llm_model,
+        model=model,
         args=sft_config,
-        train_dataset=HFDataset.from_list([{"text": ""}]), # Dummy HF datasets for SFTTrainer
-        eval_dataset=HFDataset.from_list([{"text": ""}]), # Dummy HF datasets for SFTTrainer
-        data_collator=collator_fn, 
+        train_dataset=HFDataset.from_list([{"text": ""}]),
+        eval_dataset=HFDataset.from_list([{"text": ""}]),
+        data_collator=collator_fn,
         train_loader=train_loader,
-        eval_loader=eval_loader,
+        eval_loader=eval_loader
     )
 
     return trainer
@@ -365,9 +192,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # model paths
-    parser.add_argument("--llm", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    parser.add_argument("--audio", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
-    parser.add_argument("--proj", type=str, default=None)
+    parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
+    parser.add_argument("--proj_path", type=str, default=None)
+    parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     # dataset paths
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", required=True, help="Evaluation dataset file")
@@ -404,12 +231,11 @@ if __name__ == "__main__":
 
     logger = logging.getLogger(__name__)
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
-    logger.info(f"Git commit: {get_git_commit()}")
 
     trainer = build_model_and_trainer(
-        llm=args.llm,
-        audio=args.audio,
-        proj=args.proj,
+        audio_path=args.audio,
+        proj_path=args.proj,
+        llm_path=args.llm,
         chunk_size = args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
@@ -426,10 +252,20 @@ if __name__ == "__main__":
     )
 
     batch = next(iter(trainer.get_train_dataloader()))
-    print(batch.keys())  
-    print("inputs_embeds shape:", batch["inputs_embeds"].shape)
-    print("labels shape:", batch["labels"].shape)
-    print("inputs_embeds:", batch["inputs_embeds"])
-    print("labels:", batch["labels"])
+
+    print("------ BATCH CONTENT ------")
+    print("Audio paths:", batch["audio_paths"])
+    print("Prompt IDs:", batch["prompt_ids"].shape)
+    print(batch["prompt_ids"])
+    print("Target IDs:", batch["target_ids"].shape)
+    print(batch["target_ids"])
+
+    print("\n------ MODEL OUTPUT ------")
+    outputs = trainer.model(**batch)
+
+    print("Loss:", outputs["loss"])
+    print("Logits shape:", outputs["logits"].shape)
+    print("Labels shape:", outputs["labels"].shape)
+    print("Attention mask shape:", outputs["attention_mask"].shape)
 
     trainer.train()
