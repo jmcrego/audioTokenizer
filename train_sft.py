@@ -391,10 +391,9 @@ if __name__ == "__main__":
 
     batch = next(iter(trainer.get_train_dataloader()))
     print(batch.keys())  
-    # → dict_keys(['input_embeds', 'labels'])
-
-    print(batch["input_embeds"].shape)
-    print(batch["labels"].shape)
-
+    print("input_embeds shape:", batch["input_embeds"].shape)
+    print("labels shape:", batch["labels"].shape)
+    print("input_embeds:", batch["input_embeds"])
+    print("labels:", batch["labels"])
 
     trainer.train()
