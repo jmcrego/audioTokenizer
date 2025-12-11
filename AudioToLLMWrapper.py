@@ -15,7 +15,9 @@ class AudioToLLMWrapper(torch.nn.Module):
         
         super().__init__()
 
+        ############################
         # Audio Embedder (frozen)
+        ############################
         self.audio_embedder = AudioEmbedder(
             model=audio_path,
             l2_norm=False,
@@ -28,7 +30,9 @@ class AudioToLLMWrapper(torch.nn.Module):
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
 
+        ############################
         # Tokenizer + LLM (frozen)
+        ############################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -38,7 +42,13 @@ class AudioToLLMWrapper(torch.nn.Module):
         for p in self.llm_model.parameters():
             p.requires_grad = False
 
+        # trl’s SFTTrainer expects a HuggingFace model, which always has:
+        self.config = self.llm_model.config
+        self.generation_config = getattr(self.llm_model, "generation_config", None)
+
+        ############################
         # Projector (trainable)
+        ############################
         self.projector = AudioToLLMProjector(
             audio_embedding_dim=self.audio_embedder.D,
             stack_size=stack_size,
