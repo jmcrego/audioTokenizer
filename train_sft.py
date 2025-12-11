@@ -60,6 +60,9 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     args = parser.parse_args()
 
+    print("CUDA available:", torch.cuda.is_available())
+    print("Device count:", torch.cuda.device_count())
+
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
 
