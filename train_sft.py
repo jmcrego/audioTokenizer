@@ -127,6 +127,9 @@ def build_model_and_trainer(
         rank_dim=rank_dim,
         max_seq_len=max_seq_len)
 
+    projector = projector.to(device)
+    llm_model = llm_model.to(device)
+
     # load if given path
     if proj is not None:
         projector.load(proj, device=device)
@@ -170,8 +173,10 @@ def build_model_and_trainer(
         # Audio embeddings
         with torch.no_grad():
             embs, embs_mask = audio_embedder(audio_paths) # embs: [B, S, D], embs_mask: [B, S]
-            embs = embs.to(dtype)
-            embs_mask = embs_mask.bool()
+            #embs_mask = embs_mask.bool()
+            embs = embs.to(device=device, dtype=dtype)  # Move to GPU
+            embs_mask = embs_mask.bool().to(device=device, dtype=dtype)  # Move to GPU
+
 
         # Project audio embeddings
         proj_embs, proj_embs_mask = projector(embs, embs_mask)  # proj_embs: [B, S, D], proj_embs_mask: [B, S]
@@ -179,7 +184,7 @@ def build_model_and_trainer(
         # Prompt embeddings
         with torch.no_grad():
             prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
-            prompt_embs = prompt_embs.to(dtype)
+            prompt_embs = prompt_embs.to(device=device, dtype=dtype)
 
         """
         Concatenate audio embeddings + prompt embeddings (right-padded)
