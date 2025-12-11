@@ -24,11 +24,9 @@ class BatchedLengthSampler(Sampler):
             # sort indices by length
             if self.shuffle:
                 sorted_indices = np.argsort(lengths)
-                sorted_lengths = lengths[sorted_indices]
-                #print(f"sorted_lengths = {sorted_lengths}")
+                #sorted_lengths = lengths[sorted_indices]
             else:
                 sorted_indices = np.arange(len(lengths))
-            #print(f"sorted_indices = {sorted_indices}")
 
             # Create batches of sorted indices (contain samples of similar lengths)
             batches = [
@@ -39,11 +37,9 @@ class BatchedLengthSampler(Sampler):
             # Randomize batches
             if self.shuffle:
                 np.random.shuffle(batches)
-            #print(f"random batches = {batches}")
 
             # flat list of indices
             self.indices = np.concatenate(batches) #[idx for batch in batches for idx in batch]
-            #print(f"indices = {self.indices}")
 
     def __iter__(self):
         for i in range(0, len(self.indices), self.batch_size):
