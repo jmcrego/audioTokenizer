@@ -1,9 +1,6 @@
 
 import os
 import torch
-import logging
-import argparse
-import subprocess
 import numpy as np
 
 from trl import SFTTrainer, SFTConfig
@@ -11,11 +8,10 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from datasets import Dataset as HFDataset
 
-from Datasets import AudioDataset, BatchedLengthSampler
 from AudioToLLMWrapper import AudioToLLMWrapper
+from Datasets import AudioDataset, BatchedLengthSampler
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
 
 def get_device_dtype():
     if torch.cuda.is_available():
@@ -61,6 +57,9 @@ class MySFTTrainer(SFTTrainer):
     
 
 if __name__ == "__main__":
+    import logging
+    import argparse
+    #import subprocess
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # model paths
@@ -191,6 +190,7 @@ if __name__ == "__main__":
         learning_rate=args.lr,
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
+        gradient_checkpointing=False,
         dataset_text_field=None,
         dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x},
         packing=False,
