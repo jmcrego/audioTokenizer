@@ -190,6 +190,7 @@ class AudioEmbedder(nn.Module):
             out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
         t_embeddings = time.time()-t
         logger.debug(f"Extracted embeddings {out.shape} dtype={out.dtype}")
+        kk
 
         # Optional L2 normalization (only for computing clusters)
         if self.l2_norm:
