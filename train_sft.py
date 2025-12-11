@@ -125,29 +125,34 @@ def build_model_and_trainer(
 
     def collator_fn(batch):
         """
-        Expects `batch` to be a list-like batch from the datasets library where
-        batch["audio"] and batch["target"] are lists of length B (or correspondingly shaped).
-        Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with -100 in ignored positions).
+        Expects `batch` to be: a list like:
+        batch = [
+            {
+                "audio_path": "path/to/audio1.wav",
+                "prompt_ids": tensor([t1, t2, ...]),  # 1D tensor
+                "target_ids": tensor([t1, t2, ...]),  # 1D tensor
+                "total_length": 500,
+                "text": ""
+            },
+            ...
+        ]
+        Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with ignore_index=-100 in ignored positions).
         """
-
-        audio_paths     = [sample["audio_path"] for sample in batch]
-        prompt_ids_list = [sample["prompt_ids"] for sample in batch]
-        target_ids_list = [sample["target_ids"] for sample in batch]
-
-        pad_id = tokenizer.pad_token_id
-        ignore_index = -100
+        audio_paths     = [sample["audio_path"] for sample in batch] # list of str
+        prompt_ids_list = [sample["prompt_ids"] for sample in batch] # list of 1D tensors
+        target_ids_list = [sample["target_ids"] for sample in batch] # list of 1D tensors
 
         # Convert prompt + target to padded tensors
         prompt_ids = pad_sequence(
             [torch.tensor(p, dtype=torch.long) for p in prompt_ids_list],
             batch_first=True,
-            padding_value=pad_id,
+            padding_value=tokenizer.pad_token_id,
         ).to(device)
 
         target_ids = pad_sequence(
             [torch.tensor(t, dtype=torch.long) for t in target_ids_list],
             batch_first=True,
-            padding_value=pad_id,
+            padding_value=tokenizer.pad_token_id,
         ).to(device)
 
         # Audio embeddings
@@ -192,8 +197,8 @@ def build_model_and_trainer(
 
         # Determine real lengths
         audio_lens = proj_embs_mask.sum(dim=1) # [B]
-        prompt_lens = (prompt_ids != pad_id).sum(dim=1) # [B]
-        target_lens = (target_ids != pad_id).sum(dim=1) # [B]
+        prompt_lens = (prompt_ids != tokenizer.pad_token_id).sum(dim=1) # [B]
+        target_lens = (target_ids != tokenizer.pad_token_id).sum(dim=1) # [B]
 
         # Total length per sequence
         total_lens = audio_lens + prompt_lens + target_lens
@@ -221,6 +226,7 @@ def build_model_and_trainer(
         # -------------------
         # Labels
         # -------------------
+        ignore_index = -100
         labels = torch.full((B, max_len), ignore_index, dtype=torch.long, device=device)
 
         target_idx = torch.arange(L, device=device).view(1, -1).expand(B, -1)
