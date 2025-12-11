@@ -84,6 +84,7 @@ class AudioEmbedder(nn.Module):
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
 
+
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         self.device = torch.device(device)
         self.dtype = dtype
