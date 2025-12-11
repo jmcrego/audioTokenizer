@@ -321,10 +321,7 @@ def build_model_and_trainer(
         fp16=(dtype == torch.float16),
         bf16=(dtype == torch.bfloat16),
         dataset_text_field=None,
-        dataset_kwargs={
-            "add_special_tokens": False,
-            "map_fn": lambda x: x   # prevents TRL from trying to tokenize ANYTHING
-        },
+        dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x}, #dummy
         packing=False,
     )
 
