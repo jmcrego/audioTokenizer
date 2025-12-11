@@ -133,6 +133,17 @@ class AudioToLLMProjector(nn.Module):
             sf_mask = mask[:, :T2].view(B, N, S).all(dim=-1)
 
         return x, sf_mask
+    
+    def load(self, path):
+        state_dict = torch.load(path, map_location="cpu")
+        self.load_state_dict(state_dict)
+        print(f"Loaded AudioToLLMProjector from {path}")
+
+    def save(self, path):
+        torch.save(self.state_dict(), path)
+        print(f"Saved AudioToLLMProjector to {path}")
+
+
 
 if __name__ == "__main__":
     import argparse

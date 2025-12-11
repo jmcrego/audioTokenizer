@@ -168,7 +168,6 @@ class AudioEmbedder(nn.Module):
         else:
             inputs = inputs.to(self.device)
 
-
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
