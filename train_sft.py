@@ -56,85 +56,6 @@ class MySFTTrainer(SFTTrainer):
     def get_eval_dataloader(self, eval_dataset=None):
         return self._eval_loader
 
-def compose_full_embeddings_with_padding_vectorized(
-    proj_embs: torch.Tensor,  # [B, S, D] (audio embeddings, right-padded)
-    audio_mask: torch.Tensor, # [B, S]    (1=real, 0=pad)
-    prompt_embs: torch.Tensor,# [B, T, D] (prompt embeddings, right-padded)
-    prompt_ids: torch.Tensor, # [B, T]    (for detecting padding)
-    target_ids: torch.Tensor, # [B, L]    (padded with pad_token_id)
-    device,
-    dtype,
-    max_seq_len: int,
-    pad_token_id: int,
-    ignore_index: int = -100,
-):
-    """
-    Concatenate audio embeddings + prompt embeddings right-padded
-    and return final padded input_embeds and labels.
-
-    For instance,
-    Input EMBEDDINGS should be:
-    [ a a a a p p p 0 0 0 0 0 0]
-    [ a a p p 0 0 0 0 0 0 0 0 0]
-    [ a a a p p p 0 0 0 0 0 0 0]
-    (a means audio embedding, p means prompt embedding 0 means pad embedding)
-
-    While LABELS should be:
-    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t -100]
-    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t -100 -100]
-    [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t    t]
-    (t means label token)
-
-    Returns:
-        input_embeds: [B, L_final, D]
-        labels:       [B, L_final]
-    """
-
-    B, S, D = proj_embs.shape
-    _, T, _ = prompt_embs.shape
-    _, L = target_ids.shape
-
-    # Determine real lengths
-    audio_lens = audio_mask.sum(dim=1)                    # [B]
-    prompt_lens = (prompt_ids != pad_token_id).sum(dim=1) # [B]
-    target_lens = (target_ids != pad_token_id).sum(dim=1) # [B]
-
-    # Total length per sequence
-    total_lens = audio_lens + prompt_lens + target_lens
-    max_len = min(total_lens.max().item(), max_seq_len)
-
-    # -------------------
-    # Input embeddings
-    # -------------------
-    input_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
-
-    # Audio embeddings
-    audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
-    audio_valid = audio_idx < audio_lens.unsqueeze(1)                     # [B, S]
-    batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S) # [B, S]
-    input_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
-
-    # Prompt embeddings
-    prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1) # [B, T]
-    prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
-    dest_positions = audio_lens.unsqueeze(1) + prompt_idx                 # [B, T]
-    dest_positions = torch.clamp(dest_positions, max=max_len-1)
-    batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
-    input_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
-
-    # -------------------
-    # Labels
-    # -------------------
-    labels = torch.full((B, max_len), ignore_index, dtype=torch.long, device=device)
-
-    target_idx = torch.arange(L, device=device).view(1, -1).expand(B, -1)
-    target_valid = target_idx < target_lens.unsqueeze(1)
-    dest_target_positions = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
-    dest_target_positions = torch.clamp(dest_target_positions, max=max_len-1)
-    batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(-1, L)
-    labels[batch_idx_target[target_valid], dest_target_positions[target_valid]] = target_ids[target_valid]
-
-    return input_embeds, labels
 
 # ============================================================
 # Trainer Builder
@@ -214,6 +135,7 @@ def build_model_and_trainer(
         target_ids_list = [sample["target_ids"] for sample in batch]
 
         pad_id = tokenizer.pad_token_id
+        ignore_index = -100
 
         # Convert prompt + target to padded tensors
         prompt_ids = pad_sequence(
@@ -230,33 +152,86 @@ def build_model_and_trainer(
 
         # Audio embeddings
         with torch.no_grad():
-            embs, embs_mask = audio_embedder(audio_paths)
+            embs, embs_mask = audio_embedder(audio_paths) # embs: [B, S, D], embs_mask: [B, S]
             embs = embs.to(dtype)
             embs_mask = embs_mask.bool()
 
         # Project audio embeddings
-        proj_embs, proj_mask = projector(embs)
+        proj_embs, proj_embs_mask = projector(embs, embs_mask)  # proj_embs: [B, S, D], proj_embs_mask: [B, S]
 
         # Prompt embeddings
         with torch.no_grad():
             prompt_embs = llm_model.get_input_embeddings()(prompt_ids)
             prompt_embs = prompt_embs.to(dtype)
 
-        # Compose full multimodal sequence
-        input_embeds, labels = compose_full_embeddings_with_padding_vectorized(
-            proj_embs=proj_embs,
-            audio_mask=embs_mask,
-            prompt_embs=prompt_embs,
-            prompt_ids=prompt_ids,
-            target_ids=target_ids,
-            device=device,
-            dtype=dtype,
-            max_seq_len=max_seq_len,
-            pad_token_id=pad_id,
-            ignore_index=-100,
-        )
+        """
+        Concatenate audio embeddings + prompt embeddings (right-padded)
+        and return final padded input_embeds and labels.
+
+        For instance,
+        Input EMBEDDINGS should be:
+        [ a a a a p p p 0 0 0 0 0 0]
+        [ a a p p 0 0 0 0 0 0 0 0 0]
+        [ a a a p p p 0 0 0 0 0 0 0]
+        (a means audio embedding, p means prompt embedding 0 means pad embedding)
+
+        While LABELS should be:
+        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t -100]
+        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t -100 -100]
+        [ -100 -100 -100 -100 -100 -100 -100 -100 t t t    t    t]
+        (t means label token)
+
+        Returns:
+            input_embeds: [B, L_final, D]
+            labels:       [B, L_final]
+        """
+
+        B, S, D = proj_embs.shape
+        _, T, _ = prompt_embs.shape
+        _, L = target_ids.shape
+
+        # Determine real lengths
+        audio_lens = proj_embs_mask.sum(dim=1) # [B]
+        prompt_lens = (prompt_ids != pad_id).sum(dim=1) # [B]
+        target_lens = (target_ids != pad_id).sum(dim=1) # [B]
+
+        # Total length per sequence
+        total_lens = audio_lens + prompt_lens + target_lens
+        max_len = min(total_lens.max().item(), max_seq_len)
+
+        # -------------------
+        # Input embeddings
+        # -------------------
+        input_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
+
+        # Audio embeddings
+        audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
+        audio_valid = audio_idx < audio_lens.unsqueeze(1)                     # [B, S]
+        batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S) # [B, S]
+        input_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
+
+        # Prompt embeddings
+        prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1) # [B, T]
+        prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
+        dest_positions = audio_lens.unsqueeze(1) + prompt_idx                 # [B, T]
+        dest_positions = torch.clamp(dest_positions, max=max_len-1)
+        batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
+        input_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
+
+        # -------------------
+        # Labels
+        # -------------------
+        labels = torch.full((B, max_len), ignore_index, dtype=torch.long, device=device)
+
+        target_idx = torch.arange(L, device=device).view(1, -1).expand(B, -1)
+        target_valid = target_idx < target_lens.unsqueeze(1)
+        dest_target_positions = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
+        dest_target_positions = torch.clamp(dest_target_positions, max=max_len-1)
+        batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(-1, L)
+        labels[batch_idx_target[target_valid], dest_target_positions[target_valid]] = target_ids[target_valid]
 
         return { "input_embeds": input_embeds, "labels": labels }
+    
 
     asr_token = "[ASR]"
     stt_token = "[STT]"
