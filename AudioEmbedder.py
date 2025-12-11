@@ -192,6 +192,8 @@ class AudioEmbedder(nn.Module):
         # Forward pass
         with torch.no_grad():
             out = self.embedder(inputs).last_hidden_state.clone()  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
+        if torch.isnan(out).any():
+           logger.info('NaN values in AudioEmbedder embeddings!')
 
         t_embeddings = time.time()-t
         logger.debug(f"Extracted embeddings {out.shape} dtype={out.dtype}")

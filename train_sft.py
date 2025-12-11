@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--stack_size", type=int, default=8, help="Stack this many frames in audio to LLM projector")
     parser.add_argument("--rank_dim", type=int, default=256, help="Low-rank intermediate dimension for audio to LLM projector")
     # optimization pars
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
     parser.add_argument("--max_steps", type=int, default=10000, help="Maximum number of training steps")
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     # Configure logging
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
-    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(log_filename, mode='w', encoding='utf-8'),  # save to file
             logging.StreamHandler()  # and print to console
