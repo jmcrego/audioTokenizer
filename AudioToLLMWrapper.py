@@ -137,10 +137,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         # 6) Allocate final tensors
         # --------------------------------------------------------
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
-        attention_mask = (
-            torch.arange(max_len, device=device).unsqueeze(0).expand(B, -1)
-            < total_lens.unsqueeze(1)
-        ).long()
+        attention_mask = ( torch.arange(max_len, device=device).unsqueeze(0).expand(B, -1) < total_lens.unsqueeze(1) ).long()
 
         ignore_index = -100
         labels = torch.full((B, max_len), ignore_index, device=device, dtype=torch.long)

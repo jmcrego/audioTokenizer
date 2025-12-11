@@ -141,7 +141,7 @@ if __name__ == "__main__":
         max_seq_len=args.max_seq_len
     )
     eval_dataset = AudioDataset(
-        file_path=eval,
+        file_path=args.eval,
         tokenizer=model.tokenizer,
         asr_token="[ASR]",
         stt_token="[STT]",
