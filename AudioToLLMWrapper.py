@@ -31,7 +31,7 @@ class AudioToLLMWrapper(torch.nn.Module):
             p.requires_grad = False
 
         ############################
-        # Tokenizer + LLM (frozen)
+        # LLM (frozen) + Tokenizer
         ############################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         if self.tokenizer.pad_token is None:
@@ -169,51 +169,27 @@ class AudioToLLMWrapper(torch.nn.Module):
         # AUDIO
         audio_idx = torch.arange(S, device=device).unsqueeze(0).expand(B, S)
         audio_valid = audio_idx < audio_lens.unsqueeze(1)
+        inputs_embeds[ batch_arange.unsqueeze(1).expand_as(audio_idx)[audio_valid], audio_idx[audio_valid] ] = proj_embs[audio_valid]
 
         # PROMPT
         prompt_idx = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, T_prompt)
         prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
         dest_prompt_pos = audio_lens.unsqueeze(1) + prompt_idx
+        batch_idx_prompt = batch_arange.unsqueeze(1).expand_as(prompt_idx)
+        inputs_embeds[ batch_idx_prompt[prompt_valid], dest_prompt_pos[prompt_valid] ] = prompt_embs[prompt_valid]
 
         # TARGET
         target_idx = torch.arange(L_labels, device=device).unsqueeze(0).expand(B, L_labels)
         target_valid = target_idx < target_lens.unsqueeze(1)
         dest_target_pos = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
+        batch_idx_target = batch_arange.unsqueeze(1).expand_as(target_idx)
+        inputs_embeds[ batch_idx_target[target_valid], dest_target_pos[target_valid] ] = target_embs[target_valid]        
+
+        # LABELS 
+        labels[ batch_idx_target[target_valid], dest_target_pos[target_valid] ] = target_ids[target_valid]
 
         # --------------------------------------------------------
-        # 8) WRITE AUDIO EMBEDDINGS
-        # --------------------------------------------------------
-        inputs_embeds[
-            batch_arange.unsqueeze(1).expand_as(audio_idx)[audio_valid],
-            audio_idx[audio_valid]
-        ] = proj_embs[audio_valid]
-
-        # --------------------------------------------------------
-        # 9) WRITE PROMPT EMBEDDINGS
-        # --------------------------------------------------------
-        inputs_embeds[
-            batch_arange[:, None][prompt_valid],
-            dest_prompt_pos[prompt_valid]
-        ] = prompt_embs[prompt_valid]
-
-        # --------------------------------------------------------
-        # 10) WRITE TARGET EMBEDDINGS
-        # --------------------------------------------------------
-        inputs_embeds[
-            batch_arange[:, None][target_valid],
-            dest_target_pos[target_valid]
-        ] = target_embs[target_valid]
-
-        # --------------------------------------------------------
-        # 11) WRITE LABELS (only on target positions)
-        # --------------------------------------------------------
-        labels[
-            batch_arange[:, None][target_valid],
-            dest_target_pos[target_valid]
-        ] = target_ids[target_valid]
-
-        # --------------------------------------------------------
-        # 12) RUN LLM FORWARD
+        # 8) LLM FORWARD
         # --------------------------------------------------------
         outputs = self.llm_model(
             inputs_embeds=inputs_embeds,

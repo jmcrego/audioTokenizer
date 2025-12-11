@@ -57,136 +57,8 @@ class MySFTTrainer(SFTTrainer):
         formatting_func=None,
         dataset_name=None,
     ):
-        # Skip tokenization since we handle everything in the collator
-        return dataset
+        return dataset # Skip tokenization since we handle everything in the collator
     
-
-# ============================================================
-# Trainer Builder (wrapper version)
-# ============================================================
-def build_model_and_trainer(
-    audio_path,
-    proj_path,
-    llm_path,
-    chunk_size,
-    stride,
-    stack_size,
-    rank_dim,
-    train,
-    eval,
-    max_steps,
-    batch_size,
-    max_seq_len,
-    lr,
-    eval_steps,
-    logging_steps,
-    output_dir,
-):
-    device, dtype = get_device_dtype()
-    logger.info(f"device: {device}, dtype: {dtype}")
-
-    # -----------------------------
-    # 1. Load models wrapper
-    # -----------------------------
-    model = AudioToLLMWrapper(
-        audio_path=audio_path,
-        proj_path=proj_path,
-        llm_path=llm_path,
-        chunk_size=chunk_size,
-        stride=stride,
-        stack_size=stack_size,
-        rank_dim=rank_dim,
-        max_seq_len=max_seq_len,
-        device=device,
-        dtype=dtype,
-    ).to(device, dtype=dtype) #is this .to needed? 
-
-    print("Trainable params in model:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-
-    # -----------------------------
-    # 3. Datasets and collator
-    # -----------------------------
-    train_dataset = AudioDataset(
-        file_path=train,
-        tokenizer=model.tokenizer,
-        asr_token="[ASR]",
-        stt_token="[STT]",
-        end_token="[END]",
-        sample_rate=model.audio_embedder.sample_rate,
-        chunk_size=chunk_size,
-        stride=stride,
-        stack_size=stack_size,
-        max_seq_len=max_seq_len
-    )
-    eval_dataset = AudioDataset(
-        file_path=eval,
-        tokenizer=model.tokenizer,
-        asr_token="[ASR]",
-        stt_token="[STT]",
-        end_token="[END]",
-        sample_rate=model.audio_embedder.sample_rate,
-        chunk_size=chunk_size,
-        stride=stride,
-        stack_size=stack_size,
-        max_seq_len=max_seq_len
-    )
-
-    train_sampler = BatchedLengthSampler(train_dataset, batch_size=batch_size)
-    eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=batch_size)
-
-    # Collator returns audio_paths, prompt_ids, target_ids
-    def collator_fn(batch):
-        audio_paths = [x["audio_path"] for x in batch]
-        prompt_ids = pad_sequence([torch.tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
-        target_ids = pad_sequence([torch.tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
-        return {
-            "audio_paths": audio_paths,
-            "prompt_ids": prompt_ids,
-            "target_ids": target_ids
-        }
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_sampler=train_sampler,
-        collate_fn=collator_fn
-    )
-    eval_loader = DataLoader(
-        eval_dataset,
-        batch_sampler=eval_sampler,
-        collate_fn=collator_fn
-    )
-
-    # -----------------------------
-    # 4. SFTTrainer
-    # -----------------------------
-    sft_config = SFTConfig(
-        output_dir=output_dir,
-        max_steps=max_steps,
-        eval_steps=eval_steps,
-        logging_steps=logging_steps,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        learning_rate=lr,
-        fp16=(dtype == torch.float16),
-        bf16=(dtype == torch.bfloat16),
-        dataset_text_field=None,
-        dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x},
-        packing=False,
-    )
-
-    trainer = MySFTTrainer(
-        model=model,
-        args=sft_config,
-        train_dataset=HFDataset.from_list([{"text": ""}]),
-        eval_dataset=HFDataset.from_list([{"text": ""}]),
-        data_collator=collator_fn,
-        train_loader=train_loader,
-        eval_loader=eval_loader
-    )
-
-    return trainer
-
-
 
 if __name__ == "__main__":
 
@@ -232,23 +104,106 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
-    trainer = build_model_and_trainer(
+    device, dtype = get_device_dtype()
+    logger.info(f"device: {device}, dtype: {dtype}")
+
+    # -----------------------------
+    # 1. Load models wrapper
+    # -----------------------------
+    model = AudioToLLMWrapper(
         audio_path=args.audio_path,
         proj_path=args.proj_path,
         llm_path=args.llm_path,
-        chunk_size = args.chunk_size,
+        chunk_size=args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
         rank_dim=args.rank_dim,
-        train=args.train,
-        eval=args.eval,
-        max_steps=args.max_steps,
-        batch_size=args.batch_size,
         max_seq_len=args.max_seq_len,
-        lr=args.lr,
+        device=device,
+        dtype=dtype,
+    ).to(device, dtype=dtype) #is this .to needed? 
+
+    print("Trainable params in model:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+    # -----------------------------
+    # 3. Datasets and collator
+    # -----------------------------
+    train_dataset = AudioDataset(
+        file_path=args.train,
+        tokenizer=model.tokenizer,
+        asr_token="[ASR]",
+        stt_token="[STT]",
+        end_token="[END]",
+        sample_rate=model.audio_embedder.sample_rate,
+        chunk_size=args.chunk_size,
+        stride=args.stride,
+        stack_size=args.stack_size,
+        max_seq_len=args.max_seq_len
+    )
+    eval_dataset = AudioDataset(
+        file_path=eval,
+        tokenizer=model.tokenizer,
+        asr_token="[ASR]",
+        stt_token="[STT]",
+        end_token="[END]",
+        sample_rate=model.audio_embedder.sample_rate,
+        chunk_size=args.chunk_size,
+        stride=args.stride,
+        stack_size=args.stack_size,
+        max_seq_len=args.max_seq_len
+    )
+
+    train_sampler = BatchedLengthSampler(train_dataset, batch_size=args.batch_size)
+    eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=args.batch_size)
+
+    # Collator returns audio_paths, prompt_ids, target_ids
+    def collator_fn(batch):
+        audio_paths = [x["audio_path"] for x in batch]
+        prompt_ids = pad_sequence([torch.tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
+        target_ids = pad_sequence([torch.tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=model.tokenizer.pad_token_id)
+        return {
+            "audio_paths": audio_paths,
+            "prompt_ids": prompt_ids,
+            "target_ids": target_ids
+        }
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_sampler=train_sampler,
+        collate_fn=collator_fn
+    )
+    eval_loader = DataLoader(
+        eval_dataset,
+        batch_sampler=eval_sampler,
+        collate_fn=collator_fn
+    )
+
+    # -----------------------------
+    # 4. SFTTrainer
+    # -----------------------------
+    sft_config = SFTConfig(
+        output_dir=args.output_dir,
+        max_steps=args.max_steps,
         eval_steps=args.eval_steps,
         logging_steps=args.logging_steps,
-        output_dir=args.output_dir,
+        per_device_train_batch_size=args.batch_size,
+        per_device_eval_batch_size=args.batch_size,
+        learning_rate=args.lr,
+        fp16=(dtype == torch.float16),
+        bf16=(dtype == torch.bfloat16),
+        dataset_text_field=None,
+        dataset_kwargs={"add_special_tokens": False, "map_fn": lambda x: x},
+        packing=False,
+    )
+
+    trainer = MySFTTrainer(
+        model=model,
+        args=sft_config,
+        train_dataset=HFDataset.from_list([{"text": ""}]),
+        eval_dataset=HFDataset.from_list([{"text": ""}]),
+        data_collator=collator_fn,
+        train_loader=train_loader,
+        eval_loader=eval_loader
     )
 
     batch = next(iter(trainer.get_train_dataloader()))
