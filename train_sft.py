@@ -362,7 +362,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(log_filename, mode='w', encoding='utf-8'),  # save to file
-            #logging.StreamHandler()  # and print to console
+            logging.StreamHandler()  # and print to console
         ]
     )
 
