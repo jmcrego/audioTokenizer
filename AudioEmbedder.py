@@ -97,7 +97,7 @@ class AudioEmbedder(nn.Module):
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
             self.embedder = HubertModel.from_pretrained(model)
             self.D = self.embedder.config.hidden_size
-            cfg = self.embedder.config
+            cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
             cfg.mask_time_prob = 0.0
             cfg.mask_time_length = 2     # optional (small safe value)
             cfg.mask_feature_prob = 0.0
@@ -220,7 +220,7 @@ class AudioEmbedder(nn.Module):
             mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC_i*E]
             masks.append(mask) 
 
-            logger.debug(f"Audio {i} embeddings = {emb_audio.shape} mask = {mask.shape} = {mask.tolist()}")
+            logger.debug(f"Audio {i} embeddings = {emb_audio.shape} mask = {mask.shape}")
 
         #embeddings ~ [B, nC_i*E, D] (nC_i*E is different on each list element)
         #masks = [B, nC_i*E]
