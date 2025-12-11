@@ -56,7 +56,7 @@ class MySFTTrainer(SFTTrainer):
     def get_eval_dataloader(self, eval_dataset=None):
         return self._eval_loader
 
-    def _prepare_dataset(self, dataset, dataset_text_field=None):
+    def _prepare_dataset(self, dataset, dataset_text_field=None, **kwargs):
         # Skip tokenization since we handle everything in the collator
         return dataset
     
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
 
     # Configure logging
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(log_filename, mode='w', encoding='utf-8'),  # save to file
             logging.StreamHandler()  # and print to console
