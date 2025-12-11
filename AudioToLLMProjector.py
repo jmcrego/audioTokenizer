@@ -126,8 +126,8 @@ class AudioToLLMProjector(nn.Module):
         x = self.proj(x)  # [B, N, llm_dim]
 
         # Apply RoPE (scale positions by stack_size for superframes)
-        rope_freqs = self.rope_freqs[:N] * self.stack_size  # [N, llm_dim//2]
-        x = apply_rope(x, rope_freqs.to(x.device))
+        rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * self.stack_size # [N, llm_dim//2]
+        x = apply_rope(x, rope_freqs)
 
 
         # ---- build superframe mask ----
