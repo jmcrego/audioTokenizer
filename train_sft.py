@@ -155,7 +155,7 @@ def build_model_and_trainer(
             },
             ...
         ]
-        Returns batched `input_embeds` [B, L_in, D] and `labels` [B, L_in] (with ignore_index=-100 in ignored positions).
+        Returns batched `inputs_embeds` [B, L_in, D] and `labels` [B, L_in] (with ignore_index=-100 in ignored positions).
         """
         audio_paths     = [sample["audio_path"] for sample in batch] # list of str
         prompt_ids_list = [sample["prompt_ids"] for sample in batch] # list of 1D tensors
@@ -193,7 +193,7 @@ def build_model_and_trainer(
 
         """
         Concatenate audio embeddings + prompt embeddings (right-padded)
-        and return final padded input_embeds and labels.
+        and return final padded inputs_embeds and labels.
 
         For instance,
         Input EMBEDDINGS should be:
@@ -209,7 +209,7 @@ def build_model_and_trainer(
         (t means label token)
 
         Returns:
-            input_embeds: [B, L_final, D]
+            inputs_embeds: [B, L_final, D]
             labels:       [B, L_final]
         """
 
@@ -229,13 +229,13 @@ def build_model_and_trainer(
         # -------------------
         # Input embeddings
         # -------------------
-        input_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
+        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
 
         # Audio embeddings
         audio_idx = torch.arange(S, device=device).view(1, -1).expand(B, -1)  # [B, S]
         audio_valid = audio_idx < audio_lens.unsqueeze(1)                     # [B, S]
         batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(-1, S) # [B, S]
-        input_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
+        inputs_embeds[batch_idx[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid]
 
         # Prompt embeddings
         prompt_idx = torch.arange(T, device=device).view(1, -1).expand(B, -1) # [B, T]
@@ -243,7 +243,7 @@ def build_model_and_trainer(
         dest_positions = audio_lens.unsqueeze(1) + prompt_idx                 # [B, T]
         dest_positions = torch.clamp(dest_positions, max=max_len-1)
         batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(-1, T)
-        input_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
+        inputs_embeds[batch_idx_prompt[prompt_valid], dest_positions[prompt_valid]] = prompt_embs[prompt_valid]
 
         # -------------------
         # Labels
@@ -258,7 +258,18 @@ def build_model_and_trainer(
         batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(-1, L)
         labels[batch_idx_target[target_valid], dest_target_positions[target_valid]] = target_ids[target_valid]
 
-        return { "input_embeds": input_embeds, "labels": labels }
+        # -------------------
+        # attention_mask
+        # -------------------
+
+        attention_mask = (
+            torch.arange(max_len, device=device)
+            .unsqueeze(0)
+            .expand(B, -1)
+            < total_lens.unsqueeze(1)
+        ).long()   # transformers accepts bool or 0/1; long() is safest
+
+        return { "inputs_embeds": inputs_embeds, "labels": labels, "attention_mask": attention_mask }
     
 
     asr_token = "[ASR]"
@@ -409,9 +420,9 @@ if __name__ == "__main__":
 
     batch = next(iter(trainer.get_train_dataloader()))
     print(batch.keys())  
-    print("input_embeds shape:", batch["input_embeds"].shape)
+    print("inputs_embeds shape:", batch["inputs_embeds"].shape)
     print("labels shape:", batch["labels"].shape)
-    print("input_embeds:", batch["input_embeds"])
+    print("inputs_embeds:", batch["inputs_embeds"])
     print("labels:", batch["labels"])
 
     trainer.train()
