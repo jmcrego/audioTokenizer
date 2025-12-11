@@ -103,7 +103,6 @@ class AudioEmbedder(nn.Module):
             # cfg.mask_feature_prob = 0.0
             # cfg.apply_spec_augment = False   # if available in this model class
 
-
         elif "wav2vec2" in model.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
