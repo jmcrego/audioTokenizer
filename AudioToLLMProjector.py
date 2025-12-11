@@ -58,6 +58,8 @@ class AudioToLLMProjector(nn.Module):
         llm_dimension: int=768,
         rank_dim: int=256,          # low-rank bottleneck
         max_seq_len: int=4096,
+        device: str='cpu',
+        dtype: torch.dtype=torch.float32,
     ):
         """
         Args:
@@ -83,9 +85,12 @@ class AudioToLLMProjector(nn.Module):
             nn.Linear(rank_dim, llm_dimension),
             nn.LayerNorm(llm_dimension),
         )
+        self.proj = self.proj.to(device, dtype=dtype)
 
         # precompute the RoPE frequencies
         self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+
+
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         """

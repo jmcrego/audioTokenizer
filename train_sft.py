@@ -114,7 +114,7 @@ def build_model_and_trainer(
     tokenizer = AutoTokenizer.from_pretrained(llm, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    llm_model = AutoModelForCausalLM.from_pretrained(llm, dtype=dtype, device_map="auto")
+    llm_model = AutoModelForCausalLM.from_pretrained(llm, dtype=dtype).to(device)
     llm_model.eval()
     for p in llm_model.parameters():
         p.requires_grad = False
@@ -125,14 +125,16 @@ def build_model_and_trainer(
         stack_size=stack_size,
         llm_dimension=llm_model.config.hidden_size,
         rank_dim=rank_dim,
-        max_seq_len=max_seq_len)
+        max_seq_len=max_seq_len,
+        device=device,
+        dtype=dtype)
 
 
     # load if given path
     if proj is not None:
         projector.load(proj, device=device)
 
-    projector = projector.to(device, dtype=dtype)
+    #projector = projector.to(device, dtype=dtype)
     llm_model = llm_model.to(device, dtype=dtype)
 
     ### =================
