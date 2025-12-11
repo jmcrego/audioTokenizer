@@ -16,6 +16,10 @@ from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
 from Datasets import AudioDataset, BatchedLengthSampler
 
+import inspect
+print(inspect.signature(SFTTrainer._prepare_dataset))
+kk
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def get_git_commit():
