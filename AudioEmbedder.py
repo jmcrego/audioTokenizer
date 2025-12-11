@@ -84,7 +84,6 @@ class AudioEmbedder(nn.Module):
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
 
-
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         self.device = torch.device(device)
         self.dtype = dtype
@@ -127,7 +126,6 @@ class AudioEmbedder(nn.Module):
         self.embedder.to(device=self.device, dtype=self.dtype).eval()
         logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
-    @torch.inference_mode()
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
@@ -192,8 +190,9 @@ class AudioEmbedder(nn.Module):
         # ----------------------------------------------
         t = time.time()
         # Forward pass
-        with torch.inference_mode():
-            out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
+        with torch.no_grad():
+            out = self.embedder(inputs).last_hidden_state.clone()  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
+
         t_embeddings = time.time()-t
         logger.debug(f"Extracted embeddings {out.shape} dtype={out.dtype}")
 
