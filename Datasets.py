@@ -1,9 +1,12 @@
 
 import torch
+import logging
 import numpy as np
 import soundfile as sf
 from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
+
+logger = logging.getLogger("AudioDataset")
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
@@ -115,6 +118,8 @@ class AudioDataset(Dataset):
                     "total_length": total_length,
                     "text": ""  # dummy for SFTTrainer
                 })
+            logger.debug(f"Read dataset {file_path} with {len(self.data)} samples")
+
 
     def __len__(self):
         return len(self.data)
@@ -161,6 +166,8 @@ class AudioDataset(Dataset):
 if __name__ == "__main__":
     import sys
     from transformers import AutoTokenizer
+
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
