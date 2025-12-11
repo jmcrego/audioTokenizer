@@ -56,7 +56,15 @@ class MySFTTrainer(SFTTrainer):
     def get_eval_dataloader(self, eval_dataset=None):
         return self._eval_loader
 
-    def _prepare_dataset(self, dataset, dataset_text_field=None, **kwargs):
+    def _prepare_dataset(
+        self,
+        dataset,
+        processing_class=None,
+        args=None,
+        packing=False,
+        formatting_func=None,
+        dataset_name=None,
+    ):
         # Skip tokenization since we handle everything in the collator
         return dataset
     
