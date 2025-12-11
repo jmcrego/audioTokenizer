@@ -138,6 +138,13 @@ def build_model_and_trainer(
     #projector = projector.to(device, dtype=dtype)
     llm_model = llm_model.to(device, dtype=dtype)
 
+    # Which parameters require grad?
+    print("LLM trainable param count:", sum(p.numel() for p in llm_model.parameters() if p.requires_grad))
+    print("Projector trainable param count:", sum(p.numel() for p in projector.parameters() if p.requires_grad))
+
+    # Which modules are attached to the LLM object?
+    print("Has projector on llm_model?:", hasattr(llm_model, "projector"))
+
     ### =================
     ### 2. Datasets
     ### =================
