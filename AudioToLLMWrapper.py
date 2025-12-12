@@ -100,6 +100,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         # --------------------------------------------------------
         proj_embs, proj_mask = self.projector(embs, embs_mask)
         proj_mask = proj_mask.bool()
+        proj_embs = proj_embs.to(inputs_embeds.dtype)
 
         B, S, D = proj_embs.shape
 
