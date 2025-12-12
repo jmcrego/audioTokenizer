@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
+import soxr
+import time
 import torch
 import logging
 import numpy as np
 import torch.nn as nn
 import soundfile as sf
-import soxr
-import time
 
 logger = logging.getLogger("AudioiEmbedder")
 
