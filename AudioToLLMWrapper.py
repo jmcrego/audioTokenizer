@@ -207,7 +207,7 @@ class AudioToLLMWrapper(torch.nn.Module):
             attention_mask=attention_mask,
             labels=labels,
         )
-        logger.debug(f"LLM outputs: {outputs.shape} loss={outputs.loss} logits={outputs.logits.shape} dtype={outputs.logits.dtype}")
+        logger.debug(f"LLM outputs: loss={outputs.loss} logits={outputs.logits.shape} dtype={outputs.logits.dtype}")
 
         return {
             "loss": outputs.loss,
