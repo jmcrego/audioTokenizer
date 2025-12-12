@@ -181,7 +181,7 @@ class AudioToLLMTrainer:
     # -----------------------
     def log_fn(self, loss, step, epoch):
         elapsed = (datetime.now() - self.start_time).total_seconds()
-        print(f"[Step {step} Epoch {epoch}] loss={loss:.4f} | elapsed={elapsed:.1f}s")
+        print(f"[Step {step}, Epoch {epoch}] loss={loss:.4f} | elapsed={elapsed:.1f}s")
 
     # -----------------------
     # Evaluation
