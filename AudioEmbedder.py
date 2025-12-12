@@ -230,7 +230,7 @@ class AudioEmbedder(nn.Module):
         padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings]) #[B, T, D] 
         logger.debug(f"Padded embeddings: {padded_embeddings.shape}")
         padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks]) #[B, T]
-        logger.debug(f"Padded masks: {padded_masks.shape}")
+        logger.debug(f"Padded masks: {padded_masks.shape} invalid frames={(~padded_masks).sum().item()}")
         t_formatting = time.time()-t
 
         logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, feature extraction={1000*t_features:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")

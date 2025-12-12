@@ -213,7 +213,9 @@ class AudioToLLMTrainer:
     def train(self):
         self.model.train()
         optimizer = self.optimizer
+        scaler = torch.cuda.amp.GradScaler()  # for FP16 stability
         optimizer.zero_grad()
+
         while self.step < self.max_steps:
             self.epoch += 1
 
@@ -222,18 +224,34 @@ class AudioToLLMTrainer:
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
 
-                outputs = self.model(**batch)
-                loss = outputs["loss"] / self.accum_steps
-                loss.backward()
-                
+                # -----------------------
+                # Forward + backward
+                # -----------------------
+                with torch.cuda.amp.autocast(dtype=self.dtype):
+                    outputs = self.model(**batch)
+                    loss = outputs["loss"] / self.accum_steps
+
+                # Backprop with gradient scaling
+                scaler.scale(loss).backward()
+
                 if self.step % self.accum_steps == 0:
-                    optimizer.step()
+                    # Gradient clipping
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+                    # Optimizer step via scaler
+                    scaler.step(optimizer)
+                    scaler.update()
                     optimizer.zero_grad()
+
+                    # Scheduler step
                     self.scheduler.step()
 
+                # Logging
                 if self.step % self.log_every == 0:
                     self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
 
+                # Evaluation + checkpoint
                 if self.eval_loader is not None and self.step % self.eval_every == 0:
                     self.evaluate()
                     self.save_checkpoint(self.step)

@@ -106,7 +106,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         proj_embs, proj_mask = self.projector(embs, embs_mask)
         proj_mask = proj_mask.bool()
         proj_embs = proj_embs.to(dtype)
-        logger.debug(f"Projected embeddings: {proj_embs.shape} dtype={proj_embs.dtype} mask={proj_mask.shape}")
+        logger.debug(f"Projected embeddings: {proj_embs.shape} dtype={proj_embs.dtype} mask={proj_mask.shape} invalid embeddings={(~proj_mask).sum().item()}")
 
         B, S, D = proj_embs.shape
 
