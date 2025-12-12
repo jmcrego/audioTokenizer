@@ -34,7 +34,6 @@ def get_device_dtype():
 if __name__ == "__main__":
     import logging
     import argparse
-    #import subprocess
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # model paths
@@ -59,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--log_every", type=int, default=50, help="Logging after this many steps")
-
+    # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()

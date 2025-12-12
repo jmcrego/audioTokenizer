@@ -8,7 +8,7 @@ import numpy as np
 import torch.nn as nn
 import soundfile as sf
 
-logger = logging.getLogger("AudioiEmbedder")
+logger = logging.getLogger("AudioEmbedder")
 
 # next are to speed up the embedding
 # torch.backends.cuda.matmul.allow_tf32 = True
