@@ -201,25 +201,28 @@ class AudioToLLMTrainer:
         lr_proj = self.optimizer.param_groups[0]["lr"]
         lr_llm = self.optimizer.param_groups[1]["lr"]
 
+        w_step = len(str(self.max_steps))
+        w_epoch = len(str(self.max_epochs))
+
         log_str = (
             "Eval " if is_eval else "Train "
-            f"[Step {Color.CYAN}{step}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{epoch}{Color.RESET}/{self.max_epochs}] "
+            f"[Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
+            f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_llm={Color.GREEN}{lr_llm:.6e}{Color.RESET} | "
-            f"elapsed={Color.MAGENTA}{h}h:{m}m:{s}s{Color.RESET}"
+            f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
         )
         print(log_str)
 
         log_str = (
             "Eval " if is_eval else "Train "
-            f"[Step {step}/{self.max_steps}, "
-            f"Epoch {epoch}/{self.max_epochs}] "
+            f"[Step {step:>{w_step}d}/{self.max_steps}, "
+            f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
             f"lr_llm={lr_llm:.6e} | "
-            f"elapsed={h}h:{m}m:{s}s"
+            f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         )
         logger.info(log_str)
 
