@@ -213,7 +213,6 @@ class AudioToLLMTrainer:
     def train(self):
         self.model.train()
         optimizer = self.optimizer
-        scaler = torch.cuda.amp.GradScaler()  # AMP for FP16 stability
         optimizer.zero_grad()
 
         while self.step < self.max_steps:
@@ -221,34 +220,40 @@ class AudioToLLMTrainer:
 
             for batch in self.train_loader:
                 self.step += 1
+                # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
-                # Forward pass with autocast
+                # -----------------------
+                # Forward pass
+                # -----------------------
                 with torch.cuda.amp.autocast(dtype=self.dtype):
                     outputs = self.model(**batch)
-                    loss = outputs["loss"] / self.accum_steps
+                    loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
 
-                # Backward pass with scaler
-                scaler.scale(loss).backward()
+                # -----------------------
+                # Backward pass
+                # -----------------------
+                loss.backward()
 
+                # Gradient accumulation
                 if self.step % self.accum_steps == 0:
-                    # Gradient clipping in FP32 safe space
-                    scaler.unscale_(optimizer)  # unscale before clipping
+                    # Gradient clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-
-                    # Step optimizer and update scaler
-                    scaler.step(optimizer)
-                    scaler.update()
+                    # Optimizer step
+                    optimizer.step()
                     optimizer.zero_grad()
-
-                    # Step scheduler
+                    # Scheduler step
                     self.scheduler.step()
 
+                # -----------------------
                 # Logging
+                # -----------------------
                 if self.step % self.log_every == 0:
                     self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
 
+                # -----------------------
                 # Evaluation + checkpoint
+                # -----------------------
                 if self.eval_loader is not None and self.step % self.eval_every == 0:
                     self.evaluate()
                     self.save_checkpoint(self.step)
@@ -260,4 +265,3 @@ class AudioToLLMTrainer:
             if self.epoch >= self.max_epochs:
                 print(f"Reached max epochs {self.max_epochs}, stopping training.")
                 break
-
