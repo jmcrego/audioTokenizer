@@ -47,13 +47,14 @@ class AudioToLLMWrapper(torch.nn.Module):
             p.requires_grad = False
 
         # trl’s SFTTrainer expects a HuggingFace model, which always has:
-        self.config = self.llm_model.config
-        self.generation_config = getattr(self.llm_model, "generation_config", None)
+        # self.config = self.llm_model.config
+        # self.generation_config = getattr(self.llm_model, "generation_config", None)
 
         ############################
         # Projector (trainable)
         ############################
         self.projector = AudioToLLMProjector(
+            proj_path,
             audio_embedding_dim=self.audio_embedder.D,
             stack_size=stack_size,
             llm_dimension=self.llm_model.config.hidden_size,
@@ -62,10 +63,6 @@ class AudioToLLMWrapper(torch.nn.Module):
             device=device,
             dtype=dtype
         )
-
-        # load projector if given
-        if proj_path is not None:
-            self.projector.load(proj_path, device=device)
 
         # Ensure projector is trainable
         for p in self.projector.parameters():

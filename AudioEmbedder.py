@@ -125,7 +125,7 @@ class AudioEmbedder(nn.Module):
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
         self.embedder.to(device=self.device, dtype=self.dtype).eval()
-        logger.debug(f"Read model {model} model_stride={self.model_stride} D={self.D}")
+        logger.info(f"Read model {model} model_stride={self.model_stride} D={self.D}")
 
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """

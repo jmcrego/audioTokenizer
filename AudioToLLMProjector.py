@@ -56,6 +56,7 @@ class AudioToLLMProjector(nn.Module):
 
     def __init__(
         self,
+        proj_path: str = None,
         audio_embedding_dim: int,
         stack_size: int,
         llm_dimension: int=768,
@@ -71,6 +72,8 @@ class AudioToLLMProjector(nn.Module):
             llm_dimension: Target LLM embedding size (e.g., 2048)
             rank_dim: Low-rank internal dimension (default 256)
         """
+        meta = {k: v for k, v in locals().items() if k != "self"}
+        logger.info(f"Initializing {meta}")
         super().__init__()
 
         self.audio_embedding_dim = audio_embedding_dim
@@ -87,10 +90,16 @@ class AudioToLLMProjector(nn.Module):
             nn.Linear(rank_dim, llm_dimension),
             nn.LayerNorm(llm_dimension),
         )
+
+        # load projector if given
+        if proj_path is not None:
+            self.projector.load(proj_path, device=device)
+
         self.proj = self.proj.to(device, dtype=dtype)
 
         # precompute the RoPE frequencies
         self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+        logger.info(f"Read projector {proj_path}")
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
