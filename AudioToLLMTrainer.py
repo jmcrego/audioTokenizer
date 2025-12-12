@@ -166,8 +166,10 @@ class AudioToLLMTrainer:
     def collate_fn(self, batch):
         pad_token_id = self.model.tokenizer.pad_token_id
         audio_paths = [x["audio_path"] for x in batch]
-        prompt_ids = pad_sequence([torch.tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-        target_ids = pad_sequence([torch.tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        def ensure_tensor(x):
+            return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
+        prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
         return {
             "audio_paths": audio_paths,
             "prompt_ids": prompt_ids,
