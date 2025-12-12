@@ -1,6 +1,7 @@
 import os
 import torch
 import random
+import logging
 import numpy as np
 
 from torch.utils.data import DataLoader
@@ -10,6 +11,9 @@ from datetime import datetime
 from torch.optim.lr_scheduler import LambdaLR
 
 from AudioToLLMDataset import BatchedLengthSampler 
+
+logger = logging.getLogger("AudioToLLMTrainer")
+
 
 class AudioToLLMTrainer:
     def __init__(
