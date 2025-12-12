@@ -157,7 +157,7 @@ class AudioEmbedder(nn.Module):
             # results
             all_chunks.append(chunks) # [n_chunks, chunk_size]
             lengths.append(len(chunks)) # number of chunks per audio input
-            logger.debug(f"audio {i} n_chunks = {len(chunks)} n_samples = {n_samples}")
+            logger.debug(f"audio {i}, n_chunks = {len(chunks)} n_samples = {n_samples} time = {n_samples/self.sample_rate:.2f} sec")
         t_preprocess = time.time()-t
 
         # ----------------------------------------------
@@ -183,8 +183,6 @@ class AudioEmbedder(nn.Module):
         t_features = time.time()-t
 
         inputs = inputs.to(dtype=self.dtype)
-        # if self.half_precision:
-        #     inputs = inputs.half()
 
         # ----------------------------------------------
         # --- extract embeddings from all features -----
@@ -214,14 +212,12 @@ class AudioEmbedder(nn.Module):
         for i, n_chunks in enumerate(lengths): #n_chunks (nC) is the number of chunks on each audio file
             emb_audio = out[idx: idx + n_chunks]  # [nC_i, E, D] #nC_i ~ number of chunks in this audio file
             idx += n_chunks
-
             # Flatten chunks along time dimension
             emb_audio = emb_audio.reshape(-1, self.D)  # [nC_i*E, D] # nC_i*E is the number of embeddings in current audio file
             embeddings.append(emb_audio)
-
+            # mask: valid embeddings are all ones as we padded only at audio level
             mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC_i*E]
-            masks.append(mask) 
-
+            masks.append(mask)
             logger.debug(f"Audio {i} embeddings = {emb_audio.shape} mask = {mask.shape}")
 
         #embeddings ~ [B, nC_i*E, D] (nC_i*E is different on each list element)
@@ -239,6 +235,7 @@ class AudioEmbedder(nn.Module):
         t_formatting = time.time()-t
 
         logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, feature extraction={1000*t_features:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")
+        kk
         return padded_embeddings, padded_masks
 
 
