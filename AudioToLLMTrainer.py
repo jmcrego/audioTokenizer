@@ -202,6 +202,7 @@ class AudioToLLMTrainer:
         lr_llm = self.optimizer.param_groups[1]["lr"]
 
         log_str = (
+            "Eval " if is_eval else "Train "
             f"[Step {Color.CYAN}{step}{Color.RESET}/{self.max_steps}, "
             f"Epoch {Color.CYAN}{epoch}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
