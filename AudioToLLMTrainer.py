@@ -274,7 +274,7 @@ class AudioToLLMTrainer:
                 # Logging
                 if self.step % self.log_every == 0:
                     lr = optimizer.param_groups[0]["lr"]
-                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch, self.epoch, lr)
+                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch, lr)
 
                 # Evaluation + checkpoint
                 if self.eval_loader is not None and self.step % self.eval_every == 0:
