@@ -56,7 +56,7 @@ class AudioToLLMProjector(nn.Module):
 
     def __init__(
         self,
-        proj_path: str = None,
+        proj_path: str,
         audio_embedding_dim: int,
         stack_size: int,
         llm_dimension: int=768,
