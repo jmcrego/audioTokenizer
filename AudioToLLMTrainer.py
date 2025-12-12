@@ -226,6 +226,7 @@ class AudioToLLMTrainer:
                 # -----------------------
                 # Forward pass
                 # -----------------------
+                # this with disables automatic mixed precision for everything inside that context.
                 with torch.cuda.amp.autocast(enabled=False): #dtype=self.dtype):
                     outputs = self.model(**batch)
                     loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
