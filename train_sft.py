@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # training pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=5000, help="Run evaluation after this many steps")
     parser.add_argument("--log_every", type=int, default=500, help="Logging after this many steps")
