@@ -71,8 +71,8 @@ class AudioToLLMTrainer:
         self.model.to(self.device, dtype=self.dtype)
 
         self.optimizer = torch.optim.AdamW([
-            {"params": model.projector.parameters(), "lr": self.lr_proj},
-            {"params": [p for n,p in model.llm_model.named_parameters() if p.requires_grad], "lr": self.lr_llm},
+            {"params": self.model.projector.parameters(), "lr": self.lr_proj},
+            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": self.lr_llm},
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={self.lr_proj} lr_llm={self.lr_llm}")
 
