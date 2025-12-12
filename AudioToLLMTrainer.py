@@ -223,17 +223,13 @@ class AudioToLLMTrainer:
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
-                # -----------------------
                 # Forward pass
-                # -----------------------
                 # this with disables automatic mixed precision for everything inside that context.
                 with torch.cuda.amp.autocast(enabled=False): #dtype=self.dtype):
                     outputs = self.model(**batch)
                     loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
 
-                # -----------------------
                 # Backward pass
-                # -----------------------
                 loss.backward()
 
                 # Gradient accumulation
@@ -246,15 +242,11 @@ class AudioToLLMTrainer:
                     # Scheduler step
                     self.scheduler.step()
 
-                # -----------------------
                 # Logging
-                # -----------------------
                 if self.step % self.log_every == 0:
                     self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
 
-                # -----------------------
                 # Evaluation + checkpoint
-                # -----------------------
                 if self.eval_loader is not None and self.step % self.eval_every == 0:
                     self.evaluate()
                     self.save_checkpoint(self.step)

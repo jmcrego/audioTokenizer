@@ -29,6 +29,7 @@ def get_device_dtype():
     else:
         device = torch.device("cpu")
         dtype = torch.float32
+    dtype = torch.float32
     return device, dtype    
 
 if __name__ == "__main__":
