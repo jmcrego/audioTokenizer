@@ -79,10 +79,11 @@ class AudioEmbedder(nn.Module):
                  stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
                  dtype: torch.dtype = None,
                  device: str = "cpu",):
-        super().__init__()
 
         meta = {k: v for k, v in locals().items() if k != "self"}
         logger.info(f"Initializing {meta}")
+        super().__init__()
+
 
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         self.device = torch.device(device)
