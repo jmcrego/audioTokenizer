@@ -16,7 +16,9 @@ class AudioToLLMWrapper(torch.nn.Module):
     Only Projector is trainable.
     """
     def __init__(self, audio_path, proj_path, llm_path, chunk_size, stride, stack_size, rank_dim, max_seq_len, device, dtype):
-        
+
+        meta = {k: v for k, v in locals().items() if k != "self"}
+        logger.info(f"Initializing {meta}")        
         super().__init__()
 
         ############################
@@ -67,6 +69,8 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Ensure projector is trainable
         for p in self.projector.parameters():
             p.requires_grad = True
+
+        logger.info(f"Read ModelsWrapper")
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):
