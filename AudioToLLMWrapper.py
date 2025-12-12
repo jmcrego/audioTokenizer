@@ -1,10 +1,13 @@
 import torch
+import logging
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
+
+logger = logging.getLogger("AudioToLLMWrapper")
 
 class AudioToLLMWrapper(torch.nn.Module):
     """

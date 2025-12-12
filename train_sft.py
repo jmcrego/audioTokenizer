@@ -1,11 +1,14 @@
 
 import os
 import torch
+import logging
 import numpy as np
 
 from AudioToLLMWrapper import AudioToLLMWrapper
 from AudioToLLMTrainer import AudioToLLMTrainer
 from AudioToLLMDataset import AudioDataset
+
+logger = logging.getLogger("train_sft")
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 

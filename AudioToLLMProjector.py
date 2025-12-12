@@ -1,6 +1,9 @@
 import torch
+import logging
 import torch.nn as nn
 import torch.nn.functional as F
+
+logger = logging.getLogger("AudioToLLMProjector")
 
 def build_rope_freqs(n_positions: int, dim: int, base: float = 10000.0) -> torch.Tensor:
     """
@@ -78,7 +81,6 @@ class AudioToLLMProjector(nn.Module):
         self.max_seq_len = max_seq_len
 
         # --- Low-Rank MLP ---
-        # Equivalent to Linear(stacked_dim → rank_dim → llm_dim)
         self.proj = nn.Sequential(
             nn.Linear(self.stacked_dim, rank_dim),
             nn.GELU(),
@@ -89,7 +91,6 @@ class AudioToLLMProjector(nn.Module):
 
         # precompute the RoPE frequencies
         self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
-
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
@@ -129,9 +130,8 @@ class AudioToLLMProjector(nn.Module):
         rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * self.stack_size # [N, llm_dim//2]
         x = apply_rope(x, rope_freqs)
 
-
         # ---- build superframe mask ----
-        # padded frames contaminate superframes so all superframes become masked
+        # padded frames contaminate superframes... all superframes become masked if any of their frames are masked
         if mask is None:
             sf_mask = None
         else:
@@ -147,7 +147,6 @@ class AudioToLLMProjector(nn.Module):
     def save(self, path):
         torch.save(self.state_dict(), path)
         print(f"Saved AudioToLLMProjector to {path}")
-
 
 
 if __name__ == "__main__":

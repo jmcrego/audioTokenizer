@@ -8,7 +8,8 @@ import soundfile as sf
 import soxr
 import time
 
-logger = logging.getLogger("audio_embedder")
+logger = logging.getLogger("AudioiEmbedder")
+
 # next are to speed up the embedding
 # torch.backends.cuda.matmul.allow_tf32 = True
 # torch.backends.cudnn.benchmark = True
