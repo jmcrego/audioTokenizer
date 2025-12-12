@@ -79,7 +79,7 @@ class AudioToLLMTrainer:
             return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
 
         self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
-        logger.info(f"Initialized LambdaLR scheduler with warmup_steps={warmup_steps}")
+        logger.info(f"Initialized LambdaLR scheduler for {self.max_steps} steps, with {warmup_steps} warmup_steps")
 
         # -----------------------
         # Sampler & DataLoader
