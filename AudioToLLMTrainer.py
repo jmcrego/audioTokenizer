@@ -270,10 +270,10 @@ class AudioToLLMTrainer:
                     self.evaluate()
                     self.save_checkpoint(self.step)
 
-                if self.step >= self.max_steps:
+                if self.max_steps and self.step >= self.max_steps:
                     print(f"Reached max steps {self.max_steps}, stopping training.")
                     break
 
-            if self.epoch >= self.max_epochs:
+            if self.max_epochs and self.epoch >= self.max_epochs:
                 print(f"Reached max epochs {self.max_epochs}, stopping training.")
                 break
