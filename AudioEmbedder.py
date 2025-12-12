@@ -24,24 +24,24 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
         sr = sample_rate 
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
-    logger.debug(f"wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+    logger.debug(f"preprocess: wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
 
     # -----------------------------
     # --- mono CHANNEL ------------
     # -----------------------------
-    if len(wav.shape) > 1: 
+    if len(wav.shape) > 1:
         if channel == -1:
             wav = np.mean(wav, axis=1)
         else:
             wav = wav[:, channel]
-        logger.debug(f"handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
+        logger.debug(f"preprocess: handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
 
     # -----------------------------
     # --- RESAMPLE ----------------
     # -----------------------------
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
-        logger.debug(f"resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
+        logger.debug(f"preprocess: resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
 
     # -----------------------------
     # --- Normalize audio amplitude
@@ -52,7 +52,6 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     # --- ENSURE float32 dtype ----
     # -----------------------------
     wav = wav.astype(np.float32)
-    logger.debug(f"preprocess returns wav {wav.shape} type={wav.__class__.__name__} dtype={wav.dtype}")
 
     return wav
 
@@ -157,7 +156,7 @@ class AudioEmbedder(nn.Module):
             # results
             all_chunks.append(chunks) # [n_chunks, chunk_size]
             lengths.append(len(chunks)) # number of chunks per audio input
-            logger.debug(f"audio {i}, n_chunks = {len(chunks)} n_samples = {n_samples} time = {n_samples/self.sample_rate:.2f} sec")
+            logger.debug(f"audio {i}, n_samples={n_samples} n_chunks={len(chunks)} time={n_samples/self.sample_rate:.2f} sec")
         t_preprocess = time.time()-t
 
         # ----------------------------------------------
@@ -166,16 +165,16 @@ class AudioEmbedder(nn.Module):
         t = time.time()
         # Concatenate all chunks for batch processing
         batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
-        logger.debug(f"Chunks in batch: {batch_chunks.shape[0]} chunk_size={self.chunk_size}")
+        logger.debug(f"Concatenated n_chunks={batch_chunks.shape[0]} chunk_size={self.chunk_size} samples")
 
-        # Feature extraction
+        # Prepares waveforms for the embedding (not feature extraction)
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
+
         if self.device.type == "cuda":
             inputs = inputs.pin_memory().to(self.device, non_blocking=True)
         else:
             inputs = inputs.to(self.device)
-        logger.debug(f"Extracted features: inputs {inputs.shape} dtype={inputs.dtype}")
 
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
@@ -235,7 +234,6 @@ class AudioEmbedder(nn.Module):
         t_formatting = time.time()-t
 
         logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, feature extraction={1000*t_features:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")
-        kk
         return padded_embeddings, padded_masks
 
 

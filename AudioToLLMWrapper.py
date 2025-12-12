@@ -98,6 +98,7 @@ class AudioToLLMWrapper(torch.nn.Module):
 
             embs = embs.to(device=device, dtype=dtype)
             embs_mask = embs_mask.bool().to(device)
+            logger.debug(f"Audio embeddings: {embs.shape} dtype={embs.dtype} mask={embs_mask.shape}")
 
         # --------------------------------------------------------
         # 2) PROJECTOR (TRAINABLE)
@@ -105,6 +106,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         proj_embs, proj_mask = self.projector(embs, embs_mask)
         proj_mask = proj_mask.bool()
         proj_embs = proj_embs.to(dtype)
+        logger.debug(f"Projected embeddings: {proj_embs.shape} dtype={proj_embs.dtype} mask={proj_mask.shape}")
 
         B, S, D = proj_embs.shape
 
@@ -113,20 +115,24 @@ class AudioToLLMWrapper(torch.nn.Module):
         # --------------------------------------------------------
         prompt_ids = prompt_ids.to(device)
         T_prompt = prompt_ids.size(1)
+        logger.debug(f"Prompt ids: {prompt_ids.shape} dtype={prompt_ids.dtype}")
 
         with torch.no_grad():
             prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
             prompt_embs = prompt_embs.to(device=device, dtype=dtype)
+            logger.debug(f"Prompt embeddings: {prompt_embs.shape} dtype={prompt_embs.dtype}")
 
         # --------------------------------------------------------
         # 4) TARGET EMBEDDINGS (FROZEN)
         # --------------------------------------------------------
         target_ids = target_ids.to(device)
         L_labels = target_ids.size(1)
+        logger.debug(f"Target ids: {target_ids.shape} dtype={target_ids.dtype}")
 
         with torch.no_grad():
             target_embs = self.llm_model.get_input_embeddings()(target_ids)
             target_embs = target_embs.to(device=device, dtype=dtype)
+            logger.debug(f"Target embeddings: {target_embs.shape} dtype={target_embs.dtype}")
 
         # --------------------------------------------------------
         # 5) LENGTHS
@@ -137,15 +143,18 @@ class AudioToLLMWrapper(torch.nn.Module):
 
         total_lens = audio_lens + prompt_lens + target_lens
         max_len = total_lens.max().item()
+        logger.debug(f"Lengths: audio_lens={audio_lens} prompt_lens={prompt_lens} target_lens={target_lens} total_lens={total_lens} max_len={max_len}")
 
         # --------------------------------------------------------
         # 6) Allocate final tensors
         # --------------------------------------------------------
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
         attention_mask = ( torch.arange(max_len, device=device).unsqueeze(0).expand(B, -1) < total_lens.unsqueeze(1) ).long()
+        logger.debug(f"Allocate final inputs_embeds: {inputs_embeds.shape} dtype={inputs_embeds.dtype} attention_mask={attention_mask.shape}")
 
         ignore_index = -100
         labels = torch.full((B, max_len), ignore_index, device=device, dtype=torch.long)
+        logger.debug(f"Allocate final labels: {labels.shape} dtype={labels.dtype} ignore_index={ignore_index}")
 
         # --------------------------------------------------------
         # 7) CONCATENATION
@@ -198,6 +207,7 @@ class AudioToLLMWrapper(torch.nn.Module):
             attention_mask=attention_mask,
             labels=labels,
         )
+        logger.debug(f"LLM outputs: {outputs.shape} loss={outputs.loss} logits={outputs.logits.shape} dtype={outputs.logits.dtype}")
 
         return {
             "loss": outputs.loss,
