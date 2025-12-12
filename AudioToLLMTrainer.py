@@ -14,6 +14,16 @@ from AudioToLLMDataset import BatchedLengthSampler
 
 logger = logging.getLogger("AudioToLLMTrainer")
 
+class Color: #for logging
+    RESET = "\033[0m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+
+
 class AudioToLLMTrainer:
     def __init__(
         self,
@@ -169,12 +179,28 @@ class AudioToLLMTrainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, step, epoch):
+    def log_fn(self, loss, step, epoch, lr):
         elapsed = (datetime.now() - self.start_time).total_seconds()
-        hours, remainder = divmod(int(elapsed), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        log_str = f"[Step {step}, Epoch {epoch}] loss={loss:.4f} | elapsed={hours}h:{minutes}m:{seconds}s"        
+        h = int(elapsed // 3600)
+        m = int((elapsed % 3600) // 60)
+        s = int(elapsed % 60)
+
+        log_str = (
+            f"{Color.CYAN}[Step {step}/{self.max_steps}, "
+            f"Epoch {epoch}/{self.max_epochs}]{Color.RESET} "
+            f"loss={Color.YELLOW}{loss:.4f}{Color.RESET} | "
+            f"lr={Color.GREEN}{lr:.6e}{Color.RESET} | "
+            f"elapsed={Color.MAGENTA}{h}h:{m}m:{s}s{Color.RESET}"
+        )
         print(log_str)
+
+        log_str = (
+            f"[Step {step}/{self.max_steps}, "
+            f"Epoch {epoch}/{self.max_epochs}] "
+            f"loss={loss:.4f} | "
+            f"lr={lr:.6e} | "
+            f"elapsed={h}h:{m}m:{s}s"
+        )
         logger.info(log_str)
 
     # -----------------------
@@ -236,7 +262,8 @@ class AudioToLLMTrainer:
 
                 # Logging
                 if self.step % self.log_every == 0:
-                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
+                    lr = optimizer.param_groups[0]["lr"]
+                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch, self.epoch, lr)
 
                 # Evaluation + checkpoint
                 if self.eval_loader is not None and self.step % self.eval_every == 0:
