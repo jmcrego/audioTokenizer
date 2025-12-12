@@ -17,7 +17,7 @@ class AudioToLLMWrapper(torch.nn.Module):
     """
     def __init__(self, audio_path, proj_path, llm_path, chunk_size, stride, stack_size, rank_dim, max_seq_len, device, dtype):
 
-        meta = {k: v for k, v in locals().items() if k != "self"}
+        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")        
         super().__init__()
 

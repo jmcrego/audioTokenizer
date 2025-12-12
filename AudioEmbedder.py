@@ -80,7 +80,7 @@ class AudioEmbedder(nn.Module):
                  dtype: torch.dtype = None,
                  device: str = "cpu",):
 
-        meta = {k: v for k, v in locals().items() if k != "self"}
+        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")
         super().__init__()
 

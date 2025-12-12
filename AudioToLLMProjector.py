@@ -72,7 +72,7 @@ class AudioToLLMProjector(nn.Module):
             llm_dimension: Target LLM embedding size (e.g., 2048)
             rank_dim: Low-rank internal dimension (default 256)
         """
-        meta = {k: v for k, v in locals().items() if k != "self"}
+        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")
         super().__init__()
 
