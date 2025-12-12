@@ -31,7 +31,8 @@ class AudioToLLMTrainer:
         train_dataset,
         eval_dataset=None,
         batch_size=4,
-        lr=1e-4,
+        lr_proj=5e-4,
+        lr_llm=1e-4,
         max_steps=10000,
         max_epochs=10,
         eval_every=1000,
@@ -53,7 +54,8 @@ class AudioToLLMTrainer:
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
-        self.lr = lr
+        self.lr_proj = lr_proj
+        self.lr_llm = lr_llm
         self.max_steps = max_steps
         self.max_epochs = max_epochs
         self.eval_every = eval_every
@@ -69,8 +71,13 @@ class AudioToLLMTrainer:
         self.model.to(self.device, dtype=self.dtype)
 
         # Optimizer (only trainable params)
-        self.optimizer = AdamW( filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.lr )
-        logger.info(f"Initialized AdamW optimizer with lr={self.lr}")
+        # self.optimizer = AdamW( filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.lr )
+
+        self.optimizer = torch.optim.AdamW([
+            {"params": self.projector.parameters(), "lr": self.lr_proj},
+            {"params": [p for n,p in self.llm_model.named_parameters() if p.requires_grad], "lr": self.lr_llm},
+        ])
+        logger.info(f"Initialized AdamW optimizer with lr_proj={self.lr_proj} lr_llm={self.lr_llm}")
 
         # Scheduler: Linear warmup + decay
         def lr_lambda(current_step):
@@ -188,17 +195,21 @@ class AudioToLLMTrainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, step, epoch, lr):
+    def log_fn(self, loss, step, epoch, is_eval=False):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
+        lr_proj = self.optimizer.param_groups[0]["lr"]
+        lr_llm = self.optimizer.param_groups[1]["lr"]
+
         log_str = (
-            f"{Color.CYAN}[Step {step}/{self.max_steps}, "
-            f"Epoch {epoch}/{self.max_epochs}]{Color.RESET} "
+            f"[Step {Color.CYAN}{step}{Color.RESET}/{self.max_steps}, "
+            f"Epoch {Color.CYAN}{epoch}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.YELLOW}{loss:.4f}{Color.RESET} | "
-            f"lr={Color.GREEN}{lr:.6e}{Color.RESET} | "
+            f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
+            f"lr_llm={Color.GREEN}{lr_llm:.6e}{Color.RESET} | "
             f"elapsed={Color.MAGENTA}{h}h:{m}m:{s}s{Color.RESET}"
         )
         print(log_str)
@@ -207,7 +218,8 @@ class AudioToLLMTrainer:
             f"[Step {step}/{self.max_steps}, "
             f"Epoch {epoch}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
-            f"lr={lr:.6e} | "
+            f"lr_proj={lr_proj:.6e}, "
+            f"lr_llm={lr_llm:.6e} | "
             f"elapsed={h}h:{m}m:{s}s"
         )
         logger.info(log_str)
@@ -230,7 +242,8 @@ class AudioToLLMTrainer:
             total_loss += outputs["loss"].item()
             n_batches += 1
         avg_loss = total_loss / max(1, n_batches)
-        print(f"=== Eval: avg_loss={avg_loss:.4f}")
+        self.log_fn(avg_loss, self.step, self.epoch, is_eval=True)
+
         self.model.train()
         return avg_loss
 
@@ -273,8 +286,7 @@ class AudioToLLMTrainer:
 
                 # Logging
                 if self.step % self.log_every == 0:
-                    lr = optimizer.param_groups[0]["lr"]
-                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch, lr)
+                    self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
 
                 # Evaluation + checkpoint
                 if self.eval_loader is not None and self.step % self.eval_every == 0:

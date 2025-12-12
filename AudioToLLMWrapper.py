@@ -4,6 +4,7 @@ import logging
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
@@ -37,16 +38,39 @@ class AudioToLLMWrapper(torch.nn.Module):
             p.requires_grad = False
 
         ############################
-        # LLM (frozen) + Tokenizer
+        # LLM (frozen) LoRa (trainable) + Tokenizer
         ############################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype).to(device)
-        self.llm_model.eval()
-        for p in self.llm_model.parameters():
-            p.requires_grad = False
+        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True).to(device)
+
+        lora_r = 16
+        lora_alpha = 32
+        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM",
+
+        lora_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            target_modules=target_modules,
+            lora_dropout=lora_dropout,
+            bias=bias,
+            task_type=task_type,
+        )
+        # Apply LoRa to LLM
+        self.llm_model = get_peft_model(self.llm_model, lora_config)
+
+        # Freeze base model, keep LoRA trainable
+        for n, p in self.llm_model.named_parameters():
+            p.requires_grad = ("lora" in n.lower())
+
+        # self.llm_model.eval()
+        # for p in self.llm_model.parameters():
+        #     p.requires_grad = False
 
         # trl’s SFTTrainer expects a HuggingFace model, which always has:
         # self.config = self.llm_model.config

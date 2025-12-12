@@ -50,14 +50,15 @@ if __name__ == "__main__":
     parser.add_argument("--stack_size", type=int, default=8, help="Stack this many frames in audio to LLM projector")
     parser.add_argument("--rank_dim", type=int, default=256, help="Low-rank intermediate dimension for audio to LLM projector")
     # optimization pars
-    parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
+    parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
+    parser.add_argument("--lr_llm", type=float, default=1e-4, help="Learning rate for LoRa layers")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-    parser.add_argument("--eval_every", type=int, default=5000, help="Run evaluation after this many steps")
+    parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging after this many steps")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
@@ -141,7 +142,8 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         batch_size=args.batch_size,
-        lr=args.lr,
+        lr_proj=args.lr_proj,
+        lr_llm=args.lr_llm,
         max_steps=args.max_steps,
         max_epochs=args.max_epochs,
         eval_every=args.eval_every,
