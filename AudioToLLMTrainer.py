@@ -204,7 +204,7 @@ class AudioToLLMTrainer:
         log_str = (
             f"[Step {Color.CYAN}{step}{Color.RESET}/{self.max_steps}, "
             f"Epoch {Color.CYAN}{epoch}{Color.RESET}/{self.max_epochs}] "
-            f"loss={Color.YELLOW}{loss:.4f}{Color.RESET} | "
+            f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_llm={Color.GREEN}{lr_llm:.6e}{Color.RESET} | "
             f"elapsed={Color.MAGENTA}{h}h:{m}m:{s}s{Color.RESET}"
