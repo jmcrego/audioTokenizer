@@ -55,10 +55,7 @@ class AudioToLLMTrainer:
         self.model.to(self.device, dtype=self.dtype)
 
         # Optimizer (only trainable params)
-        self.optimizer = AdamW(
-            filter(lambda p: p.requires_grad, self.model.parameters()),
-            lr=self.lr
-        )
+        self.optimizer = AdamW( filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.lr )
 
         # Scheduler: Linear warmup + decay
         def lr_lambda(current_step):
