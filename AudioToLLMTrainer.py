@@ -92,16 +92,6 @@ class AudioToLLMTrainer:
         self.epoch = 0
         self.start_time = datetime.now()
 
-        # -----------------------------
-        # Inspect first batch
-        # -----------------------------
-
-        first_batch = next(iter(self.train_loader))
-        print("First batch keys:", first_batch.keys())
-        print("Prompt_ids shape:", first_batch["prompt_ids"].shape)
-        print("Target_ids shape:", first_batch["target_ids"].shape)
-        print("Audio paths (first 5):", first_batch["audio_paths"][:5])
-
     # -----------------------------
     # Seed everything
     # -----------------------------
@@ -181,7 +171,9 @@ class AudioToLLMTrainer:
     # -----------------------
     def log_fn(self, loss, step, epoch):
         elapsed = (datetime.now() - self.start_time).total_seconds()
-        log_str = f"[Step {step}, Epoch {epoch}] loss={loss:.4f} | elapsed={elapsed:.1f}s"
+        hours, remainder = divmod(int(elapsed), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        log_str = f"[Step {step}, Epoch {epoch}] loss={loss:.4f} | elapsed={hours}h:{minutes}m:{seconds}s"        
         print(log_str)
         logger.info(log_str)
 
@@ -225,7 +217,7 @@ class AudioToLLMTrainer:
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
-                with torch.cuda.amp.autocast(enabled=False): #dtype=self.dtype):
+                with torch.amp.autocast(device_type="cuda", enabled=False):
                     outputs = self.model(**batch)
                     loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
 
