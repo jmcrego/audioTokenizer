@@ -61,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_every", type=int, default=50, help="Logging after this many steps")
 
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
+    parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
     print("CUDA available:", torch.cuda.is_available())
@@ -71,7 +72,7 @@ if __name__ == "__main__":
 
     # Configure logging
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(log_filename, mode='w', encoding='utf-8'),  # save to file
             logging.StreamHandler()  # and print to console
