@@ -151,7 +151,6 @@ class AudioToLLMProjector(nn.Module):
 
 if __name__ == "__main__":
     import argparse
-    import logging
     from AudioEmbedder import AudioEmbedder
 
     parser = argparse.ArgumentParser(description="Test Projector using an Audio Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
