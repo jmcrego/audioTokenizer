@@ -43,6 +43,10 @@ class AudioToLLMTrainer:
         dtype=None,
         seed=42,
     ):
+        
+        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
+        logger.info(f"Initializing {meta}")        
+
         self.seed_everything(seed)
 
         self.model = model
@@ -58,7 +62,7 @@ class AudioToLLMTrainer:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        print("Trainable params in model:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+        logger.info(f"Trainable params in model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = dtype or torch.float32
@@ -66,15 +70,16 @@ class AudioToLLMTrainer:
 
         # Optimizer (only trainable params)
         self.optimizer = AdamW( filter(lambda p: p.requires_grad, self.model.parameters()), lr=self.lr )
+        logger.info(f"Initialized AdamW optimizer with lr={self.lr}")
 
         # Scheduler: Linear warmup + decay
         def lr_lambda(current_step):
             if current_step < warmup_steps:
                 return float(current_step) / float(max(1, warmup_steps))
-            return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))
+            return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
 
         self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
-
+        logger.info(f"Initialized LambdaLR scheduler with warmup_steps={warmup_steps}")
 
         # -----------------------
         # Sampler & DataLoader
@@ -86,6 +91,7 @@ class AudioToLLMTrainer:
             batch_sampler=self.train_sampler,
             collate_fn=self.collate_fn
         )
+        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={self.batch_size}")
 
         if eval_dataset is not None:
             self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=self.batch_size)
@@ -94,6 +100,7 @@ class AudioToLLMTrainer:
                 batch_sampler=self.eval_sampler,
                 collate_fn=self.collate_fn
             )
+            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={self.batch_size}")
         else:
             self.eval_loader = None
 
@@ -101,6 +108,8 @@ class AudioToLLMTrainer:
         self.step = 0
         self.epoch = 0
         self.start_time = datetime.now()
+        logger.info(f"Training ready to start")        
+
 
     # -----------------------------
     # Seed everything
@@ -229,11 +238,13 @@ class AudioToLLMTrainer:
     # Training loop
     # -----------------------
     def train(self):
+        logger.info("Start training")
+
         self.model.train()
         optimizer = self.optimizer
         optimizer.zero_grad()
 
-        while self.max_step and self.step < self.max_steps:
+        while self.max_steps and self.step < self.max_steps:
             self.epoch += 1
 
             for batch in self.train_loader:
@@ -277,3 +288,5 @@ class AudioToLLMTrainer:
             if self.max_epochs and self.epoch >= self.max_epochs:
                 print(f"Reached max epochs {self.max_epochs}, stopping training.")
                 break
+
+        logger.info("End training")
