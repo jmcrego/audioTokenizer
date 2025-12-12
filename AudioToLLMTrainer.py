@@ -213,7 +213,7 @@ class AudioToLLMTrainer:
     def train(self):
         self.model.train()
         optimizer = self.optimizer
-        scaler = torch.cuda.amp.GradScaler()  # for FP16 stability
+        scaler = torch.cuda.amp.GradScaler()  # AMP for FP16 stability
         optimizer.zero_grad()
 
         while self.step < self.max_steps:
@@ -221,30 +221,27 @@ class AudioToLLMTrainer:
 
             for batch in self.train_loader:
                 self.step += 1
-                # Move tensors to device
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
+                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
-                # -----------------------
-                # Forward + backward
-                # -----------------------
+                # Forward pass with autocast
                 with torch.cuda.amp.autocast(dtype=self.dtype):
                     outputs = self.model(**batch)
                     loss = outputs["loss"] / self.accum_steps
 
-                # Backprop with gradient scaling
+                # Backward pass with scaler
                 scaler.scale(loss).backward()
 
                 if self.step % self.accum_steps == 0:
-                    # Gradient clipping
-                    scaler.unscale_(optimizer)
+                    # Gradient clipping in FP32 safe space
+                    scaler.unscale_(optimizer)  # unscale before clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
-                    # Optimizer step via scaler
+                    # Step optimizer and update scaler
                     scaler.step(optimizer)
                     scaler.update()
                     optimizer.zero_grad()
 
-                    # Scheduler step
+                    # Step scheduler
                     self.scheduler.step()
 
                 # Logging
@@ -263,3 +260,4 @@ class AudioToLLMTrainer:
             if self.epoch >= self.max_epochs:
                 print(f"Reached max epochs {self.max_epochs}, stopping training.")
                 break
+
