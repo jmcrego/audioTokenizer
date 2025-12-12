@@ -233,7 +233,7 @@ class AudioToLLMTrainer:
         optimizer = self.optimizer
         optimizer.zero_grad()
 
-        while self.step < self.max_steps:
+        while self.max_step and self.step < self.max_steps:
             self.epoch += 1
 
             for batch in self.train_loader:
