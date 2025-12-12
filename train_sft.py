@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_epochs", type=int, default=10000, help="Maximum number of training epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-    parser.add_argument("--eval_every", type=int, default=2000, help="Run evaluation after this many steps")
+    parser.add_argument("--eval_every", type=int, default=5000, help="Run evaluation after this many steps")
     parser.add_argument("--log_every", type=int, default=500, help="Logging after this many steps")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
