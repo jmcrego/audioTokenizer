@@ -213,6 +213,7 @@ class AudioToLLMTrainer:
         print(log_str)
 
         log_str = (
+            "Eval " if is_eval else "Train "
             f"[Step {step}/{self.max_steps}, "
             f"Epoch {epoch}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
