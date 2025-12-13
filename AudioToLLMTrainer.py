@@ -132,13 +132,12 @@ class AudioToLLMTrainer:
     # -----------------------
     def save_checkpoint(self, step=None, prefix="checkpoint"):
         step_str = f"_step{step}" if step is not None else ""
-        ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}.pt")
-        state = {
-            "model_state_dict": self.model.state_dict(), #self.model.projector.state_dict()
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "step": self.step
-        }
-        torch.save(state, ckpt_path)
+        ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
+        # save Projector and LoRa adapters (path.proj.pt / path.lora/{adapter_model.bin,adapter_config.json})
+        self.model.save(ckpt_path)
+        # save optimizer state (path.optim.pt)
+        state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
+        torch.save(state, f"{ckpt_path}.optim.pt")
         print(f"Saved checkpoint to {ckpt_path}")
         return ckpt_path
 

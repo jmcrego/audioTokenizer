@@ -102,12 +102,13 @@ class AudioToLLMWrapper(torch.nn.Module):
         logger.info(f"Read Wrapper")
 
     def save(self, path):
-        # Save projector
+        # Save projector to path.proj.pt
         torch.save(self.projector.state_dict(), path + ".proj.pt")
         logger.info(f"Saved Projector to {path}.proj.pt")
-        # Save LoRa adapters (PEFT)
+        # Save LoRa adapters (PEFT) to path.lora/{adapter_model.bin,adapter_config.json}
         self.llm_model.save_pretrained(path + ".lora")
         logger.info(f"Saved LoRa adapters to {path}.lora")
+
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):
