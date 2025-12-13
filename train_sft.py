@@ -152,8 +152,6 @@ if __name__ == "__main__":
         log_every=args.log_every,
         accum_steps=args.accum_steps,
         output_dir=args.output_dir,
-        device=device,
-        dtype=dtype
     )
 
     # -----------------------------

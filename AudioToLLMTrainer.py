@@ -40,8 +40,6 @@ class AudioToLLMTrainer:
         accum_steps=1,
         warmup_steps=500,
         output_dir="./output",
-        device=None,
-        dtype=None,
         seed=42,
     ):
         
@@ -66,9 +64,9 @@ class AudioToLLMTrainer:
 
         logger.info(f"Trainable params in model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.dtype = dtype or torch.float32
-        self.model.to(self.device, dtype=self.dtype)
+        param = next(self.parameters())
+        self.device = param.device
+        self.dtype = param.dtype
 
         self.optimizer = torch.optim.AdamW([
             {"params": self.model.projector.parameters(), "lr": self.lr_proj},
@@ -145,13 +143,13 @@ class AudioToLLMTrainer:
     # Load checkpoint
     # -----------------------
     def load_checkpoint(self, ckpt_path):
-        if not os.path.exists(ckpt_path):
-            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+        # if not os.path.exists(ckpt_path):
+        #     raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
 
-        state = torch.load(ckpt_path, map_location=self.device)
-        self.model.load_state_dict(state["model_state_dict"])
-        self.optimizer.load_state_dict(state["optimizer_state_dict"])
-        self.step = state.get("step", 0)
+        # state = torch.load(ckpt_path, map_location=self.device)
+        # self.model.load_state_dict(state["model_state_dict"])
+        # self.optimizer.load_state_dict(state["optimizer_state_dict"])
+        # self.step = state.get("step", 0)
         print(f"Loaded checkpoint from {ckpt_path}, resuming at step {self.step}")
 
     # -----------------------
