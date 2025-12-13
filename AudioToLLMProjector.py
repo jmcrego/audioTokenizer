@@ -1,5 +1,6 @@
 import torch
 import logging
+from typing import Optional
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -56,14 +57,12 @@ class AudioToLLMProjector(nn.Module):
 
     def __init__(
         self,
-        proj_path: str,
+        proj_path: Optional[str],
         audio_embedding_dim: int,
         stack_size: int,
         llm_dimension: int=768,
         rank_dim: int=256,          # low-rank bottleneck
         max_seq_len: int=4096,
-        device: str='cpu',
-        dtype: torch.dtype=torch.float32,
     ):
         """
         Args:
@@ -91,15 +90,21 @@ class AudioToLLMProjector(nn.Module):
             nn.LayerNorm(llm_dimension),
         )
 
-        # load projector if given
-        if proj_path is not None:
-            self.projector.load(proj_path, device=device)
-
-        self.proj = self.proj.to(device, dtype=dtype)
-
         # precompute the RoPE frequencies
         self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
-        logger.info(f"Read projector {proj_path}")
+        self.register_buffer("rope_freqs", self.rope_freqs, persistent=False)
+
+        # load projector if given
+        if proj_path is not None:
+            state_dict = torch.load(proj_path, map_location="cpu")
+            self.load_state_dict(state_dict, strict=True)
+            logger.info(f"Loaded AudioToLLMProjector from {proj_path}")
+        else:
+            logger.info("Initialized AudioToLLMProjector with random weights")            
+
+    def save(self, path):
+        torch.save(self.state_dict(), path)
+        logger.info(f"Saved AudioToLLMProjector to {path}")
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
@@ -148,14 +153,6 @@ class AudioToLLMProjector(nn.Module):
 
         return x, sf_mask
     
-    def load(self, path):
-        state_dict = torch.load(path, map_location="cpu")
-        self.load_state_dict(state_dict)
-        print(f"Loaded AudioToLLMProjector from {path}")
-
-    def save(self, path):
-        torch.save(self.state_dict(), path)
-        print(f"Saved AudioToLLMProjector to {path}")
 
 
 if __name__ == "__main__":

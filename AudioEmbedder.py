@@ -76,17 +76,13 @@ class AudioEmbedder(nn.Module):
                  audio_path: str = "utter-project/mhubert-147",
                  l2_norm: bool=False, 
                  chunk_size: int = 3200, #number of samples of each chunk passed to the model (the chunk will contain N/320 embeddings)
-                 stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
-                 dtype: torch.dtype = None,
-                 device: str = "cpu",):
+                 stride: int = 1600,): #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
 
         meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")
         super().__init__()
 
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
-        self.device = torch.device(device)
-        self.dtype = dtype
         self.l2_norm = l2_norm
         self.audio_path = audio_path
         self.chunk_size = chunk_size
@@ -123,7 +119,6 @@ class AudioEmbedder(nn.Module):
         #model_stride is the downsampling factor from audio samples to embeddings (how many audio samples used for one embedding)
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
-        self.embedder.to(device=self.device, dtype=self.dtype).eval()
         logger.info(f"Read model {audio_path} model_stride={self.model_stride} D={self.D}")
 
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
@@ -135,6 +130,10 @@ class AudioEmbedder(nn.Module):
             embeddings: torch.Tensor [B, T, D] padded to the longest sequence
             mask: torch.BoolTensor [B, T] indicating valid frames
         """
+        param = next(self.parameters())
+        device = param.device
+        dtype  = param.dtype
+        
         all_chunks = []
         lengths = []
 
@@ -167,19 +166,19 @@ class AudioEmbedder(nn.Module):
         batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
         logger.debug(f"Concatenated n_chunks={batch_chunks.shape[0]} chunk_size={self.chunk_size} samples")
 
-        # Prepares waveforms for the embedding (not feature extraction)
+        # Prepare waveforms for the embedding (not feature extraction)
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
 
-        if self.device.type == "cuda":
-            inputs = inputs.pin_memory().to(self.device, non_blocking=True)
+        if device.type == "cuda":
+            inputs = inputs.pin_memory().to(device, non_blocking=True)
         else:
-            inputs = inputs.to(self.device)
+            inputs = inputs.to(device)
+        inputs = inputs.to(dtype=dtype)
 
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
-        inputs = inputs.to(dtype=self.dtype)
 
         # Forward pass
         with torch.no_grad():
@@ -209,7 +208,7 @@ class AudioEmbedder(nn.Module):
             emb_audio = emb_audio.reshape(-1, self.D)  # [nC_i*E, D] # nC_i*E is the number of embeddings in current audio file
             embeddings.append(emb_audio)
             # mask: valid embeddings are all ones as we padded only at audio level
-            mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=self.device) #[nC_i*E]
+            mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=device) #[nC_i*E]
             masks.append(mask)
             logger.debug(f"Audio {i} embeddings = {emb_audio.shape} mask = {mask.shape}")
 
@@ -238,12 +237,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--audio_path", type=str, default="utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")
-    parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_embedder = AudioEmbedder(model=args.audio_path, device=args.device)
+    audio_embedder = AudioEmbedder(model=args.audio_path)
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
     print(f"Output embeddings {embeddings.shape}, took {time.time()-t:.2f} sec")

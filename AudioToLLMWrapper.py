@@ -30,21 +30,22 @@ class AudioToLLMWrapper(torch.nn.Module):
             l2_norm=False,
             chunk_size=chunk_size,
             stride=stride,
-            device=device,
-            dtype=dtype
         )
+        self.audio_embedder.to(device=device, dtype=dtype)
+
         self.audio_embedder.eval()
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
 
         ############################
-        # LLM (frozen) LoRa (trainable) + Tokenizer
+        # Tokenizer + LLM (frozen) + LoRa (trainable)
         ############################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True).to(device)
+        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True)
+        self.llm_model.to(device, dtype=dtype)
 
         lora_r = 16
         lora_alpha = 32
@@ -78,9 +79,8 @@ class AudioToLLMWrapper(torch.nn.Module):
             llm_dimension=self.llm_model.config.hidden_size,
             rank_dim=rank_dim,
             max_seq_len=max_seq_len,
-            device=device,
-            dtype=dtype
         )
+        self.projector.to(device=device, dtype=dtype)
 
         # Ensure projector is trainable
         for p in self.projector.parameters():
