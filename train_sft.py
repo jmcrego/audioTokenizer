@@ -61,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging after this many steps")
+    parser.add_argument("--save_best_n", type=int, default=3, help="Save top N checkpoints")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
@@ -148,6 +149,7 @@ if __name__ == "__main__":
         lr_llm=args.lr_llm,
         max_steps=args.max_steps,
         max_epochs=args.max_epochs,
+        save_best_n=args.save_best_n,
         eval_every=args.eval_every,
         log_every=args.log_every,
         accum_steps=args.accum_steps,

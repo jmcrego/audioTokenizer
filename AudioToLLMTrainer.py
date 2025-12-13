@@ -1,5 +1,7 @@
 import os
+import re
 import torch
+import shutil
 import random
 import logging
 import numpy as np
@@ -35,6 +37,7 @@ class AudioToLLMTrainer:
         lr_llm=1e-4,
         max_steps=10000,
         max_epochs=10,
+        save_best_n=3,
         eval_every=1000,
         log_every=50,
         accum_steps=1,
@@ -56,6 +59,7 @@ class AudioToLLMTrainer:
         self.lr_llm = lr_llm
         self.max_steps = max_steps
         self.max_epochs = max_epochs
+        self.save_best_n = save_best_n
         self.eval_every = eval_every
         self.log_every = log_every
         self.accum_steps = accum_steps
@@ -131,13 +135,15 @@ class AudioToLLMTrainer:
     def save_checkpoint(self, step=None, prefix="checkpoint"):
         step_str = f"_step{step}" if step is not None else ""
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
-        # save Projector and LoRa adapters (path.proj.pt / path.lora/{adapter_model.bin,adapter_config.json})
+        # save Projector and LoRa adapters (ckpt_path.proj.pt / ckpt_path.lora/{adapter_model.bin,adapter_config.json})
         self.model.save(ckpt_path)
-        # save optimizer state (path.optim.pt)
+        # save optimizer state (ckpt_path.optim.pt)
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
         torch.save(state, f"{ckpt_path}.optim.pt")
         print(f"Saved checkpoint to {ckpt_path}")
-        return ckpt_path
+        # remove older checkpoints, keep only top N
+        remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
+
 
     # -----------------------
     # Load checkpoint
@@ -299,3 +305,30 @@ class AudioToLLMTrainer:
                 break
 
         logger.info("End training")
+
+
+def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
+    if step is None:
+        return
+
+    #Ex: checkpoint_step20000.proj.pt
+    existing_steps = []
+    for fname in os.listdir(output_dir):
+        if fname.startswith(prefix) and fname.endswith(".proj.pt"):
+            m = re.search(r"_step(\d+).proj.pt", fname)
+            if m:
+                existing_steps.append(int(m.group(1)))
+
+    for old_step in sorted(existing_steps, reverse=True)[save_best_n:]:
+        old_ckpt_path = os.path.join(output_dir, f"{prefix}_step{old_step}")
+
+        try:
+            os.remove(f"{old_ckpt_path}.proj.pt")
+            os.remove(f"{old_ckpt_path}.optim.pt")
+            lora_dir = f"{old_ckpt_path}.lora"
+            if os.path.exists(lora_dir):
+                shutil.rmtree(lora_dir)
+            print(f"Removed old checkpoint {old_ckpt_path}")
+
+        except Exception as e:
+            print(f"Error removing old checkpoint {old_ckpt_path}: {e}")
