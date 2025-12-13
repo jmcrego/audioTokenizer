@@ -26,7 +26,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Audio Embedder (frozen)
         ############################
         self.audio_embedder = AudioEmbedder(
-            model=audio_path,
+            audio_path=audio_path,
             l2_norm=False,
             chunk_size=chunk_size,
             stride=stride,
@@ -67,14 +67,6 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Freeze base model, keep LoRA trainable
         for n, p in self.llm_model.named_parameters():
             p.requires_grad = ("lora" in n.lower())
-
-        # self.llm_model.eval()
-        # for p in self.llm_model.parameters():
-        #     p.requires_grad = False
-
-        # trl’s SFTTrainer expects a HuggingFace model, which always has:
-        # self.config = self.llm_model.config
-        # self.generation_config = getattr(self.llm_model, "generation_config", None)
 
         ############################
         # Projector (trainable)

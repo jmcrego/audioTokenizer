@@ -73,7 +73,7 @@ class AudioEmbedder(nn.Module):
     """
 
     def __init__(self, 
-                 model: str = "utter-project/mhubert-147",
+                 audio_path: str = "utter-project/mhubert-147",
                  l2_norm: bool=False, 
                  chunk_size: int = 3200, #number of samples of each chunk passed to the model (the chunk will contain N/320 embeddings)
                  stride: int = 1600, #number of samples to move for the next chunk (must be <= chunk_size to not lose sammples), allows chunk overlap for smooth embeddings
@@ -84,19 +84,18 @@ class AudioEmbedder(nn.Module):
         logger.info(f"Initializing {meta}")
         super().__init__()
 
-
         assert stride <= chunk_size , f"stride {stride} must be <= chunk_size ({chunk_size})"
         self.device = torch.device(device)
         self.dtype = dtype
         self.l2_norm = l2_norm
-        self.model = model.lower()
+        self.audio_path = audio_path
         self.chunk_size = chunk_size
         self.stride = stride
 
-        if "mhubert" in model.lower():
+        if "mhubert" in audio_path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
-            self.embedder = HubertModel.from_pretrained(model)
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(audio_path)
+            self.embedder = HubertModel.from_pretrained(audio_path)
             self.D = self.embedder.config.hidden_size
             cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
             cfg.mask_time_prob = 0.0
@@ -104,28 +103,28 @@ class AudioEmbedder(nn.Module):
             cfg.mask_feature_prob = 0.0
             cfg.apply_spec_augment = False   # if available in this model class
 
-        elif "wav2vec2" in model.lower():
+        elif "wav2vec2" in audio_path.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model)
-            self.embedder = Wav2Vec2Model.from_pretrained(model)
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(audio_path)
+            self.embedder = Wav2Vec2Model.from_pretrained(audio_path)
             self.D = self.embedder.config.hidden_size
 
-        elif "whisper" in self.model.lower():
+        elif "whisper" in self.audio_path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
-            self.feature_extractor = WhisperFeatureExtractor.from_pretrained(model)
-            self.embedder = WhisperModel.from_pretrained(model).encoder
+            self.feature_extractor = WhisperFeatureExtractor.from_pretrained(audio_path)
+            self.embedder = WhisperModel.from_pretrained(audio_path).encoder
             self.D = self.embedder.config.d_model
 
         else:
-            raise ValueError(f"Unknown model: {model}")
+            raise ValueError(f"Unknown model: {audio_path}")
 
         self.sample_rate = self.feature_extractor.sampling_rate
-        self.model_stride = get_model_stride(self.embedder, self.feature_extractor, self.model)
+        self.model_stride = get_model_stride(self.embedder, self.feature_extractor, audio_path)
         #model_stride is the downsampling factor from audio samples to embeddings (how many audio samples used for one embedding)
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
         self.embedder.to(device=self.device, dtype=self.dtype).eval()
-        logger.info(f"Read model {model} model_stride={self.model_stride} D={self.D}")
+        logger.info(f"Read model {audio_path} model_stride={self.model_stride} D={self.D}")
 
     def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -161,7 +160,7 @@ class AudioEmbedder(nn.Module):
         t_preprocess = time.time()-t
 
         # ----------------------------------------------
-        # --- concat all chunks and extract features ---
+        # --- concat chunks, extract feats/embeds ------
         # ----------------------------------------------
         t = time.time()
         # Concatenate all chunks for batch processing
@@ -180,14 +179,8 @@ class AudioEmbedder(nn.Module):
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
         #f ~ feature dimension (for spectrograms)
-        t_features = time.time()-t
-
         inputs = inputs.to(dtype=self.dtype)
 
-        # ----------------------------------------------
-        # --- extract embeddings from all features -----
-        # ----------------------------------------------
-        t = time.time()
         # Forward pass
         with torch.no_grad():
             out = self.embedder(inputs).last_hidden_state.clone()  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
@@ -234,7 +227,7 @@ class AudioEmbedder(nn.Module):
         logger.debug(f"Padded masks: {padded_masks.shape} invalid frames={(~padded_masks).sum().item()}")
         t_formatting = time.time()-t
 
-        logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, feature extraction={1000*t_features:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")
+        logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")
         return padded_embeddings, padded_masks
 
 
