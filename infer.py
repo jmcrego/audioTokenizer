@@ -77,7 +77,7 @@ if __name__ == "__main__":
             temperature=args.temperature,
             top_p=args.top_p,
             top_k=args.top_k,
-        ):
+        )
         print(output)
 
     logging.info(f"Generation took {time.time() - t:.2f} sec")
