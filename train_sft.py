@@ -66,12 +66,6 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
-    print("CUDA available:", torch.cuda.is_available())
-    print("Device count:", torch.cuda.device_count())
-
-    # Create output directory if needed
-    os.makedirs(args.output_dir, exist_ok=True)
-
     # Configure logging
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -84,8 +78,14 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
+    logger.info("CUDA available:", torch.cuda.is_available())
+    logger.info("Device count:", torch.cuda.device_count())
+
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
+
+    # Create output directory if needed
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # -----------------------------
     # Load model wrapper
