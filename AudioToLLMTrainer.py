@@ -202,8 +202,7 @@ class AudioToLLMTrainer:
         w_epoch = len(str(self.max_epochs))
 
         log_str = (
-            "Eval " if is_eval else "Train "
-            f"[Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
+            f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
             f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
@@ -213,8 +212,7 @@ class AudioToLLMTrainer:
         print(log_str)
 
         log_str = (
-            "Eval " if is_eval else "Train "
-            f"[Step {step:>{w_step}d}/{self.max_steps}, "
+            f"{'Eval' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
             f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
