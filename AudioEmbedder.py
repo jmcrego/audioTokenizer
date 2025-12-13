@@ -121,7 +121,7 @@ class AudioEmbedder(nn.Module):
         #chunk_size must be a multiple of model stride to avoid padding
         logger.info(f"Read model {audio_path} model_stride={self.model_stride} D={self.D}")
 
-    def __call__(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
         Args:
@@ -171,10 +171,9 @@ class AudioEmbedder(nn.Module):
         inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
 
         if device.type == "cuda":
-            inputs = inputs.pin_memory().to(device, non_blocking=True)
+            inputs = inputs.to(device, dtype=dtype, non_blocking=True)
         else:
-            inputs = inputs.to(device)
-        inputs = inputs.to(dtype=dtype)
+            inputs = inputs.to(device, dtype=dtype)
 
         #C ~ batch size (total number of chunks)
         #F ~ time dimension (number of frames per audio chunk)
@@ -182,7 +181,7 @@ class AudioEmbedder(nn.Module):
 
         # Forward pass
         with torch.no_grad():
-            out = self.embedder(inputs).last_hidden_state.clone()  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
+            out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
         if torch.isnan(out).any():
            logger.info('NaN values in AudioEmbedder embeddings!')
 

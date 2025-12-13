@@ -16,7 +16,7 @@ class AudioToLLMWrapper(torch.nn.Module):
     Wrapper combining AudioEmbedder -> Projector -> LLM
     Only Projector is trainable.
     """
-    def __init__(self, audio_path, proj_path, llm_path, chunk_size, stride, stack_size, rank_dim, max_seq_len, device, dtype):
+    def __init__(self, audio_path, proj_path, llm_path, lora_path, chunk_size, stride, stack_size, rank_dim, max_seq_len, device, dtype):
 
         meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")        
@@ -31,6 +31,8 @@ class AudioToLLMWrapper(torch.nn.Module):
             chunk_size=chunk_size,
             stride=stride,
         )
+        logger.info(f"Loaded AudioEmbedder from {audio_path}")
+        # Move to correct device and dtype
         self.audio_embedder.to(device=device, dtype=dtype)
 
         self.audio_embedder.eval()
@@ -41,29 +43,39 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Tokenizer + LLM (frozen) + LoRa (trainable)
         ############################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
+        logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True)
+        logger.info(f"Loaded LLM from {llm_path}")
+
+        # Load LoRA adapters
+        if lora_path is not None:
+            self.llm_model.load_adapter(self.lora_path, load_as="lora_adapter")
+            logger.info(f"Loaded LoRa adapters from {lora_path}")
+        else:
+            lora_r = 16
+            lora_alpha = 32
+            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
+            lora_dropout = 0.05
+            bias = "none"
+            task_type = "CAUSAL_LM"
+
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=target_modules,
+                lora_dropout=lora_dropout,
+                bias=bias,
+                task_type=task_type,
+            )
+            # Apply LoRa to LLM
+            self.llm_model = get_peft_model(self.llm_model, lora_config)
+            logger.info(f"Initialized LoRa adapters with config: {lora_config}")
+
+        # Move to correct device and dtype
         self.llm_model.to(device, dtype=dtype)
-
-        lora_r = 16
-        lora_alpha = 32
-        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
-        lora_dropout = 0.05
-        bias = "none"
-        task_type = "CAUSAL_LM"
-
-        lora_config = LoraConfig(
-            r=lora_r,
-            lora_alpha=lora_alpha,
-            target_modules=target_modules,
-            lora_dropout=lora_dropout,
-            bias=bias,
-            task_type=task_type,
-        )
-        # Apply LoRa to LLM
-        self.llm_model = get_peft_model(self.llm_model, lora_config)
 
         # Freeze base model, keep LoRA trainable
         for n, p in self.llm_model.named_parameters():
@@ -80,13 +92,22 @@ class AudioToLLMWrapper(torch.nn.Module):
             rank_dim=rank_dim,
             max_seq_len=max_seq_len,
         )
+        # Move to correct device and dtype
         self.projector.to(device=device, dtype=dtype)
 
         # Ensure projector is trainable
         for p in self.projector.parameters():
             p.requires_grad = True
 
-        logger.info(f"Read ModelsWrapper")
+        logger.info(f"Read Wrapper")
+
+    def save(self, path):
+        # Save projector
+        torch.save(self.projector.state_dict(), path + ".proj.pt")
+        logger.info(f"Saved Projector to {path}.proj.pt")
+        # Save LoRa adapters (PEFT)
+        self.llm_model.save_pretrained(path + ".lora")
+        logger.info(f"Saved LoRa adapters to {path}.lora")
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):
@@ -232,5 +253,6 @@ class AudioToLLMWrapper(torch.nn.Module):
             "labels": labels,
             "attention_mask": attention_mask,
         }
+
 
 
