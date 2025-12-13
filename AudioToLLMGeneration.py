@@ -2,6 +2,7 @@ import torch
 import logging
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm import LLM, SamplingParams
+from typing import Optional
 
 from train_sft import get_device_dtype
 from AudioToLLMWrapper import AudioToLLMWrapper
@@ -19,14 +20,16 @@ class AudioToLLMGeneration():
         proj_path: str,
         llm_path: str,
         lora_path: Optional[str],
+        device: torch.device,
+        dtype: torch.dtype,
+    ):
+        # the next should be read from wrapper config
         # chunk_size: int,
         # stride: int,
         # stack_size: int,
         # rank_dim: int,
         # max_seq_len: int,
-        device: torch.device,
-        dtype: torch.dtype,
-    ):
+
         model = AudioToLLMWrapper(
             audio_path=audio_path,
             proj_path=proj_path,
@@ -36,7 +39,7 @@ class AudioToLLMGeneration():
             stride=1600,
             stack_size=8,
             rank_dim=256,
-            max_seq_len=1000,
+            max_seq_len=1024,
             device=device,
             dtype=dtype,
         )
@@ -58,7 +61,9 @@ class AudioToLLMGeneration():
         audio_file, 
         prompt, 
         max_output_tokens=128, 
-        temperature=0.7
+        temperature=0.7,
+        top_p=0.9,
+        top_k=50,
     ):
         dtype = next(self.projector.parameters()).dtype
         device = next(self.projector.parameters()).device
@@ -93,7 +98,10 @@ class AudioToLLMGeneration():
 
         sampling_params = SamplingParams(
             temperature=temperature,
-            max_output_tokens=max_output_tokens
+            max_output_tokens=max_output_tokens,
+            top_p=top_p,
+            top_k=top_k,
+            stop=["[END]"]
         )
 
         outputs = self.llm.generate(full_prompt, sampling_params)
@@ -116,6 +124,8 @@ if __name__ == "__main__":
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     parser.add_argument("--max_output_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
+    parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
+    parser.add_argument("--top_k", type=int, default=50, help="Top-k sampling parameter")
     parser.add_argument("--task", type=str, default="transcribe", help="Task to perform: transcribe, translate2lang, transcribe_translate2lang")
     args = parser.parse_args()
 
@@ -164,7 +174,9 @@ if __name__ == "__main__":
             audio_file, 
             args.prompt, 
             max_output_tokens=args.max_output_tokens, 
-            temperature=args.temperature
+            temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k,
         ):
         print(output)
 
