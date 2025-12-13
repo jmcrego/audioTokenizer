@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
     parser.add_argument("--proj_path", type=str, default=None)
     parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    parser.add_argument("--lora_path", type=str, default=None)
     # dataset paths
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
@@ -94,6 +95,7 @@ if __name__ == "__main__":
         audio_path=args.audio_path,
         proj_path=args.proj_path,
         llm_path=args.llm_path,
+        lora_path=args.lora_path,
         chunk_size=args.chunk_size,
         stride=args.stride,
         stack_size=args.stack_size,
