@@ -7,9 +7,9 @@ from typing import Optional
 from train_sft import get_device_dtype
 from AudioToLLMWrapper import AudioToLLMWrapper
 
-logger = logging.getLogger("AudioToLLMGeneration")
+logger = logging.getLogger("AudioToLLMGenerator")
 
-class AudioToLLMGeneration():
+class AudioToLLMGenerator():
     """
     Generate text from audio using AudioToLLM model.
     """
@@ -137,9 +137,9 @@ if __name__ == "__main__":
         ]
     )
 
-    logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
     logger.info("CUDA available:", torch.cuda.is_available())
     logger.info("Device count:", torch.cuda.device_count())
+
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     t = time.time()
 
-    generator = AudioToLLMGeneration(
+    generator = AudioToLLMGenerator(
         audio_path=args.audio_path,
         proj_path=args.proj_path,
         llm_path=args.llm_path,
