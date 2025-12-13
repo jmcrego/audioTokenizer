@@ -91,8 +91,8 @@ class AudioToLLMProjector(nn.Module):
         )
 
         # precompute the RoPE frequencies
-        self.rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
-        self.register_buffer("rope_freqs", self.rope_freqs, persistent=False)
+        rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+        self.register_buffer("rope_freqs", rope_freqs, persistent=False)
 
         # load projector if given
         if proj_path is not None:
