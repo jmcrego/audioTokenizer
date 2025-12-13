@@ -3,6 +3,7 @@ import logging
 #from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm import LLM, SamplingParams
 from typing import Optional
+from contextlib import nullcontext
 
 from train_sft import get_device_dtype
 from AudioToLLMGenerator import AudioToLLMGenerator
