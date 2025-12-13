@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
     parser.add_argument("--top_k", type=int, default=50, help="Top-k sampling parameter")
     parser.add_argument("--task", type=str, default="transcribe", help="Task to perform: transcribe, translate2lang, transcribe_translate2lang")
+    parser.add_argument("--output", type=str, default=None, help="File to save outputs")
     args = parser.parse_args()
 
     # Configure logging
@@ -69,15 +70,20 @@ if __name__ == "__main__":
 
     t = time.time()
 
-    for audio_file in args.audio_files.split(","):
-        output = generator(
-            audio_file, 
-            args.prompt, 
-            max_output_tokens=args.max_output_tokens, 
-            temperature=args.temperature,
-            top_p=args.top_p,
-            top_k=args.top_k,
-        )
-        print(output)
+    with open(args.output, "w", encoding="utf-8") if args.output else nullcontext() as out_file:
+        for audio_file in args.audio_files.split(","):
+            output = generator(
+                audio_file, 
+                args.prompt, 
+                max_output_tokens=args.max_output_tokens, 
+                temperature=args.temperature,
+                top_p=args.top_p,
+                top_k=args.top_k,
+            )
+            if out_file:
+                out_file.write(f"{output}\n")
+            else:
+                print(f"{output}")
+
 
     logging.info(f"Generation took {time.time() - t:.2f} sec")
