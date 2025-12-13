@@ -168,7 +168,7 @@ class AudioEmbedder(nn.Module):
 
         # Prepare waveforms for the embedding (not feature extraction)
         input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-        inputs = input_dict.input_values if "whisper" not in self.model else input_dict.input_features
+        inputs = input_dict.input_values if "whisper" not in self.audio_path.lower() else input_dict.input_features
 
         if device.type == "cuda":
             inputs = inputs.to(device, dtype=dtype, non_blocking=True)
