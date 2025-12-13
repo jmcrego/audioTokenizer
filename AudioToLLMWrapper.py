@@ -31,7 +31,6 @@ class AudioToLLMWrapper(torch.nn.Module):
             chunk_size=chunk_size,
             stride=stride,
         )
-        logger.info(f"Loaded AudioEmbedder from {audio_path}")
         # Move to correct device and dtype
         self.audio_embedder.to(device=device, dtype=dtype)
 
@@ -48,7 +47,6 @@ class AudioToLLMWrapper(torch.nn.Module):
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True)
-        logger.info(f"Loaded LLM from {llm_path}")
 
         # Load LoRA adapters
         if lora_path is not None:
