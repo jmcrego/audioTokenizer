@@ -8,66 +8,97 @@ from AudioToLLMWrapper import AudioToLLMWrapper
 
 logger = logging.getLogger("AudioToLLMGeneration")
 
-def generate_from_audio(audio_files, prompt, 
-                        model,
-                        max_output_tokens=128, temperature=0.7, 
-                        device="cuda"):
-    dtype = next(projector.parameters()).dtype
+class AudioToLLMGeneration():
+    """
+    Generate text from audio using AudioToLLM model.
+    """
 
-                        audio_embedder, projector, llm, tokenizer,
-    audio_embedder = model.audio_embedder
-    projector = model.projector
-    llm = LLM.from_hf(model.llm_model, model.tokenizer)
-    tokenizer = model.tokenizer
+    def __init__(
+        self,
+        audio_path: str,
+        proj_path: str,
+        llm_path: str,
+        lora_path: Optional[str],
+        # chunk_size: int,
+        # stride: int,
+        # stack_size: int,
+        # rank_dim: int,
+        # max_seq_len: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ):
+        model = AudioToLLMWrapper(
+            audio_path=audio_path,
+            proj_path=proj_path,
+            llm_path=llm_path,
+            lora_path=lora_path,
+            chunk_size=3200,
+            stride=1600,
+            stack_size=8,
+            rank_dim=256,
+            max_seq_len=1000,
+            device=device,
+            dtype=dtype,
+        )
 
-    # Reserve a large enough number of virtual tokens once
-    max_virtual_tokens = 1024
-    virtual_tokens = [f"<audio{i}>" for i in range(max_virtual_tokens)]
-    tokenizer.add_tokens(virtual_tokens)
-    virtual_token_ids = tokenizer.convert_tokens_to_ids(virtual_tokens)
-    llm.model.resize_token_embeddings(len(tokenizer))
+        self.audio_embedder = model.audio_embedder
+        self.projector = model.projector
+        self.llm = LLM.from_hf(model.llm_model, model.tokenizer)
+        self.tokenizer = model.tokenizer
 
-    for audio_file in audio_files:
-        try:
-            # --------------------------
-            # 1) Compute audio embeddings
-            # --------------------------
-            with torch.no_grad():
-                embs, embs_mask = audio_embedder([audio_file])
-                embs = embs.to(device=device, dtype=dtype)
-                embs_mask = embs_mask.bool().to(device=device)
+        # Reserve a large enough number of virtual tokens once
+        max_virtual_tokens = 1024
+        virtual_tokens = [f"<audio{i}>" for i in range(max_virtual_tokens)]
+        self.tokenizer.add_tokens(virtual_tokens)
+        self.virtual_token_ids = self.tokenizer.convert_tokens_to_ids(virtual_tokens)
+        self.llm.model.resize_token_embeddings(len(self.tokenizer))
 
-            proj_embs, proj_mask = projector(embs, embs_mask)
-            n_virtual = int(proj_mask.sum())
-            proj_embs = proj_embs[0, :n_virtual, :]
+    def __call__(
+        self, 
+        audio_file, 
+        prompt, 
+        max_output_tokens=128, 
+        temperature=0.7
+    ):
+        dtype = next(self.projector.parameters()).dtype
+        device = next(self.projector.parameters()).device
 
-            if n_virtual > max_virtual_tokens:
-                raise ValueError(f"n_virtual={n_virtual} exceeds max_virtual_tokens={max_virtual_tokens}")
+        # --------------------------
+        # Compute audio embeddings
+        # --------------------------
+        with torch.no_grad():
+            embs, embs_mask = self.audio_embedder([audio_file])
+            embs = embs.to(device=device, dtype=dtype)
+            embs_mask = embs_mask.bool().to(device=device)
 
-            # --------------------------
-            # 2) Assign projected embeddings to reserved virtual tokens
-            # --------------------------
-            with torch.no_grad():
-                llm.model.get_input_embeddings().weight[virtual_token_ids[:n_virtual]] = proj_embs.to(
-                    llm.model.get_input_embeddings().weight.dtype
-                )
+        proj_embs, proj_mask = self.projector(embs, embs_mask)
+        n_virtual = int(proj_mask.sum())
+        proj_embs = proj_embs[0, :n_virtual, :]
 
-            # --------------------------
-            # 3) Build prompt and generate
-            # --------------------------
-            full_prompt = " ".join(virtual_tokens[:n_virtual]) + " " + prompt
+        if n_virtual > len(self.virtual_token_ids):
+            raise ValueError(f"n_virtual={n_virtual} exceeds max_virtual_tokens={len(self.virtual_token_ids)}")
 
-            sampling_params = SamplingParams(
-                temperature=temperature,
-                max_output_tokens=max_output_tokens
+        # --------------------------
+        # Assign projected embeddings to reserved virtual tokens
+        # --------------------------
+        with torch.no_grad():
+            self.llm.model.get_input_embeddings().weight[self.virtual_token_ids[:n_virtual]] = proj_embs.to(
+                self.llm.model.get_input_embeddings().weight.dtype
             )
 
-            outputs = llm.generate(full_prompt, sampling_params)
-            yield outputs[0].text
+        # --------------------------
+        # Build prompt and generate
+        # --------------------------
+        full_prompt = " ".join([f"<audio{i}>" for i in range(n_virtual)]) + " " + prompt
 
-        except Exception as e:
-            logging.error(f"Error processing {audio_file}: {e}")
-            yield None
+        sampling_params = SamplingParams(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens
+        )
+
+        outputs = self.llm.generate(full_prompt, sampling_params)
+        return outputs[0].text
+        
 
 
 if __name__ == "__main__":
@@ -82,10 +113,10 @@ if __name__ == "__main__":
     parser.add_argument("--proj_path", type=str, required=True)
     parser.add_argument("--llm_path", type=str, required=True)
     parser.add_argument("--lora_path", type=str, default=None)
-    parser.add_argument("--audio_files", type=str, help="Comma separated list of paths to audio files")
+    parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     parser.add_argument("--max_output_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
-    parser.add_argument("--prompt", type=str, default="\nTranscribe.\n[ASR]")
+    parser.add_argument("--task", type=str, default="transcribe", help="Task to perform: transcribe, translate2lang, transcribe_translate2lang")
     args = parser.parse_args()
 
     # Configure logging
@@ -97,35 +128,44 @@ if __name__ == "__main__":
     )
 
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
-
     logger.info("CUDA available:", torch.cuda.is_available())
     logger.info("Device count:", torch.cuda.device_count())
-
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
-    # -----------------------------
-    # Load model wrapper
-    # -----------------------------
 
-    model = AudioToLLMWrapper(
+    if args.task == "transcribe":
+        prompt = "\nTranscribe.\n[ASR]"
+    elif args.task.startswith("transcribe_translate2"):
+        tgt_lang = args.task.split('2')[1]
+        prompt = f"\nTranscribe then translate into {tgt_lang}.\n[ASR]"
+    elif args.task.startswith("translate2"):
+        tgt_lang = args.task.split('2')[1]
+        prompt = f"\nTranslate into {tgt_lang}.\n[STT]"
+
+
+    t = time.time()
+
+    generator = AudioToLLMGeneration(
         audio_path=args.audio_path,
         proj_path=args.proj_path,
         llm_path=args.llm_path,
         lora_path=args.lora_path,
-        chunk_size=3200,
-        stride=1600,
-        stack_size=8,
-        rank_dim=256,
-        max_seq_len=1000,
         device=device,
         dtype=dtype,
     )
 
-    start_time = time.time()
-    audio_files = args.audio_files.split(",") if args.audio_files else []
+    logging.info(f"Loading took {time.time() - t:.2f} sec")
 
-    for output in generate_from_audio(audio_files, args.prompt, max_output_tokens=args.max_output_tokens, temperature=args.temperature, device=device):
+    t = time.time()
+
+    for audio_file in args.audio_files.split(","):
+        output = generator(
+            audio_file, 
+            args.prompt, 
+            max_output_tokens=args.max_output_tokens, 
+            temperature=args.temperature
+        ):
         print(output)
 
-    logging.info(f"Total generation time: {time.time() - start_time:.2f} sec")
+    logging.info(f"Generation took {time.time() - t:.2f} sec")
