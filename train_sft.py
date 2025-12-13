@@ -33,7 +33,6 @@ def get_device_dtype():
     return device, dtype    
 
 if __name__ == "__main__":
-    import logging
     import argparse
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
