@@ -94,6 +94,7 @@ if __name__ == "__main__":
         low_cpu_mem_usage=True,
     )
     llm_model.to(device=device)
+    logger.info(f"Loaded llm_model from {args.llm_path}")
 
     if args.lora_path is not None:
         llm_model = PeftModel.from_pretrained(
@@ -130,10 +131,8 @@ if __name__ == "__main__":
     # --------------------------------------------------
     t1 = time.time()
 
-    audio_files = args.audio_files.split(",")
-
     with open(args.output, "w", encoding="utf-8") if args.output else nullcontext() as out_file:
-        for audio_file in audio_files:
+        for audio_file in args.audio_files.split(","):
             outputs = generator.generate([audio_file], prompt)
             text = outputs[0]
 
