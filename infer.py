@@ -23,6 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     parser.add_argument("--lora_path", type=str, default=None)
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
+    # Inference parameters
     parser.add_argument("--max_output_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")

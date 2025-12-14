@@ -46,7 +46,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, low_cpu_mem_usage=True)
+        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
 
         # Load LoRA adapters
         if lora_path is not None:
