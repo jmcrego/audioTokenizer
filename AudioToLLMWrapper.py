@@ -17,26 +17,20 @@ class AudioToLLMWrapper(torch.nn.Module):
     Wrapper combining AudioEmbedder -> Projector -> LLM
     Only Projector is trainable.
     """
-    def __init__(
-            self, 
-            audio_path, proj_path, llm_path, lora_path, 
-            chunk_size, stride, stack_size, rank_dim, max_seq_len, 
-            device, dtype
+    def __init__(self, config, device, dtype,
+            # audio_path, proj_path, llm_path, lora_path, 
+            # chunk_size, stride, stack_size, rank_dim, max_seq_len, 
+            # device, dtype
         ):
-
-        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
-        logger.info(f"Initializing {meta}")        
         super().__init__()
+
+        with open(config, "r", encoding="utf-8") as file:
+            self.config = json.load(file)
 
         ############################
         # Audio Embedder (frozen)
         ############################
-        self.audio_embedder = AudioEmbedder(
-            audio_path=audio_path,
-            l2_norm=False,
-            chunk_size=chunk_size,
-            stride=stride,
-        )
+        self.audio_embedder = AudioEmbedder(config['audio'])
         # Move to correct device and dtype
         self.audio_embedder.to(device=device, dtype=dtype)
 
