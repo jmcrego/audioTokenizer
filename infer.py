@@ -5,6 +5,7 @@ import argparse
 from contextlib import nullcontext
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
 
 from train import get_device_dtype
 from AudioToLLMGeneratorHF import AudioToLLMGeneratorHF
@@ -94,7 +95,10 @@ if __name__ == "__main__":
 
 
     if args.lora_path is not None:
-        llm_model.load_adapter(args.lora_path)
+        llm_model = PeftModel.from_pretrained(
+            llm_model,
+            args.lora_path,
+        )
         logger.info(f"Loaded LoRA adapters from {args.lora_path}")
 
     projector = AudioToLLMProjector(
