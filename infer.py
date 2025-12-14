@@ -15,7 +15,7 @@ logger = logging.getLogger("infer")
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="Transcribe and translate audio using AudioToLLM with vLLM.",
+        description="Transcribe and/or translate audio using AudioToLLM with vLLM.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
@@ -29,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_k", type=int, default=50, help="Top-k sampling parameter")
     parser.add_argument("--task", type=str, default="transcribe", help="Task to perform: transcribe, translate2lang, transcribe_translate2lang")
     parser.add_argument("--output", type=str, default=None, help="File to save outputs")
+    parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
     # Configure logging
