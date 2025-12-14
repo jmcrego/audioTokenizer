@@ -50,7 +50,15 @@ class AudioToLLMWrapper(torch.nn.Module):
 
         # Load LoRA adapters
         if lora_path is not None:
-            self.llm_model.load_adapter(lora_path)
+            self.llm_model = PeftModel.from_pretrained(
+                self.llm_model,
+                lora_path,
+                is_trainable=False, #this should be set to False to avoid loading errors or True if you want to train
+            )
+
+
+
+#            self.llm_model.load_adapter(lora_path)
             # self.llm_model.load_adapter(
             #     lora_path,
             #     adapter_name="lora_adapter",
