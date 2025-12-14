@@ -2,7 +2,6 @@ import torch
 import logging
 #from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm import LLM, SamplingParams
-from vllm.inputs import EmbedsPrompt
 from typing import Optional
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
