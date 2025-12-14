@@ -155,7 +155,7 @@ class AudioToLLMGenerator():
         outputs = self.llm.generate(
             prompts={
 #                "prompt_token_ids": [],  # Empty token IDs
-                "prompt_embeds": encoded_embs  # Pass embeddings
+                "prompt_embeds": encoded_embs,  # Pass embeddings
                 "type": "embeds"
             },
             sampling_params=sampling_params
