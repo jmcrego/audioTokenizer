@@ -3,7 +3,7 @@ import json
 config = {
     "audio": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
-        "audio_embedding_dim": 768,
+        "embedding_dim": 768,
         "l2_norm": False,
         "chunk_size" : 3200,
         "stride": 1600
@@ -11,7 +11,7 @@ config = {
     "projector": {
         "path": "none",
         "stack_size": 8,
-        "llm_embedding_dim": 2048,
+        "embedding_dim": 2048,
         "rank_dim": 256,
         "max_seq_len": 1024
     },

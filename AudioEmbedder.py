@@ -240,7 +240,7 @@ if __name__ == "__main__":
 
     config = {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
-        "audio_embedding_dim": 768,
+        "embedding_dim": 768,
         "l2_norm": False,
         "chunk_size" : 3200,
         "stride": 1600
