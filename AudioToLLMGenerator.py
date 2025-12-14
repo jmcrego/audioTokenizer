@@ -30,7 +30,6 @@ class AudioToLLMGenerator():
         stride = 1600
         stack_size = 8
         rank_dim = 256
-        llm_dimension = 2048  # should match llm hidden size
 
         self.audio_embedder = AudioEmbedder(
             audio_path=audio_path,
@@ -45,15 +44,20 @@ class AudioToLLMGenerator():
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path)
-        # self.llm_model.to(device=device, dtype=dtype)
+        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path)
+        llm_model_hidden_size = self.llm_model.config.hidden_size
+        self.llm_model_embedder = self.llm_model.get_input_embeddings()
+        self.llm_model_embedder.to(device=device, dtype=dtype)
+        #remove llm model from memory, vLLM will load it
+        del self.llm_model
+        torch.cuda.empty_cache()
 
         self.projector = AudioToLLMProjector(
             proj_path=proj_path,
             audio_embedding_dim=self.audio_embedder.D,
             stack_size=stack_size,
             rank_dim=rank_dim,
-            llm_dimension=llm_dimension,
+            llm_dimension=llm_model_hidden_size,
         )
         self.projector.to(device=device, dtype=dtype)
 
@@ -128,7 +132,7 @@ class AudioToLLMGenerator():
         proj_embs, proj_mask = self.projector(embs, embs_mask) # [1, N, llm_dim], [1, N]
 
         prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.long().to(device=device) # [1, L]
-        prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids) # [1, L, llm_dim]
+        prompt_embs = self.llm_model_embedder(prompt_ids) # [1, L, llm_dim]
 
         # remove masked projected embeddings
         proj_embs = proj_embs[proj_mask] # [N_valid, llm_dim]
