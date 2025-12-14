@@ -66,7 +66,7 @@ class AudioToLLMProjector(nn.Module):
             rank_dim: Low-rank internal dimension (default 256)
         """
         super().__init__()
-        logger.info(f"Initializing AudioiToLLMProjector {config}")
+        logger.info(f"Initializing AudioiToLLMProjector {config} audio_embedding_dim={audio_embedding_dim}")
 
         self.config = config
         path = config['path']

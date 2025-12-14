@@ -76,7 +76,7 @@ class AudioEmbedder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        logger.info(f"Initialize AudioEmbedder {config}")
+        logger.info(f"Initializing AudioEmbedder {config}")
         self.config = config
         
         path = config['path']
