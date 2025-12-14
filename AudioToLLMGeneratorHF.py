@@ -99,7 +99,7 @@ class AudioToLLMGeneratorHF:
             temperature=self.temperature,
             top_p=self.top_p,
             pad_token_id=self.tokenizer.eos_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
+            eos_token_id=None,#self.tokenizer.eos_token_id,
         )
         logger.info(f"outputs size = {outputs.shape}")
 
@@ -111,5 +111,6 @@ class AudioToLLMGeneratorHF:
             gen_tokens,
             skip_special_tokens=False,
         )
+        logger.info(f"texts = {texts[0]}")
 
         return texts
