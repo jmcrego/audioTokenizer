@@ -243,6 +243,8 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
+    print(config)
+
     audio_embedder = AudioEmbedder(config=config['audio'])
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
