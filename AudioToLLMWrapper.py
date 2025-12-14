@@ -51,6 +51,13 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Load LoRA adapters
         if lora_path is not None:
             self.llm_model.load_adapter(lora_path)
+            # self.llm_model.load_adapter(
+            #     lora_path,
+            #     adapter_name="lora_adapter",
+            #     is_trainable=True,
+            # )
+            # self.llm_model.set_adapter("lora_adapter")
+
             logger.info(f"Loaded LoRa adapters from {lora_path}")
         else:
             lora_r = 16
