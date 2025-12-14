@@ -57,12 +57,18 @@ class AudioToLLMGenerator():
         )
         self.projector.to(device=device, dtype=dtype)
 
-        self.llm = LLM(
-            model=llm_path,
-            enforce_eager=True,
-            trust_remote_code=True,
-        )
-
+        llm_kwargs = {
+            "model": llm_path,
+            "dtype": "float16",  # V100 only supports float16, not bfloat16
+            "enforce_eager": True,
+            "trust_remote_code": True,
+            "gpu_memory_utilization": 0.9,  # Adjust based on your GPU memory
+        }
+        
+        # if max_model_len is not None:
+        #     llm_kwargs["max_model_len"] = max_model_len
+        
+        self.llm = LLM(**llm_kwargs)
         self.llm.to(device=device, dtype=dtype)
 
 
