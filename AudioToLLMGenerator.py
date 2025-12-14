@@ -46,9 +46,10 @@ class AudioToLLMGenerator():
 
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path)
         llm_model_hidden_size = self.llm_model.config.hidden_size
+        
         self.llm_model_embedder = self.llm_model.get_input_embeddings()
         self.llm_model_embedder.to(device=device, dtype=dtype)
-        #remove llm model from memory, vLLM will load it
+        #remove llm model from cpu memory (only need embeddings)
         del self.llm_model
 
         self.projector = AudioToLLMProjector(

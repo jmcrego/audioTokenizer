@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--lora_path", type=str, default=None)
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     # Inference parameters
-    parser.add_argument("--max_output_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
+    parser.add_argument("--max_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
     parser.add_argument("--top_k", type=int, default=50, help="Top-k sampling parameter")
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             output = generator(
                 audio_file, 
                 prompt, 
-                max_output_tokens=args.max_output_tokens, 
+                max_tokens=args.max_tokens, 
                 temperature=args.temperature,
                 top_p=args.top_p,
                 top_k=args.top_k,
