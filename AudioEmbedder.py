@@ -2,6 +2,7 @@
 
 import soxr
 import time
+import json
 import torch
 import logging
 import numpy as np
@@ -233,20 +234,16 @@ class AudioEmbedder(nn.Module):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--config", type=str, required=True, help="Config file")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    config = {
-        "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
-        "embedding_dim": 768,
-        "l2_norm": False,
-        "chunk_size" : 3200,
-        "stride": 1600
-    }
+    with open(args.config, "r", encoding="utf-8") as file:
+        config = json.load(file)
 
-    audio_embedder = AudioEmbedder(config=config)
+    audio_embedder = AudioEmbedder(config=config['audio'])
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
     print(f"Output embeddings {embeddings.shape}, took {time.time()-t:.2f} sec")
