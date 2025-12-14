@@ -4,7 +4,7 @@ import logging
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 
 from AudioEmbedder import AudioEmbedder
 from AudioToLLMProjector import AudioToLLMProjector
