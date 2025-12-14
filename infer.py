@@ -66,8 +66,7 @@ if __name__ == "__main__":
 
     chunk_size = 3200  # must match audio embedder
     stride = 1600      # must match audio embedder
-
-    stack_size = 8     # must match projector
+    stack_size = 16    # must match projector
     rank_dim = 256     # must match projector
 
     # --------------------------------------------------
