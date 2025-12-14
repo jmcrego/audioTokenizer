@@ -68,7 +68,7 @@ class AudioToLLMGenerator():
             "enforce_eager": True,
             "trust_remote_code": True,
             "gpu_memory_utilization": 0.9,  # Adjust based on your GPU memory
-            "enable_prompt_embeds" True,
+            "enable_prompt_embeds": True,
         }
         
         # if max_model_len is not None:
