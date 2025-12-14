@@ -17,11 +17,7 @@ class AudioToLLMWrapper(torch.nn.Module):
     Wrapper combining AudioEmbedder -> Projector -> LLM
     Only Projector is trainable.
     """
-    def __init__(self, config, device, dtype,
-            # audio_path, proj_path, llm_path, lora_path, 
-            # chunk_size, stride, stack_size, rank_dim, max_seq_len, 
-            # device, dtype
-        ):
+    def __init__(self, config, device, dtype):
         super().__init__()
 
         with open(config, "r", encoding="utf-8") as file:
@@ -41,37 +37,30 @@ class AudioToLLMWrapper(torch.nn.Module):
         ############################
         # Tokenizer + LLM (frozen) + LoRa (trainable)
         ############################
-        self.llm_path = llm_path
+        llm_path = config['llm']['path']
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
 
         # Load LoRA adapters
+        lora_path = config['lora']['path']
         if lora_path is not None:
             self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path, is_trainable=True)
-            logger.info(f"Loaded LoRa adapters from {lora_path}")
+            logger.info(f"Loaded LoRa adapters")
         else:
-            lora_r = 16
-            lora_alpha = 32
-            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
-            lora_dropout = 0.05
-            bias = "none"
-            task_type = "CAUSAL_LM"
-
             lora_config = LoraConfig(
-                r=lora_r,
-                lora_alpha=lora_alpha,
-                target_modules=target_modules,
-                lora_dropout=lora_dropout,
-                bias=bias,
-                task_type=task_type,
+                r=config['lora']['lora_r'],
+                lora_alpha=config['lora']['lora_alpha'],
+                target_modules=config['lora']['target_modules'],
+                lora_dropout=config['lora']['lora_dropout'],
+                bias=config['lora']['bias'],
+                task_type=config['lora']['task_type'],
             )
             # Apply LoRa to LLM
             self.llm_model = get_peft_model(self.llm_model, lora_config)
-            logger.info(f"Initialized LoRa adapters with config: {lora_config}")
+            logger.info(f"Initialized LoRa adapters")
 
         # Move to correct device and dtype
         self.llm_model.to(device, dtype=dtype)
@@ -83,14 +72,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         ############################
         # Projector (trainable)
         ############################
-        self.projector = AudioToLLMProjector(
-            proj_path,
-            audio_embedding_dim=self.audio_embedder.D,
-            stack_size=stack_size,
-            llm_dimension=self.llm_model.config.hidden_size,
-            rank_dim=rank_dim,
-            max_seq_len=max_seq_len,
-        )
+        self.projector = AudioToLLMProjector(config['projector'])
         # Move to correct device and dtype
         self.projector.to(device=device, dtype=dtype)
 

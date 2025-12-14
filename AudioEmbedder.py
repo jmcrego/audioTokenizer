@@ -78,6 +78,7 @@ class AudioEmbedder(nn.Module):
 
         logger.info(f"Initialize AudioEmbedder {config}")
         self.config = config
+        
         path = config['path']
         embedding_dim = config['embedding_dim']
         stride = config['stride']

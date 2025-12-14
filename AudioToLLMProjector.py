@@ -57,15 +57,7 @@ class AudioToLLMProjector(nn.Module):
     a low-rank MLP, and RoPE positional encoding.
     """
 
-    def __init__(
-        self,
-        proj_path: Optional[str],
-        audio_embedding_dim: int,
-        stack_size: int=8,
-        llm_dimension: int=768,
-        rank_dim: int=256,          # low-rank bottleneck
-        max_seq_len: int=4096,
-    ):
+    def __init__(self, config, audio_embedding_dim):
         """
         Args:
             audio_embedding_dim: Original audio frame dimension (e.g., 768 for mHuBERT)
@@ -73,40 +65,37 @@ class AudioToLLMProjector(nn.Module):
             llm_dimension: Target LLM embedding size (e.g., 2048)
             rank_dim: Low-rank internal dimension (default 256)
         """
-        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
-        logger.info(f"Initializing {meta}")
         super().__init__()
+        logger.info(f"Initializing AudioiToLLMProjector {config}")
 
-        self.audio_embedding_dim = audio_embedding_dim
-        self.stack_size = stack_size
-        self.llm_dimension = llm_dimension
-        self.stacked_dim = audio_embedding_dim * stack_size
-        self.rank_dim = rank_dim
-        self.max_seq_len = max_seq_len
+        self.config = config
+        path = config['path']
+        stack_size = config['stack_size']
+        stacked_dim = audio_embedding_dim * stack_size
+        embedding_dim = config['embedding_dim']
+        rank_dim = config['rank_dim']
+        max_seq_len = config['max_seq_len']
 
         # --- Low-Rank MLP ---
         self.proj = nn.Sequential(
-            nn.Linear(self.stacked_dim, rank_dim),
+            nn.Linear(stacked_dim, rank_dim),
             nn.GELU(),
-            nn.Linear(rank_dim, llm_dimension),
-            nn.LayerNorm(llm_dimension),
+            nn.Linear(rank_dim, embedding_dim),
+            nn.LayerNorm(embedding_dim),
         )
 
         # precompute the RoPE frequencies
-        rope_freqs = build_rope_freqs(max_seq_len, llm_dimension)
+        rope_freqs = build_rope_freqs(max_seq_len, embedding_dim)
         self.register_buffer("rope_freqs", rope_freqs, persistent=False)
 
         # load projector if given
-        if proj_path is not None:
-            state_dict = torch.load(proj_path, map_location="cpu")
+        if path is not None:
+            state_dict = torch.load(path, map_location="cpu")
             self.load_state_dict(state_dict, strict=True)
-            logger.info(f"Loaded AudioToLLMProjector from {proj_path}")
+            logger.info(f"Loaded AudioToLLMProjector from {path}")
         else:
             logger.info("Initialized AudioToLLMProjector with random weights")            
 
-    def save(self, path):
-        torch.save(self.state_dict(), path)
-        logger.info(f"Saved AudioToLLMProjector to {path}")
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         """
@@ -120,7 +109,7 @@ class AudioToLLMProjector(nn.Module):
         """
 
         B, T, D = x.shape
-        S = self.stack_size
+        S = self.config['stack_size']
 
         # every sequence of audio embeddings (T) in batch must be merged into superframes (S embeddings -> 1 superframes)
         # this may introduce pad embeddings at the end (to fit superframe size S)
@@ -142,7 +131,7 @@ class AudioToLLMProjector(nn.Module):
         x = self.proj(x)  # [B, N, llm_dim]
 
         # Apply RoPE (scale positions by stack_size for superframes)
-        rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * self.stack_size # [N, llm_dim//2]
+        rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * S # [N, llm_dim//2]
         x = apply_rope(x, rope_freqs)
 
         # ---- build superframe mask ----
@@ -157,32 +146,35 @@ class AudioToLLMProjector(nn.Module):
 
 
 if __name__ == "__main__":
+    import json
     import argparse
     from AudioEmbedder import AudioEmbedder
 
     parser = argparse.ArgumentParser(description="Test Projector using an Audio Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--model", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", help="Path or HuggingFace model name (i.e. openai/whisper-small, utter-project/mhubert-147, facebook/wav2vec2-xlsr-53 models)")
-    parser.add_argument("--wav", type=str, help="Comma separated list of paths to audio files")
-    parser.add_argument("--device", type=str, default="cuda", help="Device to use ('cpu' or 'cuda').")
+    parser.add_argument("--config", type=str, required=True, help="Config file")
+    parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_files = args.wav.split(",")
-    device = "cuda" if args.device == "cuda" and torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    embedder = AudioEmbedder(model="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147", device=device)
-    proj = AudioToLLMProjector(audio_embedding_dim=embedder.D, stack_size=8, llm_dimension=4096, rank_dim=256, max_seq_len=100).to(device)
+    with open(args.config, "r", encoding="utf-8") as file:
+        config = json.load(file)
 
-    embeddings, masks = embedder(audio_files)  # embeddings: [B, T, D], masks: [B, T]
-    print("Embeddings shape:", embeddings.shape)
+
+    embedder = AudioEmbedder(config=config['audio'], device=device)
+    projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim']).to(device)
+
+    embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
+    print("Embeddings shape:", embed.shape)
     print("Masks shape:", masks.shape)
 
-    embeddings = embeddings.to(device)
+    embed = embed.to(device)
     masks = masks.to(device)
 
-    llm_embeddings, sf_mask = proj(embeddings, masks)
+    proj_embed, proj_mask = projector(embed, masks)
 
-    print("Projected LLM embeddings shape:", llm_embeddings.shape)
-    print("Superframe mask shape:", sf_mask.shape)
-    print("Superframe mask:", sf_mask)
+    print("Projected LLM embeddings shape:", proj_embed.shape)
+    print("Superframe mask shape:", proj_mask.shape)
+    print("Superframe mask:", proj_mask)
