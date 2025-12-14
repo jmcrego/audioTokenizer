@@ -7,7 +7,7 @@ from vllm import LLM, SamplingParams
 from typing import Optional
 from contextlib import nullcontext
 
-from train_sft import get_device_dtype
+from train import get_device_dtype
 from AudioToLLMGenerator import AudioToLLMGenerator
 
 logger = logging.getLogger("infer")
