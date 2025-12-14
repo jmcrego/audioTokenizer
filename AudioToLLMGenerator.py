@@ -46,7 +46,7 @@ class AudioToLLMGenerator():
 
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path)
         llm_model_hidden_size = self.llm_model.config.hidden_size
-        
+
         self.llm_model_embedder = self.llm_model.get_input_embeddings()
         self.llm_model_embedder.to(device=device, dtype=dtype)
         #remove llm model from cpu memory (only need embeddings)
@@ -113,7 +113,7 @@ class AudioToLLMGenerator():
         self, 
         audio_file, 
         prompt, 
-        max_output_tokens=128, 
+        max_tokens=128, 
         temperature=0.7,
         top_p=0.9,
         top_k=50,
@@ -143,7 +143,7 @@ class AudioToLLMGenerator():
 
         sampling_params = SamplingParams(
             temperature=temperature,
-            max_output_tokens=max_output_tokens,
+            max_tokens=max_tokens,
             top_p=top_p,
             top_k=top_k,
             stop=["[END]"]
