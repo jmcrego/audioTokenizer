@@ -113,17 +113,21 @@ class AudioToLLMGenerator():
         # Compute audio embeddings
         # --------------------------
         with torch.no_grad():
-            embs, embs_mask = self.audio_embedder([audio_file])
-            embs = embs.to(device=device, dtype=dtype)
-            embs_mask = embs_mask.bool().to(device=device)
+            embs, embs_mask = self.audio_embedder([audio_file]) # [1, T, D], [1, T]
+            embs = embs.to(device=device, dtype=dtype) 
+            embs_mask = embs_mask.bool().to(device=device) 
 
         proj_embs, proj_mask = self.projector(embs, embs_mask) # [1, N, llm_dim], [1, N]
 
         prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.long().to(device=device) # [1, L]
         prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids) # [1, L, llm_dim]
 
+        # remove masked projected embeddings
+        proj_embs = proj_embs[proj_mask] # [N_valid, llm_dim]
+        proj_embs = proj_embs.unsqueeze(0) # [1, N_valid, llm_dim]
+
         # Concatenate audio + text
-        combined_embs = torch.cat([proj_embs, prompt_embs], dim=1) # [1, N+L, llm_dim]
+        combined_embs = torch.cat([proj_embs, prompt_embs], dim=1) # [1, N_valid + L, llm_dim]
 
         sampling_params = SamplingParams(
             temperature=temperature,
