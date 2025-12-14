@@ -59,7 +59,7 @@ class AudioToLLMProjector(nn.Module):
         self,
         proj_path: Optional[str],
         audio_embedding_dim: int,
-        stack_size: int,
+        stack_size: int=8,
         llm_dimension: int=768,
         rank_dim: int=256,          # low-rank bottleneck
         max_seq_len: int=4096,
