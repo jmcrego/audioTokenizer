@@ -1,6 +1,5 @@
 import torch
 import logging
-#from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm import LLM, SamplingParams
 from typing import Optional
 
