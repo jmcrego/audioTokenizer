@@ -49,6 +49,8 @@ def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
 
     return torch.cat([x1_rot, x2_rot], dim=-1)
 
+
+
 class AudioToLLMProjector(nn.Module):
     """
     Projects audio embeddings into LLM embedding space using superframe stacking,
@@ -105,7 +107,6 @@ class AudioToLLMProjector(nn.Module):
     def save(self, path):
         torch.save(self.state_dict(), path)
         logger.info(f"Saved AudioToLLMProjector to {path}")
-
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         """

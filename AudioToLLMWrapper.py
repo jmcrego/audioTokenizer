@@ -1,4 +1,5 @@
 
+import json
 import torch
 import logging
 import torch.nn as nn
@@ -16,7 +17,12 @@ class AudioToLLMWrapper(torch.nn.Module):
     Wrapper combining AudioEmbedder -> Projector -> LLM
     Only Projector is trainable.
     """
-    def __init__(self, audio_path, proj_path, llm_path, lora_path, chunk_size, stride, stack_size, rank_dim, max_seq_len, device, dtype):
+    def __init__(
+            self, 
+            audio_path, proj_path, llm_path, lora_path, 
+            chunk_size, stride, stack_size, rank_dim, max_seq_len, 
+            device, dtype
+        ):
 
         meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
         logger.info(f"Initializing {meta}")        
@@ -41,6 +47,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         ############################
         # Tokenizer + LLM (frozen) + LoRa (trainable)
         ############################
+        self.llm_path = llm_path
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
@@ -106,6 +113,36 @@ class AudioToLLMWrapper(torch.nn.Module):
         # Save LoRa adapters (PEFT) to path.lora/{adapter_model.bin,adapter_config.json}
         self.llm_model.save_pretrained(path + ".lora")
         logger.info(f"Saved LoRa adapters to {path}.lora")
+        # Save config to path.config.json}
+        config = {
+            "audio": {
+                "audio_path": self.audio_embedder.audio_path,
+#                "audio_embedding_dim": self.audio_embedder.D,
+                "l2_norm": self.audio_embedder.l2_norm,
+                "chunk_size" : self.audio_embedder.chunk_size,
+                "stride": self.audio_embedder.stride
+            },
+            "projector": {
+                "stack_size": self.projector.stack_size,
+#                "llm_embedding_dim": self.projector.llm_dimension,
+                "rank_dim": self.projector.rank_dim,
+                "max_seq_len": self.projector.max_seq_len
+            },
+            "llm": {
+                "llm_path": self.llm_path
+            },
+            "lora": {
+                "lora_r": 16,
+                "lora_alpha": 32,
+                "target_modules":  ["q_proj", "k_proj", "v_proj", "o_proj"],
+                "lora_dropout": 0.05,
+                "bias": "none",
+                "task_type": "CAUSAL_LM"
+            }
+        }
+        with open(f"{path}.json", "w", encoding="utf-8") as file:
+            json.dump(config, file, indent=4)
+        logger.info(f"Saved config to {path}.config.json")
 
 
 
