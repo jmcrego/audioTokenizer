@@ -20,12 +20,14 @@ config = {
     },
     "lora": {
         "path": None,
-        "lora_r": 16,
-        "lora_alpha": 32,
-        "target_modules":  ["q_proj", "k_proj", "v_proj", "o_proj"],
-        "lora_dropout": 0.05,
-        "bias": "none",
-        "task_type": "CAUSAL_LM"
+        "config": {
+            "lora_r": 16,
+            "lora_alpha": 32,
+            "target_modules":  ["q_proj", "k_proj", "v_proj", "o_proj"],
+            "lora_dropout": 0.05,
+            "bias": "none",
+            "task_type": "CAUSAL_LM"
+        }
     }
 }
 
