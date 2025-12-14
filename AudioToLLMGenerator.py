@@ -57,7 +57,12 @@ class AudioToLLMGenerator():
         )
         self.projector.to(device=device, dtype=dtype)
 
-        self.llm = LLM(model=llm_path, enable_prompt_embeds=True, enforce_eager=True) ### vLLM model with LoRA parameters already merged
+        self.llm = LLM(
+            model=llm_path,
+            enforce_eager=True,
+            trust_remote_code=True,
+        )
+
         self.llm.to(device=device, dtype=dtype)
 
 
@@ -136,9 +141,9 @@ class AudioToLLMGenerator():
         )
 
         outputs = self.llm.generate(
-            {
-                "prompt_embeds": combined_embs.cpu().numpy(),  # May need to convert to numpy
-                "multi_modal_data": {}
+            prompts={
+                "prompt_token_ids": [],  # Empty token IDs
+                "prompt_embeds": combined_embs.cpu()  # Pass embeddings
             },
             sampling_params=sampling_params
         )
