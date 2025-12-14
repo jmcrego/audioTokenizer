@@ -56,6 +56,8 @@ if __name__ == "__main__":
     elif args.task.startswith("translate2"):
         tgt_lang = args.task.split('2')[1]
         prompt = f"\nTranslate into {tgt_lang}.\n[STT]"
+    else:
+        raise ValueError(f"Unknown task: {args.task}")
 
 
     t = time.time()
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         for audio_file in args.audio_files.split(","):
             output = generator(
                 audio_file, 
-                args.prompt, 
+                prompt, 
                 max_output_tokens=args.max_output_tokens, 
                 temperature=args.temperature,
                 top_p=args.top_p,
