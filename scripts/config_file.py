@@ -9,7 +9,7 @@ config = {
         "stride": 1600
     },
     "projector": {
-        "path": none,
+        "path": None,
         "stack_size": 8,
         "embedding_dim": 2048,
         "rank_dim": 256,
@@ -19,7 +19,7 @@ config = {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct"
     },
     "lora": {
-        "path": none,
+        "path": None,
         "lora_r": 16,
         "lora_alpha": 32,
         "target_modules":  ["q_proj", "k_proj", "v_proj", "o_proj"],
