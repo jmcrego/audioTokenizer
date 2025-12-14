@@ -30,7 +30,7 @@ class AudioToLLMGenerator():
         stride = 1600
         stack_size = 8
         rank_dim = 256
-        llm_dimension = 4096  # should match llm hidden size
+        llm_dimension = 2048  # should match llm hidden size
 
         self.audio_embedder = AudioEmbedder(
             audio_path=audio_path,
