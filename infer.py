@@ -42,7 +42,7 @@ if __name__ == "__main__":
     )
 
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
-    logger.info(f"Device count: {torch.cuda.device_count()})
+    logger.info(f"Device count: {torch.cuda.device_count()}")
 
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
