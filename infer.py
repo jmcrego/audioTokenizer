@@ -1,5 +1,7 @@
 import torch
+import time
 import logging
+import argparse
 #from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm import LLM, SamplingParams
 from typing import Optional
@@ -11,8 +13,6 @@ from AudioToLLMGenerator import AudioToLLMGenerator
 logger = logging.getLogger("infer")
 
 if __name__ == "__main__":
-    import time
-    import argparse
 
     parser = argparse.ArgumentParser(
         description="Transcribe and translate audio using AudioToLLM with vLLM.",
