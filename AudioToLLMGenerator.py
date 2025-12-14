@@ -69,7 +69,6 @@ class AudioToLLMGenerator():
         #     llm_kwargs["max_model_len"] = max_model_len
         
         self.llm = LLM(**llm_kwargs)
-        self.llm.to(device=device, dtype=dtype)
 
 
         # the next should be read from wrapper config
