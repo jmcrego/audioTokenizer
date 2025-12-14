@@ -82,6 +82,7 @@ if __name__ == "__main__":
         stride=stride,
     )
     audio_embedder.to(device=device, dtype=dtype)    
+    audio_embedder.eval()
 
     tokenizer = AutoTokenizer.from_pretrained(args.llm_path)
     if tokenizer.pad_token is None:
@@ -89,16 +90,18 @@ if __name__ == "__main__":
 
     llm_model = AutoModelForCausalLM.from_pretrained(
         args.llm_path,
+        torch_dtype=dtype,
         low_cpu_mem_usage=True,
     )
-    llm_model.to(device=device, dtype=dtype)
-
+    llm_model.to(device=device)
 
     if args.lora_path is not None:
         llm_model = PeftModel.from_pretrained(
             llm_model,
             args.lora_path,
         )
+        llm_model.to(device=device, dtype=dtype)
+        llm_model.eval()
         logger.info(f"Loaded LoRA adapters from {args.lora_path}")
 
     projector = AudioToLLMProjector(

@@ -64,7 +64,7 @@ class AudioToLLMGeneratorHF:
         prompt_embs = prompt_embs.expand(B, -1, -1)
 
         # --------------------------------------------------
-        # 4) Concatenate embeddings
+        # 3) Concatenate embeddings
         # --------------------------------------------------
         inputs_embeds = torch.cat([proj_embs, prompt_embs], dim=1)
 
@@ -81,7 +81,7 @@ class AudioToLLMGeneratorHF:
         )
 
         # --------------------------------------------------
-        # 5) Generate
+        # 4) Generate
         # --------------------------------------------------
         outputs = self.model.generate(
             inputs_embeds=inputs_embeds,
