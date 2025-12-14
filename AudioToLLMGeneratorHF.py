@@ -80,6 +80,8 @@ class AudioToLLMGeneratorHF:
             dim=1,
         )
 
+        logger.info(f"inputs_embeds size = {inputs_embeds.shape}")
+
         # --------------------------------------------------
         # 4) Generate
         # --------------------------------------------------
@@ -93,6 +95,7 @@ class AudioToLLMGeneratorHF:
             pad_token_id=self.tokenizer.eos_token_id,
             eos_token_id=self.tokenizer.eos_token_id,
         )
+        logger.info(f"outputs size = {outputs.shape}")
 
         # --------------------------------------------------
         # 6) Decode ONLY generated tokens
@@ -100,7 +103,7 @@ class AudioToLLMGeneratorHF:
         gen_tokens = outputs#[:, inputs_embeds.size(1):]
         texts = self.tokenizer.batch_decode(
             gen_tokens,
-            skip_special_tokens=True,
+            skip_special_tokens=False,
         )
 
         return texts
