@@ -50,7 +50,6 @@ class AudioToLLMGenerator():
         self.llm_model_embedder.to(device=device, dtype=dtype)
         #remove llm model from memory, vLLM will load it
         del self.llm_model
-        torch.cuda.empty_cache()
 
         self.projector = AudioToLLMProjector(
             proj_path=proj_path,
