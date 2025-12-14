@@ -97,7 +97,7 @@ class AudioToLLMGeneratorHF:
         # --------------------------------------------------
         # 6) Decode ONLY generated tokens
         # --------------------------------------------------
-        gen_tokens = outputs[:, inputs_embeds.size(1):]
+        gen_tokens = outputs#[:, inputs_embeds.size(1):]
         texts = self.tokenizer.batch_decode(
             gen_tokens,
             skip_special_tokens=True,
