@@ -48,6 +48,8 @@ class AudioToLLMGeneratorHF:
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_embs = proj_embs.to(self.device, self.dtype)
         proj_mask = proj_mask.to(self.device)
+        logger.info(f"proj_embs size = {proj_embs.shape}")
+        logger.info(f"proj_mask size = {proj_mask.shape}")
 
         B, S, D = proj_embs.shape
 
@@ -60,8 +62,11 @@ class AudioToLLMGeneratorHF:
             add_special_tokens=False,
         ).input_ids.to(self.device)
 
+        logger.info(f"prompt: {prompt}")
+
         prompt_embs = self.model.get_input_embeddings()(prompt_ids)
         prompt_embs = prompt_embs.expand(B, -1, -1)
+        logger.info(f"prompt_embs size = {prompt_embs.shape}")
 
         # --------------------------------------------------
         # 3) Concatenate embeddings
@@ -81,6 +86,7 @@ class AudioToLLMGeneratorHF:
         )
 
         logger.info(f"inputs_embeds size = {inputs_embeds.shape}")
+        logger.info(f"attention_mask size = {attention_mask.shape}")
 
         # --------------------------------------------------
         # 4) Generate
