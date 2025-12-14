@@ -76,6 +76,7 @@ class AudioEmbedder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
+        logger.info(f"Initialize AudioEmbedder {config}")
         self.config = config
         path = config['path']
         embedding_dim = config['embedding_dim']
@@ -242,8 +243,6 @@ if __name__ == "__main__":
 
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
-
-    print(config)
 
     audio_embedder = AudioEmbedder(config=config['audio'])
     t = time.time()
