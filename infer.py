@@ -64,7 +64,7 @@ if __name__ == "__main__":
         audio_path=args.audio_path,
         proj_path=args.proj_path,
         llm_path=args.llm_path,
-        lora_path=args.lora_path,
+#        lora_path=args.lora_path,
         device=device,
         dtype=dtype,
     )
