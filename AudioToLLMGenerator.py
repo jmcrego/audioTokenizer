@@ -1,6 +1,7 @@
 import torch
 import logging
 from vllm import LLM, SamplingParams
+from vllm.utils.serial_utils import tensor2base64
 from typing import Optional
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -67,6 +68,7 @@ class AudioToLLMGenerator():
             "enforce_eager": True,
             "trust_remote_code": True,
             "gpu_memory_utilization": 0.9,  # Adjust based on your GPU memory
+            "enable_prompt_embeds" True,
         }
         
         # if max_model_len is not None:
@@ -140,6 +142,7 @@ class AudioToLLMGenerator():
 
         # Concatenate audio + text
         combined_embs = torch.cat([proj_embs, prompt_embs], dim=1) # [1, N_valid + L, llm_dim]
+        encoded_embs = tensor2base64(combined_embs).cpu()
 
         sampling_params = SamplingParams(
             temperature=temperature,
@@ -151,8 +154,9 @@ class AudioToLLMGenerator():
 
         outputs = self.llm.generate(
             prompts={
-                "prompt_token_ids": [],  # Empty token IDs
-                "prompt_embeds": combined_embs.cpu()  # Pass embeddings
+#                "prompt_token_ids": [],  # Empty token IDs
+                "prompt_embeds": encoded_embs  # Pass embeddings
+                "type": "embeds"
             },
             sampling_params=sampling_params
         )
