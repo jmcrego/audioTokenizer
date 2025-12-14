@@ -157,21 +157,16 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
 
-    embedder = AudioEmbedder(config=config['audio'], device=device)
-    projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim']).to(device)
+    embedder = AudioEmbedder(config=config['audio'])
+    projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
     print("Embeddings shape:", embed.shape)
     print("Masks shape:", masks.shape)
-
-    embed = embed.to(device)
-    masks = masks.to(device)
 
     proj_embed, proj_mask = projector(embed, masks)
 
