@@ -36,7 +36,7 @@ class AudioToLLMGenerator():
             lora_path=lora_path,
             chunk_size=3200,
             stride=1600,
-            stack_size=16,
+            stack_size=8,
             rank_dim=256,
             max_seq_len=1024,
             device=device,
