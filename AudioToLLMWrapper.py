@@ -53,7 +53,7 @@ class AudioToLLMWrapper(torch.nn.Module):
             p.requires_grad = ("lora" in n.lower())
 
         ###### Projector (trainable) ######################################
-        self.projector = AudioToLLMProjector(config['projector'])
+        self.projector = AudioToLLMProjector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
         self.projector.to(device=device, dtype=dtype)
         logger.info(f"Loaded LLM model from {llm_path}")
 

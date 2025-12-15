@@ -73,7 +73,7 @@ if __name__ == "__main__":
     projector = config["projector"]
     llm_path = config["llm"]["path"]
     lora_path = config["lora"]["path"]
-    audio_embedding_dim = config["projector"]["embedding_dim"]
+    audio_embedding_dim = config["audio"]["embedding_dim"]
 
     # --------------------------------------------------
     # Load models
