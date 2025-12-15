@@ -66,22 +66,18 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    llm_path = config["llm"]["path"]
-    lora_path = config["lora"]["path"]
-
-    # chunk_size = config["audio"]["chunk_size"]
-    # stride = config["audio"]["stride"]
-
-    # stack_size = config["projector"]["stack_size"]
-    # rank_dim = config["projector"]["rank_dim"]
-    audio_embedding_dim = config["projector"]["embedding_dim"]
-
     # --------------------------------------------------
     # Load models
     # --------------------------------------------------
     t0 = time.time()
 
-    audio_embedder = AudioEmbedder(config["audio"])
+    audio = config["audio"]
+    projector = config["projector"]
+    llm_path = config["llm"]["path"]
+    lora_path = config["lora"]["path"]
+    audio_embedding_dim = config["projector"]["embedding_dim"]
+
+    audio_embedder = AudioEmbedder(audio)
     audio_embedder.to(device=device, dtype=dtype)    
     audio_embedder.eval()
 
@@ -99,7 +95,7 @@ if __name__ == "__main__":
         llm_model.eval()
         logger.info(f"Loaded LoRA adapters from {args.lora_path}")
 
-    projector = AudioToLLMProjector(config["projector"], audio_embedding_dim=audio_embedding_dim)
+    projector = AudioToLLMProjector(projector, audio_embedding_dim=audio_embedding_dim)
     projector.to(device=device, dtype=dtype)
 
     generator = AudioToLLMGeneratorHF(
