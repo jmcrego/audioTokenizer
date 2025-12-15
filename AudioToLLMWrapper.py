@@ -273,7 +273,7 @@ class AudioToLLMWrapper(torch.nn.Module):
 
         logger.info(f"prompt: {prompt}")
 
-        prompt_embs = self.model.get_input_embeddings()(prompt_ids)
+        prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
         prompt_embs = prompt_embs.expand(B, -1, -1)
         logger.info(f"prompt_embs size = {prompt_embs.shape}")
 
@@ -300,7 +300,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         # --------------------------------------------------
         # 4) Generate
         # --------------------------------------------------
-        outputs = self.model.generate(
+        outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,

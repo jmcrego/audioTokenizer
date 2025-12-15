@@ -9,7 +9,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
 from train import get_device_dtype
-from AudioToLLMGeneratorHF import AudioToLLMGeneratorHF
 from AudioToLLMWrapper import AudioToLLMWrapper
 
 logger = logging.getLogger("infer")
@@ -24,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     # Inference params
-    parser.add_argument("--max_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
+    parser.add_argument("--max_new_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
     # Task params
@@ -83,16 +82,6 @@ if __name__ == "__main__":
     t0 = time.time()
 
     model = AudioToLLMWrapper(config, device, dtype, is_infer=True)
-
-    # generator = AudioToLLMGeneratorHF(
-    #     model=model.llm_model,
-    #     tokenizer=model.tokenizer,
-    #     audio_embedder=model.audio_embedder,
-    #     projector=model.projector,
-    #     max_new_tokens=args.max_tokens,
-    #     temperature=args.temperature,
-    #     top_p=args.top_p,
-    # )
 
     logger.info(f"Loading took {time.time() - t0:.2f} sec")
 
