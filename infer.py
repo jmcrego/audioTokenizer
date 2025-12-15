@@ -22,11 +22,7 @@ if __name__ == "__main__":
         description="Transcribe and/or translate audio using AudioToLLM (Hugging Face).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("--config", type=str, required=True, help="Config file")
-    # parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
-    # parser.add_argument("--proj_path", type=str, required=True)
-    # parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    # parser.add_argument("--lora_path", type=str, default=None)
+    parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     # Inference params
     parser.add_argument("--max_tokens", type=int, default=128, help="Maximum number of output tokens to generate")

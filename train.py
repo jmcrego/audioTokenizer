@@ -1,5 +1,6 @@
 
 import os
+import json
 import torch
 import logging
 import numpy as np
@@ -36,20 +37,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--config", type=str, required=True, help="Config file")
-    # # model paths
-    # parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
-    # parser.add_argument("--proj_path", type=str, default=None)
-    # parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    # parser.add_argument("--lora_path", type=str, default=None)
+    parser.add_argument("--config", type=str, required=True, help="Model config file")
     # dataset paths
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
-    # model vars
-    # parser.add_argument("--chunk_size", type=int, default=3200, help="Group this many samples when building chunks in audio processor")
-    # parser.add_argument("--stride", type=int, default=1600, help="Overlap this many samples when building chunks in audio processor")
-    # parser.add_argument("--stack_size", type=int, default=8, help="Stack this many frames in audio to LLM projector")
-    # parser.add_argument("--rank_dim", type=int, default=256, help="Low-rank intermediate dimension for audio to LLM projector")
     # optimization pars
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
     parser.add_argument("--lr_llm", type=float, default=1e-4, help="Learning rate for LoRa layers")
@@ -88,12 +79,15 @@ if __name__ == "__main__":
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
+    with open(args.config, "r", encoding="utf-8") as file:
+        config = json.load(file)
+
     # -----------------------------
     # Load model wrapper
     # -----------------------------
 
     model = AudioToLLMWrapper(
-        config=args.config,
+        config=config,
         device=device,
         dtype=dtype
     )

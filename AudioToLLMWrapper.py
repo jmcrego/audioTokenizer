@@ -1,5 +1,4 @@
 
-import json
 import torch
 import logging
 import torch.nn as nn
@@ -20,12 +19,7 @@ class AudioToLLMWrapper(torch.nn.Module):
     def __init__(self, config, device, dtype):
         super().__init__()
 
-        with open(config, "r", encoding="utf-8") as file:
-            self.config = json.load(file)
-
-        ############################
-        # Audio Embedder (frozen)
-        ############################
+        ###### Audio Embedder (frozen) ####################################
         self.audio_embedder = AudioEmbedder(config['audio'])
         self.audio_embedder.to(device=device, dtype=dtype)
 
@@ -33,42 +27,39 @@ class AudioToLLMWrapper(torch.nn.Module):
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
 
-        ############################
-        # Tokenizer + LLM (frozen) + LoRa (trainable)
-        ############################
+        ###### Tokenizer ##################################################
         llm_path = config['llm']['path']
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        ###### LLM (frozen) + LoRa (trainable) ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # Load LoRA adapters
-        if 'lora' in config:
-            if 'path' in config['lora']:
-                self.llm_model = PeftModel.from_pretrained(self.llm_model, config['lora']['path'], is_trainable=True)
-                logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
-            else:
-                # Initialize LoRa to LLM
-                self.llm_model = get_peft_model(self.llm_model, config['lora']['config'])
-                logger.info(f"Initialized LoRa adapters")
+        if 'path' in config['lora']:
+            self.llm_model = PeftModel.from_pretrained(self.llm_model, config['lora']['path'], is_trainable=True)
+            logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
+        else:
+            # Initialize LoRa to LLM
+            self.llm_model = get_peft_model(self.llm_model, config['lora']['config'])
+            logger.info(f"Initialized LoRa adapters")
 
         self.llm_model.to(device, dtype=dtype)
         # Freeze base model, keep LoRA trainable
         for n, p in self.llm_model.named_parameters():
             p.requires_grad = ("lora" in n.lower())
 
-        ############################
-        # Projector (trainable)
-        ############################
+        ###### Projector (trainable) ######################################
         self.projector = AudioToLLMProjector(config['projector'])
         self.projector.to(device=device, dtype=dtype)
+        logger.info(f"Loaded LLM model from {llm_path}")
 
         for p in self.projector.parameters():
             p.requires_grad = True
 
-        logger.info(f"Read Wrapper")
 
     def save(self, path):
         # Save projector to path.proj.pt
