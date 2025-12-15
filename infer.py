@@ -84,15 +84,15 @@ if __name__ == "__main__":
 
     model = AudioToLLMWrapper(config, device, dtype, is_infer=True)
 
-    generator = AudioToLLMGeneratorHF(
-        model=model.llm_model,
-        tokenizer=model.tokenizer,
-        audio_embedder=model.audio_embedder,
-        projector=model.projector,
-        max_new_tokens=args.max_tokens,
-        temperature=args.temperature,
-        top_p=args.top_p,
-    )
+    # generator = AudioToLLMGeneratorHF(
+    #     model=model.llm_model,
+    #     tokenizer=model.tokenizer,
+    #     audio_embedder=model.audio_embedder,
+    #     projector=model.projector,
+    #     max_new_tokens=args.max_tokens,
+    #     temperature=args.temperature,
+    #     top_p=args.top_p,
+    # )
 
     logger.info(f"Loading took {time.time() - t0:.2f} sec")
 
@@ -103,7 +103,13 @@ if __name__ == "__main__":
 
     with open(args.output, "w", encoding="utf-8") if args.output else nullcontext() as out_file:
         for audio_file in args.audio_files.split(","):
-            outputs = generator.generate([audio_file], prompt)
+            outputs = model.generate(
+                [audio_file], 
+                prompt, 
+                max_new_tokens=args.max_new_tokens, 
+                temperature=args.temperature, 
+                top_p=args.top_p
+            )
             text = outputs[0]
 
             if out_file:
