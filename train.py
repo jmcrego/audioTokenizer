@@ -99,9 +99,9 @@ if __name__ == "__main__":
     train_dataset = AudioDataset(
         file_path=args.train,
         tokenizer=model.tokenizer,
-        asr_token="[ASR]",
-        stt_token="[STT]",
-        end_token="[END]",
+        asr_token=config["asr_token"],
+        stt_token=config["stt_token"],
+        end_token=config["end_token"],
         sample_rate=model.audio_embedder.sample_rate,
         chunk_size=args.chunk_size,
         stride=args.stride,

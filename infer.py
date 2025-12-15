@@ -50,20 +50,6 @@ if __name__ == "__main__":
     logger.info(f"device: {device}, dtype: {dtype}")
 
     # --------------------------------------------------
-    # Task → prompt
-    # --------------------------------------------------
-    if args.task == "transcribe":
-        prompt = "\nTranscribe.\n[ASR]"
-    elif args.task.startswith("transcribe_translate2"):
-        tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranscribe then translate into {tgt_lang}.\n[ASR]"
-    elif args.task.startswith("translate2"):
-        tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranslate into {tgt_lang}.\n[STT]"
-    else:
-        raise ValueError(f"Unknown task: {args.task}")
-
-    # --------------------------------------------------
     # Config file
     # --------------------------------------------------
     with open(args.config, "r", encoding="utf-8") as file:
@@ -74,6 +60,23 @@ if __name__ == "__main__":
     llm_path = config["llm"]["path"]
     lora_path = config["lora"]["path"]
     audio_embedding_dim = config["audio"]["embedding_dim"]
+    asr_token = config["asr_token"]
+    stt_token = config["stt_token"]
+    end_token = config["end_token"]
+
+    # --------------------------------------------------
+    # Task → prompt
+    # --------------------------------------------------
+    if args.task == "transcribe":
+        prompt = f"\nTranscribe.\n{asr_token}"
+    elif args.task.startswith("transcribe_translate2"):
+        tgt_lang = args.task.split("2")[1]
+        prompt = f"\nTranscribe then translate into {tgt_lang}.\n{asr_token}"
+    elif args.task.startswith("translate2"):
+        tgt_lang = args.task.split("2")[1]
+        prompt = f"\nTranslate into {tgt_lang}.\n{stt_token}"
+    else:
+        raise ValueError(f"Unknown task: {args.task}")
 
     # --------------------------------------------------
     # Load models
