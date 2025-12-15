@@ -118,7 +118,7 @@ class AudioEmbedder(nn.Module):
         #model_stride is the downsampling factor from audio samples to embeddings (how many audio samples used for one embedding)
         assert chunk_size % self.model_stride == 0, f"chunk_size ({chunk_size}) must be a multiple of model stride ({self.model_stride})"
         #chunk_size must be a multiple of model stride to avoid padding
-        logger.info(f"Read model {path} model_stride={self.model_stride} sample_rate={self.sample_rate}")
+        logger.info(f"Loaded model {path} model_stride={self.model_stride} sample_rate={self.sample_rate}")
 
     def forward(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
         """
