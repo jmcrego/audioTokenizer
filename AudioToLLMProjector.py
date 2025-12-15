@@ -163,12 +163,6 @@ if __name__ == "__main__":
 
 
     embedder = AudioEmbedder(config=config['audio'])
-
-    with torch.no_grad():
-        dummy = embedder(args.audio_files.split(","))[0]
-        print("Audio embedder output dim:", dummy.shape[-1])
-    kk
-
     projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
