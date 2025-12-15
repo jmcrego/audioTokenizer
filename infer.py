@@ -68,11 +68,13 @@ if __name__ == "__main__":
 
     llm_path = config["llm"]["path"]
     lora_path = config["lora"]["path"]
-    chunk_size = 3200
-    stride = 1600
-    stack_size = 8
-    rank_dim = 256
-    audio_embedding_dim = config["audio"]["embedding_dim"]
+
+    # chunk_size = config["audio"]["chunk_size"]
+    # stride = config["audio"]["stride"]
+
+    # stack_size = config["projector"]["stack_size"]
+    # rank_dim = config["projector"]["rank_dim"]
+    audio_embedding_dim = config["projector"]["embedding_dim"]
 
     # --------------------------------------------------
     # Load models
