@@ -63,19 +63,22 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unknown task: {args.task}")
 
+    # --------------------------------------------------
+    # Config file
+    # --------------------------------------------------
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
-
-    # --------------------------------------------------
-    # Load models
-    # --------------------------------------------------
-    t0 = time.time()
 
     audio = config["audio"]
     projector = config["projector"]
     llm_path = config["llm"]["path"]
     lora_path = config["lora"]["path"]
     audio_embedding_dim = config["projector"]["embedding_dim"]
+
+    # --------------------------------------------------
+    # Load models
+    # --------------------------------------------------
+    t0 = time.time()
 
     audio_embedder = AudioEmbedder(audio)
     audio_embedder.to(device=device, dtype=dtype)    
@@ -87,13 +90,13 @@ if __name__ == "__main__":
 
     llm_model = AutoModelForCausalLM.from_pretrained(llm_path, torch_dtype=dtype, low_cpu_mem_usage=True)
     llm_model.to(device=device)
-    logger.info(f"Loaded llm_model from {args.llm_path}")
+    logger.info(f"Loaded llm_model from {llm_path}")
 
     if lora_path is not None:
         llm_model = PeftModel.from_pretrained(llm_model, lora_path)
         llm_model.to(device=device, dtype=dtype)
         llm_model.eval()
-        logger.info(f"Loaded LoRA adapters from {args.lora_path}")
+        logger.info(f"Loaded LoRA adapters from {lora_path}")
 
     projector = AudioToLLMProjector(projector, audio_embedding_dim=audio_embedding_dim)
     projector.to(device=device, dtype=dtype)
