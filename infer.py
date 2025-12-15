@@ -11,8 +11,6 @@ from peft import PeftModel
 from train import get_device_dtype
 from AudioToLLMGeneratorHF import AudioToLLMGeneratorHF
 from AudioToLLMWrapper import AudioToLLMWrapper
-# from AudioEmbedder import AudioEmbedder
-# from AudioToLLMProjector import AudioToLLMProjector
 
 logger = logging.getLogger("infer")
 
@@ -83,27 +81,6 @@ if __name__ == "__main__":
     # Load models
     # --------------------------------------------------
     t0 = time.time()
-
-    # audio_embedder = AudioEmbedder(audio)
-    # audio_embedder.to(device=device, dtype=dtype)    
-    # audio_embedder.eval()
-
-    # tokenizer = AutoTokenizer.from_pretrained(llm_path)
-    # if tokenizer.pad_token is None:
-    #     tokenizer.pad_token = tokenizer.eos_token
-
-    # llm_model = AutoModelForCausalLM.from_pretrained(llm_path, torch_dtype=dtype, low_cpu_mem_usage=True)
-    # llm_model.to(device=device)
-    # logger.info(f"Loaded llm_model from {llm_path}")
-
-    # if lora_path is not None:
-    #     llm_model = PeftModel.from_pretrained(llm_model, lora_path)
-    #     llm_model.to(device=device, dtype=dtype)
-    #     llm_model.eval()
-    #     logger.info(f"Loaded LoRA adapters from {lora_path}")
-
-    # projector = AudioToLLMProjector(projector, audio_embedding_dim=audio_embedding_dim)
-    # projector.to(device=device, dtype=dtype)
 
     model = AudioToLLMWrapper(config, device, dtype, is_infer=True)
 
