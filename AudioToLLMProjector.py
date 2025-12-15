@@ -60,8 +60,9 @@ class AudioToLLMProjector(nn.Module):
     def __init__(self, config, audio_embedding_dim):
         """
         Args:
+            config contains:
             audio_embedding_dim: Original audio frame dimension (e.g., 768 for mHuBERT)
-            stack_size: Frames per superframe (e.g., 10)
+            stack_size: Frames per superframe (e.g., 8)
             llm_dimension: Target LLM embedding size (e.g., 2048)
             rank_dim: Low-rank internal dimension (default 256)
         """
@@ -111,7 +112,7 @@ class AudioToLLMProjector(nn.Module):
         B, T, D = x.shape
         S = self.config['stack_size']
 
-        # every sequence of audio embeddings (T) in batch must be merged into superframes (S embeddings -> 1 superframes)
+        # every sequence of audio embeddings (T) in batch must be merged into superframes (S embeddings -> 1 superframe)
         # this may introduce pad embeddings at the end (to fit superframe size S)
         # Superframes with any frame/embedding consisting of pad will then be discarded (the entire superframe is masked)
 
@@ -162,6 +163,12 @@ if __name__ == "__main__":
 
 
     embedder = AudioEmbedder(config=config['audio'])
+
+    with torch.no_grad():
+        dummy = embedder(args.audio_files.split(","))[0]
+        print("Audio embedder output dim:", dummy.shape[-1])
+    kk
+
     projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
