@@ -246,17 +246,19 @@ class AudioToLLMWrapper(torch.nn.Module):
         audio_files: list[str]
         prompt: text instruction ("transcribe and translate", etc.)
         """
+        device = self.llm_model.device
+        dtype  = next(self.projector.parameters()).dtype
 
         # --------------------------------------------------
         # 1) Audio → embeddings → LLM projected embeddings 
         # --------------------------------------------------
         audio_embs, audio_mask = self.audio_embedder(audio_files)
-        audio_embs = audio_embs.to(self.device, self.dtype)
-        audio_mask = audio_mask.to(self.device)
+        audio_embs = audio_embs.to(device, dtype)
+        audio_mask = audio_mask.to(device)
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
-        proj_embs = proj_embs.to(self.device, self.dtype)
-        proj_mask = proj_mask.to(self.device)
+        proj_embs = proj_embs.to(device, dtype)
+        proj_mask = proj_mask.to(device)
         logger.info(f"proj_embs size = {proj_embs.shape}")
         logger.info(f"proj_mask size = {proj_mask.shape}")
 
@@ -269,7 +271,7 @@ class AudioToLLMWrapper(torch.nn.Module):
             prompt,
             return_tensors="pt",
             add_special_tokens=False,
-        ).input_ids.to(self.device)
+        ).input_ids.to(device)
 
         logger.info(f"prompt: {prompt}")
 
@@ -287,7 +289,7 @@ class AudioToLLMWrapper(torch.nn.Module):
                 proj_mask,
                 torch.ones(
                     (B, prompt_embs.size(1)),
-                    device=self.device,
+                    device=device,
                     dtype=torch.long,
                 ),
             ],
