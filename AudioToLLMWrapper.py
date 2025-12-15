@@ -15,8 +15,9 @@ logger = logging.getLogger("AudioToLLMWrapper")
 class AudioToLLMWrapper(torch.nn.Module):
     """
     Wrapper combining AudioEmbedder -> Projector -> LLM
+    Class used for training (not inference)
     """
-    def __init__(self, config, device, dtype, is_inference=False):
+    def __init__(self, config, device, dtype):
         super().__init__()
 
         with open(config, "r", encoding="utf-8") as file:
@@ -44,23 +45,19 @@ class AudioToLLMWrapper(torch.nn.Module):
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # Load LoRA adapters
-        lora_path = config['lora']['path']
-        if lora_path is not None:
-            self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path, is_trainable=not is_inference)
-            logger.info(f"Loaded LoRa adapters from {lora_path}")
-        else:
-            # Apply LoRa to LLM
-            if not is_inference:
+        if 'lora' in config:
+            if 'path' in config['lora']:
+                self.llm_model = PeftModel.from_pretrained(self.llm_model, config['lora']['path'], is_trainable=True)
+                logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
+            else:
+                # Initialize LoRa to LLM
                 self.llm_model = get_peft_model(self.llm_model, config['lora']['config'])
                 logger.info(f"Initialized LoRa adapters")
 
         self.llm_model.to(device, dtype=dtype)
         # Freeze base model, keep LoRA trainable
         for n, p in self.llm_model.named_parameters():
-            if is_inference:
-                p.requires_grad = False
-            else:
-                p.requires_grad = ("lora" in n.lower())
+            p.requires_grad = ("lora" in n.lower())
 
         ############################
         # Projector (trainable)
@@ -69,10 +66,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         self.projector.to(device=device, dtype=dtype)
 
         for p in self.projector.parameters():
-            if is_inference:
-                p.requires_grad = False
-            else:
-                p.requires_grad = True
+            p.requires_grad = True
 
         logger.info(f"Read Wrapper")
 

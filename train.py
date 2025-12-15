@@ -36,7 +36,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--config", type=str, required=True, help="Config file")
     # # model paths
     # parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
     # parser.add_argument("--proj_path", type=str, default=None)
@@ -94,17 +94,8 @@ if __name__ == "__main__":
 
     model = AudioToLLMWrapper(
         config=args.config,
-        # audio_path=args.audio_path,
-        # proj_path=args.proj_path,
-        # llm_path=args.llm_path,
-        # lora_path=args.lora_path,
-        # chunk_size=args.chunk_size,
-        # stride=args.stride,
-        # stack_size=args.stack_size,
-        # rank_dim=args.rank_dim,
-        # max_seq_len=args.max_seq_len,
         device=device,
-        dtype=dtype,
+        dtype=dtype
     )
 
     # -----------------------------

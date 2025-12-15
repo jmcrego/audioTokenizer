@@ -1,4 +1,5 @@
 import torch
+import json
 import time
 import logging
 import argparse
@@ -21,10 +22,11 @@ if __name__ == "__main__":
         description="Transcribe and/or translate audio using AudioToLLM (Hugging Face).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
-    parser.add_argument("--proj_path", type=str, required=True)
-    parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    parser.add_argument("--lora_path", type=str, default=None)
+    parser.add_argument("--config", type=str, required=True, help="Config file")
+    # parser.add_argument("--audio_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147")
+    # parser.add_argument("--proj_path", type=str, required=True)
+    # parser.add_argument("--llm_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    # parser.add_argument("--lora_path", type=str, default=None)
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     # Inference params
     parser.add_argument("--max_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
@@ -65,53 +67,41 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unknown task: {args.task}")
 
-    chunk_size = 3200  # must match audio embedder
-    stride = 1600      # must match audio embedder
-    stack_size = 8     # must match projector
-    rank_dim = 256     # must match projector
+    with open(args.config, "r", encoding="utf-8") as file:
+        config = json.load(file)
+
+    llm_path = config["llm"]["path"]
+    lora_path = config["lora"]["path"]
+    chunk_size = 3200
+    stride = 1600
+    stack_size = 8
+    rank_dim = 256
+    audio_embedding_dim = config["audio"]["embedding_dim"]
 
     # --------------------------------------------------
     # Load models
     # --------------------------------------------------
     t0 = time.time()
 
-    audio_embedder = AudioEmbedder(
-        audio_path=args.audio_path,
-        l2_norm=False,
-        chunk_size=chunk_size,
-        stride=stride,
-    )
+    audio_embedder = AudioEmbedder(config["audio"])
     audio_embedder.to(device=device, dtype=dtype)    
     audio_embedder.eval()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.llm_path)
+    tokenizer = AutoTokenizer.from_pretrained(llm_path)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    llm_model = AutoModelForCausalLM.from_pretrained(
-        args.llm_path,
-        torch_dtype=dtype,
-        low_cpu_mem_usage=True,
-    )
+    llm_model = AutoModelForCausalLM.from_pretrained(llm_path, torch_dtype=dtype, low_cpu_mem_usage=True)
     llm_model.to(device=device)
     logger.info(f"Loaded llm_model from {args.llm_path}")
 
-    if args.lora_path is not None:
-        llm_model = PeftModel.from_pretrained(
-            llm_model,
-            args.lora_path,
-        )
+    if lora_path is not None:
+        llm_model = PeftModel.from_pretrained(llm_model, lora_path)
         llm_model.to(device=device, dtype=dtype)
         llm_model.eval()
         logger.info(f"Loaded LoRA adapters from {args.lora_path}")
 
-    projector = AudioToLLMProjector(
-        proj_path=args.proj_path,
-        audio_embedding_dim=audio_embedder.D,
-        stack_size=stack_size,
-        rank_dim=rank_dim,
-        llm_dimension=llm_model.config.hidden_size,
-    )
+    projector = AudioToLLMProjector(config["projector"], audio_embedding_dim=audio_embedding_dim)
     projector.to(device=device, dtype=dtype)
 
     generator = AudioToLLMGeneratorHF(
