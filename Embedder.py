@@ -87,11 +87,16 @@ class Embedder(nn.Module):
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
             self.embedder = HubertModel.from_pretrained(path)
             assert embedding_dim == self.embedder.config.hidden_size, f"Given audio embedding dim ({embedding_dim}) does not match model embedding dim ({self.embedder.config.hidden_size})"
-            cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
-            cfg.mask_time_prob = 0.0
-            cfg.mask_time_length = 2     # optional (small safe value)
-            cfg.mask_feature_prob = 0.0
-            cfg.apply_spec_augment = False   # if available in this model class
+            # Disable augmentation
+            self.model.config.mask_time_prob = 0.0
+            self.model.config.mask_feature_prob = 0.0
+            self.model.config.apply_spec_augment = False
+
+            # cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
+            # cfg.mask_time_prob = 0.0
+            # cfg.mask_time_length = 2     # optional (small safe value)
+            # cfg.mask_feature_prob = 0.0
+            # cfg.apply_spec_augment = False   # if available in this model class
 
         elif "wav2vec2" in path.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
@@ -123,33 +128,49 @@ class Embedder(nn.Module):
         device = next(self.parameters()).device
         dtype = next(self.parameters()).dtype
 
-        # Preprocessing
-        wavs = [preprocess_audio(a, self.sample_rate) for a in audio_inputs]  # list of float32 [n_samples_i]
-        lengths = [len(w) for w in wavs]
+        # -----------------------------
+        # Preprocess and batch audio
+        # -----------------------------
+        preprocessed = [preprocess_audio(a, self.sample_rate) for a in audio_inputs]  # list of [num_samples], float32
+        lengths = [len(p) for p in preprocessed]  # list of ints
+
+        # Pad to max length
         max_len = max(lengths)
-        batch = np.stack([np.pad(w, (0, max_len - len(w))) for w in wavs])  # float32, [B, max_len]
-        batch = torch.tensor(batch, dtype=dtype, device=device)  # float32, [B, max_len]
+        batch_waveforms = np.stack([np.pad(p, (0, max_len - len(p))) for p in preprocessed])  # shape: [B, max_len], dtype: float32
+        inputs = torch.from_numpy(batch_waveforms).to(device=device, dtype=dtype)  # dtype: float32, shape: [B, max_len]
 
+        # -----------------------------
         # Feature extraction
-        inputs = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-        model_inputs = inputs.input_values if "whisper" not in self.config['path'].lower() else inputs.input_features
-        model_inputs = model_inputs.to(device, dtype=dtype)  # float32, [B, T_input]
+        # -----------------------------
+        if "whisper" in self.config['path'].lower():
+            input_dict = self.feature_extractor(inputs, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
+            inputs_model = input_dict.input_features.to(device=device, dtype=dtype)  # [B, F, T], float32
+        else:
+            input_dict = self.feature_extractor(inputs, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
+            inputs_model = input_dict.input_values.to(device=device, dtype=dtype)  # [B, T] float32
+            if len(inputs_model.shape) == 2:
+                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T] float32
 
+        # -----------------------------
         # Forward pass
+        # -----------------------------
         with torch.no_grad():
-            embeddings = self.embedder(model_inputs).last_hidden_state  # float32, [B, T', D]
+            out = self.model(inputs_model).last_hidden_state  # [B, T', D] float32
 
-        if self.config.get("l2_norm", False):
-            embeddings = torch.nn.functional.normalize(embeddings, dim=-1)  # float32, [B, T', D]
+        if self.l2_norm:
+            out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D] float32
 
-        # Masks
-        frame_scale = embeddings.shape[1] / max_len  # float (frame_scale is the conversion factor between raw audio samples and embedding frames)
-        mask = torch.stack([
-            torch.ones(int(l * frame_scale), dtype=torch.bool, device=device).pad((0, embeddings.shape[1] - int(l * frame_scale)))  
-            for l in lengths
-        ])  # bool, [B, T']
+        # -----------------------------
+        # Mask (valid frames)
+        # -----------------------------
+        mask = torch.zeros(out.shape[:2], dtype=torch.bool, device=device)  # [B, T'], bool
+        for i, l in enumerate(lengths):
+            # frame_scale is the conversion factor between raw audio samples and embedding frames
+            frame_scale = out.shape[1] / max_len
+            end = int(l * frame_scale)
+            mask[i, :end] = True
 
-        return embeddings, mask  # embeddings: float32 [B, T', D], mask: bool [B, T']
+        return out, mask  # embeddings: [B, T', D] float32, mask: [B, T'] bool
 
 
 
