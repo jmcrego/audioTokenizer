@@ -105,7 +105,8 @@ class Dataset(Dataset):
                     truncation=False
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                audio_time, total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
+                audio_time, n_audio = self.audio_length_in_tokens(audio_path)
+                total_length = n_audio + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
                     continue
 
