@@ -155,7 +155,7 @@ class Embedder(nn.Module):
         # Forward pass
         # -----------------------------
         with torch.no_grad():
-            out = self.model(inputs_model).last_hidden_state  # [B, T', D] float32
+            out = self.embedder(inputs_model).last_hidden_state  # [B, T', D] float32
 
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D] float32
