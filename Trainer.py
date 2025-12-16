@@ -1,6 +1,7 @@
 # Trainer.py 
 import os
 import re
+import glob
 import torch
 import shutil
 import random
@@ -331,12 +332,12 @@ def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
         old_ckpt_path = os.path.join(output_dir, f"{prefix}_step{old_step}")
 
         try:
-            os.remove(f"{old_ckpt_path}.proj.pt")
-            #os.remove(f"{old_ckpt_path}.optim.pt")
-            lora_dir = f"{old_ckpt_path}.lora"
-            if os.path.exists(lora_dir):
-                shutil.rmtree(lora_dir)
-            print(f"Removed old checkpoint {old_ckpt_path}")
-
+            for path in glob.glob(f"{old_ckpt_path}.*"):
+                if os.path.isdir(path):
+                    logger.info(f"Removing directory {path}")
+                    shutil.rmtree(path)
+                else:
+                    logger.info(f"Removing file {path}")
+                    os.remove(path)
         except Exception as e:
             print(f"Error removing old checkpoint {old_ckpt_path}: {e}")
