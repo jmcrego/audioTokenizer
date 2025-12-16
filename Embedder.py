@@ -260,4 +260,4 @@ if __name__ == "__main__":
     audio_embedder = Embedder(config=config['audio'])
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
-    print(f"Output embeddings {embeddings.shape}, took {time.time()-t:.2f} sec")
+    print(f"Output embeddings {embeddings.shape}, maks {masks.shape}, took {time.time()-t:.2f} sec")
