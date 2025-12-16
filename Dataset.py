@@ -105,7 +105,7 @@ class Dataset(Dataset):
                     truncation=False
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
+                audio_time, total_length = self.audio_length_in_tokens(audio_path) + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
                     continue
 
@@ -114,6 +114,7 @@ class Dataset(Dataset):
                     "prompt_ids": prompt_ids,
                     "target_ids": target_ids,
                     "total_length": total_length,
+                    "audio_time": audio_time,
                 })
             logger.debug(f"Read dataset {file_path} with {len(self.data)} samples")
 
@@ -154,7 +155,7 @@ class Dataset(Dataset):
         try:
             info = sf.info(filepath)
             if not info.duration:
-                return 0
+                return 0, 0
 
             # total audio samples
             n_samples = int(info.duration * self.sample_rate)
@@ -166,10 +167,10 @@ class Dataset(Dataset):
             # number of tokens after stacking frames
             n_tokens = (n_frames + self.stack_size - 1) // self.stack_size
 
-            return n_tokens
+            return info.duration, n_tokens
 
         except Exception:
-            return 0
+            return 0, 0
 
 
 if __name__ == "__main__":
@@ -197,4 +198,4 @@ if __name__ == "__main__":
             n_prompt = len(e["prompt_ids"])
             n_target = len(e["target_ids"])
             n_audio = e["total_length"] - n_prompt - n_target
-            print(f"\tidx={id}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
+            print(f"\tidx={id}\t{audio_time}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")

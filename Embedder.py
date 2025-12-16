@@ -95,9 +95,9 @@ class Embedder(nn.Module):
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.l2_norm = config.get("l2_norm", False)
-        self.ratio = self._downsample_ratio()
+        self.downsample_ratio = self._downsample_ratio()
 
-        logger.info(f"Loaded {self.path}, embedding_dim={self.embedding_dim}, sample_rate={self.sample_rate} downsample_ratio={self.ratio}")
+        logger.info(f"Loaded {self.path}, embedding_dim={self.embedding_dim}, sample_rate={self.sample_rate} downsample_ratio={self.downsample_ratio}")
 
     def forward(self, audio_inputs):
         """
@@ -130,14 +130,14 @@ class Embedder(nn.Module):
         if self.l2_norm:
             frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
 
-        # Downsample mask: sample-level → frame-level (each ratio samples is one frame)
+        # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
         # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
         # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
         # using: frame_masks = masks[:, ::4]
         # kept idx:     0       4       8
         # frame_masks:  1       1       0
         # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
-        frames_masks = masks[:, ::self.ratio]
+        frames_masks = masks[:, ::self.downsample_ratio]
         frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
         frames_masks = torch.from_numpy(frames_masks).to(device)
 

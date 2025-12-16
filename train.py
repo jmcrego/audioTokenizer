@@ -106,8 +106,7 @@ if __name__ == "__main__":
         stt_token=config["stt_token"],
         end_token=config["end_token"],
         sample_rate=model.audio_embedder.sample_rate,
-        chunk_size=config["audio"]["chunk_size"],
-        stride=config["audio"]["stride"],
+        downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
         max_seq_len=config["projector"]["max_seq_len"]
     )
@@ -119,8 +118,7 @@ if __name__ == "__main__":
         stt_token=config["stt_token"],
         end_token=config["end_token"],
         sample_rate=model.audio_embedder.sample_rate,
-        chunk_size=config["audio"]["chunk_size"],
-        stride=config["audio"]["stride"],
+        downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
         max_seq_len=config["projector"]["max_seq_len"]
     ) if args.eval is not None else None
