@@ -1,3 +1,4 @@
+# Trainer.py 
 import os
 import re
 import torch
@@ -46,7 +47,7 @@ class Trainer:
         seed=42,
     ):
         
-        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__"}
+        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__" and not k.endswith('Dataset') and not k == "model"}
         logger.info(f"Initializing {meta}")        
 
         self.seed_everything(seed)

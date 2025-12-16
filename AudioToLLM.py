@@ -1,4 +1,5 @@
 
+# AudioToLLM.py 
 import torch
 import json
 import logging
@@ -19,12 +20,13 @@ class AudioToLLM(torch.nn.Module):
     def __init__(self, config, device, dtype, is_infer=False):
         super().__init__()
 
-        llm_path = config['llm']['path']
+        self.config = config
 
         ###### Embedder (frozen) ####################################
         self.audio_embedder = Embedder(config['audio'])
 
         ###### Tokenizer ##################################################
+        llm_path = config['llm']['path']
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
