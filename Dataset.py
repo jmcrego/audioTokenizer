@@ -198,4 +198,5 @@ if __name__ == "__main__":
             n_prompt = len(e["prompt_ids"])
             n_target = len(e["target_ids"])
             n_audio = e["total_length"] - n_prompt - n_target
+            audio_time = e["audio_time"]
             print(f"\tidx={id}\t{audio_time}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}")
