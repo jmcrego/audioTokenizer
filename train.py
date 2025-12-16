@@ -11,7 +11,7 @@ from AudioToLLM import AudioToLLM
 from Trainer import Trainer
 from Dataset import Dataset
 
-logger = logging.getLogger("train_sft")
+logger = logging.getLogger("train")
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 

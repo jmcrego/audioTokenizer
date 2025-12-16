@@ -124,7 +124,6 @@ class Trainer:
         self.step = 0
         self.epoch = 0
         self.start_time = datetime.now()
-        logger.info(f"Training ready to start")        
 
 
     # -----------------------------
