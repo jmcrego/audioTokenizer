@@ -42,7 +42,6 @@ class Trainer:
         eval_every=1000,
         log_every=50,
         accum_steps=1,
-        warmup_steps=500,
         output_dir="./output_dir",
         seed=42,
     ):
@@ -73,14 +72,43 @@ class Trainer:
         self.device = param.device
         self.dtype = param.dtype
 
-        self.optimizer = torch.optim.AdamW([
-            {"params": self.model.projector.parameters(), "lr": self.lr_proj},
-            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": self.lr_llm},
-        ])
-        logger.info(f"Initialized AdamW optimizer with lr_proj={self.lr_proj} lr_llm={self.lr_llm}")
+        # -----------------------
+        # Sampler & DataLoader
+        # -----------------------
+        self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=batch_size)
+        self.train_loader = DataLoader(
+            train_dataset,
+            batch_sampler=self.train_sampler,
+            collate_fn=self.collate_fn
+        )
+        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size}")
 
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup for {max_steps} steps, with {warmup_steps} warmup_steps")
+        if eval_dataset is not None:
+            self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=batch_size)
+            self.eval_loader = DataLoader(
+                eval_dataset,
+                batch_sampler=self.eval_sampler,
+                collate_fn=self.collate_fn
+            )
+            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size}")
+        else:
+            self.eval_loader = None
+
+        if max_epochs:
+            self.max_steps = min(self.max_steps, int(len(train_dataset) / (batch_size * accum_steps)))
+            logger.info(f"max_steps set to {self.max_steps}")
+
+        # -----------------------
+        # Optimizer & Scheduler
+        # -----------------------
+        self.optimizer = torch.optim.AdamW([
+            {"params": self.model.projector.parameters(), "lr": lr_proj},
+            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_llm},
+        ])
+        logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_llm={lr_llm}")
+
+        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(0.01 * self.max_steps), num_training_steps=self.max_steps)
+        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps, with {int(0.01 * self.max_steps)} warmup_steps")
 
         # Scheduler: Linear warmup + decay
         # def lr_lambda(current_step):
@@ -88,28 +116,6 @@ class Trainer:
         #         return float(current_step) / float(max(1, warmup_steps))
         #     return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
         # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
-
-        # -----------------------
-        # Sampler & DataLoader
-        # -----------------------
-        self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=self.batch_size)
-        self.train_loader = DataLoader(
-            train_dataset,
-            batch_sampler=self.train_sampler,
-            collate_fn=self.collate_fn
-        )
-        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={self.batch_size}")
-
-        if eval_dataset is not None:
-            self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=self.batch_size)
-            self.eval_loader = DataLoader(
-                eval_dataset,
-                batch_sampler=self.eval_sampler,
-                collate_fn=self.collate_fn
-            )
-            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={self.batch_size}")
-        else:
-            self.eval_loader = None
 
         # For logging
         self.step = 0
