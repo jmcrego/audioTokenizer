@@ -147,9 +147,11 @@ class Embedder(nn.Module):
             inputs_model = input_dict.input_features.to(device=device, dtype=dtype)  # [B, F, T], float32
         else:
             input_dict = self.feature_extractor(inputs, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
-            inputs_model = input_dict.input_values.to(device=device, dtype=dtype)  # [B, T] float32
+            inputs_model = input_dict.input_values.to(device=device, dtype=dtype)  # [B, T], float32
+            # HuBERT/Wav2Vec2 expects [B, 1, T] (channel dimension = 1)
             if len(inputs_model.shape) == 2:
-                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T] float32
+                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T], float32
+
 
         # -----------------------------
         # Forward pass
