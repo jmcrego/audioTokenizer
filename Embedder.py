@@ -26,7 +26,6 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"preprocess: wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
-    return wav
 
     # -----------------------------
     # --- mono CHANNEL ------------
@@ -57,6 +56,11 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
     return wav
 
+def _compute_model_stride(self):
+    stride = 1
+    for layer in self.embedder.feature_extractor.conv_layers:
+        stride *= layer.conv.stride[0]
+    return stride
 
 
 class Embedder(nn.Module):
@@ -70,6 +74,7 @@ class Embedder(nn.Module):
         self.config = config
         self.path = config["path"]
         embedding_dim = config["embedding_dim"]
+        self.model_stride = self._compute_model_stride()
 
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -129,10 +134,16 @@ class Embedder(nn.Module):
         if self.l2_norm:
             embeds = torch.nn.functional.normalize(embeds, dim=-1)  # [B, T', D], float32
 
-        # --- Return embeddings and masks (T aligned to max length) ---
-        # If frame reduction occurs inside model (stride), masks must be downsampled accordingly
-        # For simplicity, here masks are same length as input; user can resample if needed
-        return embeds, masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+        B, T_frames, _ = embeds.shape
+
+        # masks (sample-level): [B, T_samples] bool
+        # Downsample mask → frame-level
+        frame_masks = masks[:, ::self.model_stride] # [B, ~T_frames]
+        frame_masks = frame_masks[:, :T_frames]     # exact alignment
+        # Convert to torch
+        embeds_masks = torch.from_numpy(frame_masks).to(device=embeds.device, dtype=torch.bool) # [B, T_frames] bool
+
+        return embeds, embeds_masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
 
 
 
