@@ -10,7 +10,8 @@ from datetime import datetime
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
-from torch.optim.lr_scheduler import LambdaLR
+#from torch.optim.lr_scheduler import LambdaLR
+from transformers import get_linear_schedule_with_warmup
 
 from Dataset import BatchedLengthSampler 
 
@@ -78,19 +79,19 @@ class Trainer:
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={self.lr_proj} lr_llm={self.lr_llm}")
 
-        # Scheduler: Linear warmup + decay
-        def lr_lambda(current_step):
-            if current_step < warmup_steps:
-                return float(current_step) / float(max(1, warmup_steps))
-            return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
+        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=max_steps)
+        logger.info(f"Initialized Linear scheduler with warmup for {max_steps} steps, with {warmup_steps} warmup_steps")
 
-        self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
-        logger.info(f"Initialized LambdaLR scheduler for {self.max_steps} steps, with {warmup_steps} warmup_steps")
+        # Scheduler: Linear warmup + decay
+        # def lr_lambda(current_step):
+        #     if current_step < warmup_steps:
+        #         return float(current_step) / float(max(1, warmup_steps))
+        #     return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
+        # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
 
         # -----------------------
         # Sampler & DataLoader
         # -----------------------
-
         self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=self.batch_size)
         self.train_loader = DataLoader(
             train_dataset,
@@ -138,9 +139,9 @@ class Trainer:
         # save Projector and LoRa adapters (ckpt_path.proj.pt / ckpt_path.lora/{adapter_model.bin,adapter_config.json})
         self.model.save(ckpt_path)
         # save optimizer state (ckpt_path.optim.pt)
-        state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
-        torch.save(state, f"{ckpt_path}.optim.pt")
-        print(f"Saved checkpoint to {ckpt_path}")
+        # state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
+        # torch.save(state, f"{ckpt_path}.optim.pt")
+        # print(f"Saved checkpoint to {ckpt_path}")
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
 

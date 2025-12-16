@@ -89,7 +89,7 @@ if __name__ == "__main__":
     model = AudioToLLM(
         config=config,
         device=device,
-        dtype=dtype
+        dtype=dtype 
     )
 
     # -----------------------------
@@ -112,14 +112,14 @@ if __name__ == "__main__":
     eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
-        asr_token="[ASR]",
-        stt_token="[STT]",
-        end_token="[END]",
+        asr_token=config["asr_token"],
+        stt_token=config["stt_token"],
+        end_token=config["end_token"],
         sample_rate=model.audio_embedder.sample_rate,
-        chunk_size=args.chunk_size,
-        stride=args.stride,
-        stack_size=args.stack_size,
-        max_seq_len=args.max_seq_len
+        chunk_size=config["chunk_size"],
+        stride=config["stride"],
+        stack_size=config["stack_size"],
+        max_seq_len=config["max_seq_len"]
     ) if args.eval is not None else None
 
     # -----------------------------
