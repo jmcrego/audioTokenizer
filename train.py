@@ -73,8 +73,8 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
-    logger.info("CUDA available:", torch.cuda.is_available())
-    logger.info("Device count:", torch.cuda.device_count())
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    logger.info(f"Device count: {torch.cuda.device_count()}")
 
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
