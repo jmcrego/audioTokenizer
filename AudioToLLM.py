@@ -9,9 +9,9 @@ from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 from Embedder import Embedder
 from Projector import Projector
 
-logger = logging.getLogger("AudioToLLMWrapper")
+logger = logging.getLogger("AudioToLLM")
 
-class AudioToLLMWrapper(torch.nn.Module):
+class AudioToLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
     Class used for training (not inference)

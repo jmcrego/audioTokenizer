@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
 from train import get_device_dtype
-from AudioToLLMWrapper import AudioToLLMWrapper
+from AudioToLLM import AudioToLLM
 
 logger = logging.getLogger("infer")
 
@@ -81,8 +81,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     t0 = time.time()
 
-    model = AudioToLLMWrapper(config, device, dtype, is_infer=True)
-
+    model = AudioToLLM(config, device, dtype, is_infer=True)
     logger.info(f"Loading took {time.time() - t0:.2f} sec")
 
     # --------------------------------------------------

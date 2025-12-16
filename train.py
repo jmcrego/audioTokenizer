@@ -5,7 +5,7 @@ import torch
 import logging
 import numpy as np
 
-from AudioToLLMWrapper import AudioToLLMWrapper
+from AudioToLLM import AudioToLLM
 from Trainer import Trainer
 from Dataset import Dataset
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     # Load model wrapper
     # -----------------------------
 
-    model = AudioToLLMWrapper(
+    model = AudioToLLM(
         config=config,
         device=device,
         dtype=dtype
