@@ -1,5 +1,6 @@
 
-# AudioToLLM.py 
+# AudioToLLM.py
+
 import torch
 import json
 import logging
@@ -56,7 +57,6 @@ class AudioToLLM(torch.nn.Module):
 
         ###### Projector (trainable) ######################################
         self.projector = Projector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
-        logger.info(f"Loaded LLM model from {llm_path}")
 
         ### set to correct device/dtype
         self.audio_embedder.to(device=device, dtype=dtype)
