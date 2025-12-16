@@ -74,7 +74,7 @@ class Embedder(nn.Module):
         self.config = config
         self.path = config["path"]
         embedding_dim = config["embedding_dim"]
-        self.model_stride = self._compute_model_stride()
+        self.downsample_ratio = self.feature_extractor.hop_length if "whisper" in self.path.lower() else self._compute_model_stride() #usually (160:whisper, 320:others)
 
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -122,28 +122,32 @@ class Embedder(nn.Module):
 
         # --- Pad sequences to max length ---
         max_len = max(lengths)
-        batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T]
-        masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T]
+        batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T_samples]
+        masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T_samples]
 
         input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
         inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
-        inputs = inputs.to(device=device, dtype=dtype)  # [B, T', F], float32
-        embeds = self.embedder(inputs).last_hidden_state  # [B, T', D], float32
+        inputs = inputs.to(device=device, dtype=dtype)  # [B, T_frames, F], float32
+
+        # Compute frames (embeddings)
+        frames = self.embedder(inputs).last_hidden_state  # [B, T_frames, D], float32
 
         # --- Optional L2 normalization ---
         if self.l2_norm:
-            embeds = torch.nn.functional.normalize(embeds, dim=-1)  # [B, T', D], float32
+            frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
 
-        B, T_frames, _ = embeds.shape
+        # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
+        # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
+        # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
+        # using: frame_masks = masks[:, ::4]
+        # kept idx:     0       4       8
+        # frame_masks:  1       1       0
+        # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
+        frames_masks = masks[:, ::self.downsample_ratio]
+        frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
+        frames_masks = torch.from_numpy(frames_masks).to(device)
 
-        # masks (sample-level): [B, T_samples] bool
-        # Downsample mask → frame-level
-        frame_masks = masks[:, ::self.model_stride] # [B, ~T_frames]
-        frame_masks = frame_masks[:, :T_frames]     # exact alignment
-        # Convert to torch
-        embeds_masks = torch.from_numpy(frame_masks).to(device=embeds.device, dtype=torch.bool) # [B, T_frames] bool
-
-        return embeds, embeds_masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+        return frames, frames_masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
 
 
 
