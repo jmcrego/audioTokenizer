@@ -84,7 +84,7 @@ class Trainer:
             batch_sampler=self.train_sampler,
             collate_fn=self.collate_fn
         )
-        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size}")
+        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
 
         if eval_dataset is not None:
             self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=batch_size)
@@ -93,7 +93,7 @@ class Trainer:
                 batch_sampler=self.eval_sampler,
                 collate_fn=self.collate_fn
             )
-            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size}")
+            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.train_dataset)} samples")
         else:
             self.eval_loader = None
 
