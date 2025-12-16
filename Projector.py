@@ -66,7 +66,7 @@ class Projector(nn.Module):
             llm_dimension: Target LLM embedding size (e.g., 2048)
         """
         super().__init__()
-        logger.info(f"Initializing Projector {config} audio_embedding_dim={audio_embedding_dim} llm_embedding_dim={llm_embedding_dim}")
+        logger.info(f"Initializing Projector {config}, audio_embedding_dim={audio_embedding_dim}, llm_embedding_dim={llm_embedding_dim}")
 
         self.config = config
         path = config['path']
