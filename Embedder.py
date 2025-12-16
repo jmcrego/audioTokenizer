@@ -56,12 +56,6 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
     return wav
 
-def _compute_model_stride(self):
-    stride = 1
-    for layer in self.embedder.feature_extractor.conv_layers:
-        stride *= layer.conv.stride[0]
-    return stride
-
 
 class Embedder(nn.Module):
     """
@@ -74,7 +68,7 @@ class Embedder(nn.Module):
         self.config = config
         self.path = config["path"]
         embedding_dim = config["embedding_dim"]
-        self.downsample_ratio = self.feature_extractor.hop_length if "whisper" in self.path.lower() else self._compute_model_stride() #usually (160:whisper, 320:others)
+        self.ratio = self._downsample_ratio()
 
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -136,18 +130,27 @@ class Embedder(nn.Module):
         if self.l2_norm:
             frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
 
-        # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
+        # Downsample mask: sample-level → frame-level (each ratio samples is one frame)
         # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
         # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
         # using: frame_masks = masks[:, ::4]
         # kept idx:     0       4       8
         # frame_masks:  1       1       0
         # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
-        frames_masks = masks[:, ::self.downsample_ratio]
+        frames_masks = masks[:, ::self.ratio]
         frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
         frames_masks = torch.from_numpy(frames_masks).to(device)
 
         return frames, frames_masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+
+
+    def _downsample_ratio(self):
+        if "whisper" in self.path.lower():
+            return self.feature_extractor.hop_length #usually 160
+        stride = 1
+        for layer in self.embedder.feature_extractor.conv_layers:
+            stride *= layer.conv.stride[0]
+        return stride #usually 320
 
 
 
