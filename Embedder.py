@@ -152,7 +152,7 @@ class Embedder(nn.Module):
         if "whisper" in self.path.lower():
             return self.feature_extractor.hop_length #usually 160
         stride = 1
-        for layer in self.feature_extractor.conv_layers:
+        for layer in self.embedder.feature_extractor.conv_layers:
             stride *= layer.conv.stride[0]
         return stride #usually 320
 
