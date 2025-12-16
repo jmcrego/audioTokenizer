@@ -5,7 +5,7 @@ import logging
 import torch.nn as nn
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import get_peft_model, PeftModel
+from peft import get_peft_model, PeftModel, LoraConfig
 
 from Embedder import Embedder
 from Projector import Projector
@@ -40,7 +40,15 @@ class AudioToLLM(torch.nn.Module):
             logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
         else:
             # Initialize LoRa in LLM
-            self.llm_model = get_peft_model(self.llm_model, config['lora']['config'])
+            lora_cfg = LoraConfig(
+                r=config["lora"]["lora_r"],
+                lora_alpha=config["lora"]["lora_alpha"],
+                target_modules=config["lora"]["target_modules"],
+                lora_dropout=config["lora"]["lora_dropout"],
+                bias=config["lora"]["bias"],
+                task_type=config["lora"]["task_type"],
+            )
+            self.llm_model = get_peft_model(self.llm_model, lora_cfg)
             logger.info(f"Initialized LoRa adapters")
 
 
