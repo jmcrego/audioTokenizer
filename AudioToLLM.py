@@ -58,8 +58,6 @@ class AudioToLLM(torch.nn.Module):
         self.projector = Projector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
         logger.info(f"Loaded LLM model from {llm_path}")
 
-
-
         ### set to correct device/dtype
         self.audio_embedder.to(device=device, dtype=dtype)
         self.projector.to(device=device, dtype=dtype)
