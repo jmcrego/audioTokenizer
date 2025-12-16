@@ -27,7 +27,7 @@ def arguments(args):
     return args
 
 
-class AudioTokenizer:
+class Tokenizer:
     """
     Audio Tokenizer: converts embedding frames into discrete token IDs.
     """
@@ -90,8 +90,7 @@ class AudioTokenizer:
 
 if __name__ == "__main__":
     import argparse
-    from AudioEmbedder import AudioEmbedder
-    from AudioProcessor import AudioProcessor
+    from Embedder import Embedder
 
     parser = argparse.ArgumentParser(description="Tokenize audio using pretrained centroids.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", type=str, default="utter-project/mhubert-147")
@@ -102,8 +101,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    audio_embedder = AudioEmbedder(model=args.model, top_db=0, device=args.device)
-    audio_tokenizer = AudioTokenizer(audio_embedder, args.centroids)
+    audio_embedder = Embedder(model=args.model, top_db=0, device=args.device)
+    audio_tokenizer = Tokenizer(audio_embedder, args.centroids)
 
     tokens = audio_tokenizer(args.wav)
     print(tokens)
