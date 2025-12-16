@@ -76,16 +76,16 @@ class Embedder(nn.Module):
             self.embedder = HubertModel.from_pretrained(path)
             assert embedding_dim == self.embedder.config.hidden_size
             # Disable augmentation
-            self.model.config.mask_time_prob = 0.0
-            self.model.config.mask_feature_prob = 0.0
-            self.model.config.apply_spec_augment = False
+            self.embedder.config.mask_time_prob = 0.0
+            self.embedder.config.mask_feature_prob = 0.0
+            self.embedder.config.apply_spec_augment = False
 
         elif "wav2vec2" in path.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
             self.embedder = Wav2Vec2Model.from_pretrained(path)
             assert embedding_dim == self.embedder.config.hidden_size
-            
+
         elif "whisper" in path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(path)
