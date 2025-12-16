@@ -58,23 +58,20 @@ class Projector(nn.Module):
     a low-rank MLP, and RoPE positional encoding.
     """
 
-    def __init__(self, config, audio_embedding_dim):
+    def __init__(self, config, audio_embedding_dim, llm_embedding_dim):
         """
         Args:
             config contains:
             audio_embedding_dim: Original audio frame dimension (e.g., 768 for mHuBERT)
-            stack_size: Frames per superframe (e.g., 8)
             llm_dimension: Target LLM embedding size (e.g., 2048)
-            rank_dim: Low-rank internal dimension (default 256)
         """
         super().__init__()
-        logger.info(f"Initializing Projector {config} audio_embedding_dim={audio_embedding_dim}")
+        logger.info(f"Initializing Projector {config} audio_embedding_dim={audio_embedding_dim} llm_embedding_dim={llm_embedding_dim}")
 
         self.config = config
         path = config['path']
         stack_size = config['stack_size']
         stacked_dim = audio_embedding_dim * stack_size
-        embedding_dim = config['embedding_dim']
         rank_dim = config['rank_dim']
         max_seq_len = config['max_seq_len']
 
@@ -82,12 +79,12 @@ class Projector(nn.Module):
         self.proj = nn.Sequential(
             nn.Linear(stacked_dim, rank_dim),
             nn.GELU(),
-            nn.Linear(rank_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim),
+            nn.Linear(rank_dim, llm_embedding_dim),
+            nn.LayerNorm(llm_embedding_dim),
         )
 
         # precompute the RoPE frequencies
-        rope_freqs = build_rope_freqs(max_seq_len, embedding_dim)
+        rope_freqs = build_rope_freqs(max_seq_len, llm_embedding_dim)
         self.register_buffer("rope_freqs", rope_freqs, persistent=False)
 
         # load projector if given
@@ -164,7 +161,7 @@ if __name__ == "__main__":
 
 
     embedder = Embedder(config=config['audio'])
-    projector = Projector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
+    projector = Projector(config=config['projector'], audio_embedding_dim=embedder.embedding_dim, llm_embedding_dim=2048)
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
     print("Embeddings shape:", embed.shape)

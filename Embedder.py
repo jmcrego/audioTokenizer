@@ -73,7 +73,6 @@ class Embedder(nn.Module):
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = HubertModel.from_pretrained(self.path)
             self.embedding_dim = self.embedder.config.hidden_size
-            assert config["embedding_dim"] == self.embedding_dim
             # Disable augmentation
             self.embedder.config.mask_time_prob = 0.0
             self.embedder.config.mask_feature_prob = 0.0
@@ -84,14 +83,13 @@ class Embedder(nn.Module):
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = Wav2Vec2Model.from_pretrained(self.path)
             self.embedding_dim = self.embedder.config.hidden_size
-            assert config["embedding_dim"] == self.embedding_dim
 
         elif "whisper" in self.path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
             self.embedder = WhisperModel.from_pretrained(self.path).encoder
             self.embedding_dim = self.embedder.config.d_model
-            assert config["embedding_dim"] == self.embedding_dim
+
         else:
             raise ValueError(f"Unknown model: {self.path}")
 
