@@ -116,7 +116,6 @@ class Dataset(Dataset):
                     "prompt_ids": prompt_ids,
                     "target_ids": target_ids,
                     "total_length": total_length,
-                    #"text": ""  # dummy for SFTTrainer
                 })
             logger.debug(f"Read dataset {file_path} with {len(self.data)} samples")
 
