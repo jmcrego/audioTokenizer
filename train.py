@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
     # optimization pars
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
-    parser.add_argument("--lr_llm", type=float, default=1e-4, help="Learning rate for LoRa layers")
+    parser.add_argument("--lr_llm", type=float, default=1e-4, help="Learning rate for LoRA layers")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")

@@ -43,7 +43,7 @@ class Trainer:
         log_every=50,
         accum_steps=1,
         warmup_steps=500,
-        output_dir="./output",
+        output_dir="./output_dir",
         seed=42,
     ):
         
