@@ -332,7 +332,7 @@ def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
 
         try:
             os.remove(f"{old_ckpt_path}.proj.pt")
-            os.remove(f"{old_ckpt_path}.optim.pt")
+            #os.remove(f"{old_ckpt_path}.optim.pt")
             lora_dir = f"{old_ckpt_path}.lora"
             if os.path.exists(lora_dir):
                 shutil.rmtree(lora_dir)
