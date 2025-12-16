@@ -41,12 +41,12 @@ class AudioToLLM(torch.nn.Module):
         else:
             # Initialize LoRa in LLM
             lora_cfg = LoraConfig(
-                r=config["lora"]["lora_r"],
-                lora_alpha=config["lora"]["lora_alpha"],
-                target_modules=config["lora"]["target_modules"],
-                lora_dropout=config["lora"]["lora_dropout"],
-                bias=config["lora"]["bias"],
-                task_type=config["lora"]["task_type"],
+                r=config["lora"]["config"]["lora_r"],
+                lora_alpha=config["lora"]["config"]["lora_alpha"],
+                target_modules=config["lora"]["config"]["target_modules"],
+                lora_dropout=config["lora"]["config"]["lora_dropout"],
+                bias=config["lora"]["config"]["bias"],
+                task_type=config["lora"]["config"]["task_type"],
             )
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
             logger.info(f"Initialized LoRa adapters")
