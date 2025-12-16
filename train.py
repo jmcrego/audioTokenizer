@@ -73,7 +73,6 @@ if __name__ == "__main__":
         ]
     )
 
-    logger = logging.getLogger(__name__)
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
