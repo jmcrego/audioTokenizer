@@ -145,10 +145,14 @@ class Embedder(nn.Module):
 
 
     def _downsample_ratio(self):
+        """
+        Compute the ratio between number of audio samples and features (or embeddings)
+        This is, how many samples are used for one feature
+        """
         if "whisper" in self.path.lower():
             return self.feature_extractor.hop_length #usually 160
         stride = 1
-        for layer in self.embedder.feature_extractor.conv_layers:
+        for layer in self.feature_extractor.conv_layers:
             stride *= layer.conv.stride[0]
         return stride #usually 320
 
