@@ -68,7 +68,6 @@ class Embedder(nn.Module):
         self.config = config
         self.path = config["path"]
         embedding_dim = config["embedding_dim"]
-        self.ratio = self._downsample_ratio()
 
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
@@ -96,6 +95,7 @@ class Embedder(nn.Module):
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.l2_norm = config.get("l2_norm", False)
+        self.ratio = self._downsample_ratio()
 
         logger.info(f"Loaded {self.path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
 
