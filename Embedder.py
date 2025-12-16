@@ -67,37 +67,37 @@ class Embedder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        path = config["path"]
+        self.path = config["path"]
         embedding_dim = config["embedding_dim"]
 
-        if "mhubert" in path.lower():
+        if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
-            self.embedder = HubertModel.from_pretrained(path)
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
+            self.embedder = HubertModel.from_pretrained(self.path)
             assert embedding_dim == self.embedder.config.hidden_size
             # Disable augmentation
             self.embedder.config.mask_time_prob = 0.0
             self.embedder.config.mask_feature_prob = 0.0
             self.embedder.config.apply_spec_augment = False
 
-        elif "wav2vec2" in path.lower():
+        elif "wav2vec2" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
-            self.embedder = Wav2Vec2Model.from_pretrained(path)
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
+            self.embedder = Wav2Vec2Model.from_pretrained(self.path)
             assert embedding_dim == self.embedder.config.hidden_size
 
-        elif "whisper" in path.lower():
+        elif "whisper" in self.path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
-            self.feature_extractor = WhisperFeatureExtractor.from_pretrained(path)
-            self.embedder = WhisperModel.from_pretrained(path).encoder
+            self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
+            self.embedder = WhisperModel.from_pretrained(self.path).encoder
             assert embedding_dim == self.embedder.config.d_model
         else:
-            raise ValueError(f"Unknown model: {path}")
+            raise ValueError(f"Unknown model: {self.path}")
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.l2_norm = config.get("l2_norm", False)
 
-        logger.info(f"Loaded {path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
+        logger.info(f"Loaded {self.path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
 
     def forward(self, audio_inputs):
         """
@@ -120,7 +120,7 @@ class Embedder(nn.Module):
         masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T]
 
         input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-        inputs = input_dict.input_values if "whisper" not in path.lower() else input_dict.input_features
+        inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
         inputs = inputs.to(device=device, dtype=dtype)  # [B, T', F], float32
         out = self.embedder(inputs).last_hidden_state  # [B, T', D], float32
 
