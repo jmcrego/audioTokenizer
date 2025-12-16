@@ -119,35 +119,11 @@ class Embedder(nn.Module):
         batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T]
         masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T]
 
-        batch_tensor = torch.from_numpy(batch).to(device=device, dtype=dtype)  # [B, T], float32
-        mask_tensor = torch.from_numpy(masks).to(device=device)                  # [B, T], bool
+        input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
+        inputs = input_dict.input_values if "whisper" not in path.lower() else input_dict.input_features
+        inputs = inputs.to(device=device, dtype=dtype)  # [B, T', F], float32
+        out = self.embedder(inputs).last_hidden_state  # [B, T', D], float32
 
-        # --- Model-specific input ---
-        path = self.config["path"].lower()
-        if "whisper" in path:
-            # Whisper expects [B, T, F]
-            inputs_model = self.feature_extractor(
-                batch_tensor.cpu().numpy(),  # feature_extractor expects numpy
-                sampling_rate=self.sample_rate,
-                return_tensors="pt",
-                padding=True
-            ).input_features
-            inputs_model = inputs_model.to(device=device, dtype=dtype)  # [B, T', F], float32
-            out = self.embedder(inputs_model).last_hidden_state          # [B, T', D], float32
-        else:
-            # HuBERT / Wav2Vec2 expects [B, 1, T]
-            if isinstance(self.feature_extractor, (torch.nn.Module,)):
-                # Some versions allow passing tensors directly
-                inputs_model = self.feature_extractor(batch_tensor, return_tensors="pt").input_values
-            else:
-                # Otherwise use numpy
-                inputs_model = self.feature_extractor(batch_tensor.cpu().numpy(), return_tensors="pt").input_values
-
-            inputs_model = inputs_model.to(device=device, dtype=dtype)   # [B, T]
-            if inputs_model.ndim == 2:
-                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T] for conv1d
-            out = self.embedder(inputs_model).last_hidden_state  # [B, T', D], float32
-            
         # --- Optional L2 normalization ---
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D], float32
@@ -155,7 +131,7 @@ class Embedder(nn.Module):
         # --- Return embeddings and masks (T aligned to max length) ---
         # If frame reduction occurs inside model (stride), masks must be downsampled accordingly
         # For simplicity, here masks are same length as input; user can resample if needed
-        return out, mask_tensor  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+        return out, masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
 
 
 
