@@ -1,5 +1,6 @@
 
 import torch
+import json
 import logging
 import torch.nn as nn
 
@@ -14,18 +15,16 @@ logger = logging.getLogger("AudioToLLM")
 class AudioToLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
-    Class used for training (not inference)
     """
     def __init__(self, config, device, dtype, is_infer=False):
         super().__init__()
 
+        llm_path = config['llm']['path']
+
         ###### Embedder (frozen) ####################################
         self.audio_embedder = Embedder(config['audio'])
-        self.audio_embedder.to(device=device, dtype=dtype)
-        self.audio_embedder.eval()
 
         ###### Tokenizer ##################################################
-        llm_path = config['llm']['path']
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
@@ -43,24 +42,30 @@ class AudioToLLM(torch.nn.Module):
             # Initialize LoRa to LLM
             self.llm_model = get_peft_model(self.llm_model, config['lora']['config'])
             logger.info(f"Initialized LoRa adapters")
-        self.llm_model.to(device, dtype=dtype)
+
 
         ###### Projector (trainable) ######################################
         self.projector = Projector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
-        self.projector.to(device=device, dtype=dtype)
         logger.info(f"Loaded LLM model from {llm_path}")
 
-        ### freeze/unfreeze parameters
+
+
+        ### set to correct device/dtype
+        self.audio_embedder.to(device=device, dtype=dtype)
+        self.projector.to(device=device, dtype=dtype)
+        self.llm_model.to(device, dtype=dtype)
+
+        ### freeze/unfreeze parameters and set eval mode if needed
         if is_infer:
-            self.llm_model.eval()
-            self.projector.eval()
             # Freeze base llm_model, Freeze LoRA
+            self.llm_model.eval()
             for n, p in self.llm_model.named_parameters():
                 p.requires_grad = False
             # Freeze projector
+            self.projector.eval()
             for p in self.projector.parameters():
                 p.requires_grad = False
-        else:
+        else: # is training
             # Freeze base llm_model, keep LoRA trainable
             for n, p in self.llm_model.named_parameters():
                 p.requires_grad = ("lora" in n.lower())
@@ -69,6 +74,7 @@ class AudioToLLM(torch.nn.Module):
                 p.requires_grad = True
 
         # Freeze audio_embedder
+        self.audio_embedder.eval()
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
 
@@ -85,6 +91,7 @@ class AudioToLLM(torch.nn.Module):
         with open(f"{path}.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {path}.config.json")
+
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):
