@@ -26,6 +26,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
     logger.debug(f"preprocess: wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+    return wav
 
     # -----------------------------
     # --- mono CHANNEL ------------
