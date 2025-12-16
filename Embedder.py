@@ -126,14 +126,28 @@ class Embedder(nn.Module):
         path = self.config["path"].lower()
         if "whisper" in path:
             # Whisper expects [B, T, F]
-            inputs_model = self.feature_extractor(batch_tensor, sampling_rate=self.sample_rate, return_tensors="pt", padding=True).input_features
+            inputs_model = self.feature_extractor(
+                batch_tensor.cpu().numpy(),  # feature_extractor expects numpy
+                sampling_rate=self.sample_rate,
+                return_tensors="pt",
+                padding=True
+            ).input_features
             inputs_model = inputs_model.to(device=device, dtype=dtype)  # [B, T', F], float32
             out = self.embedder(inputs_model).last_hidden_state          # [B, T', D], float32
         else:
-            # HuBERT/Wav2Vec2 expects [B, 1, T]
-            inputs_model = batch_tensor.unsqueeze(1)  # [B, 1, T], float32
-            out = self.embedder(inputs_model).last_hidden_state          # [B, T', D], float32
+            # HuBERT / Wav2Vec2 expects [B, 1, T]
+            if isinstance(self.feature_extractor, (torch.nn.Module,)):
+                # Some versions allow passing tensors directly
+                inputs_model = self.feature_extractor(batch_tensor, return_tensors="pt").input_values
+            else:
+                # Otherwise use numpy
+                inputs_model = self.feature_extractor(batch_tensor.cpu().numpy(), return_tensors="pt").input_values
 
+            inputs_model = inputs_model.to(device=device, dtype=dtype)   # [B, T]
+            if inputs_model.ndim == 2:
+                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T] for conv1d
+            out = self.embedder(inputs_model).last_hidden_state  # [B, T', D], float32
+            
         # --- Optional L2 normalization ---
         if self.l2_norm:
             out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D], float32
