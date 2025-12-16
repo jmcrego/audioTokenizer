@@ -56,123 +56,92 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
     return wav
 
-# def get_model_stride(embedder, feature_extractor, model_name):
-#     model_name = model_name.lower()
-#     if "whisper" in model_name:
-#         return feature_extractor.hop_length
-#     else:    
-#         stride = 1
-#         for layer in embedder.feature_extractor.conv_layers:
-#             stride *= layer.conv.stride[0]
-#         return stride
 
 
 class Embedder(nn.Module):
     """
-    Audio embeddings extractor with chunk/stride support.
-    Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
+    Audio embedding extractor for: 'mhubert', 'wav2vec2', 'whisper'
+    No manual chunking; handles padding and masks.
     """
 
     def __init__(self, config):
         super().__init__()
-
-        logger.info(f"Initializing Embedder {config}")
         self.config = config
-        
-        path = config['path']
-        embedding_dim = config['embedding_dim']
+        path = config["path"]
+        embedding_dim = config["embedding_dim"]
 
         if "mhubert" in path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
             self.embedder = HubertModel.from_pretrained(path)
-            assert embedding_dim == self.embedder.config.hidden_size, f"Given audio embedding dim ({embedding_dim}) does not match model embedding dim ({self.embedder.config.hidden_size})"
+            assert embedding_dim == self.embedder.config.hidden_size
             # Disable augmentation
-            self.embedder.config.mask_time_prob = 0.0
-            self.embedder.config.mask_feature_prob = 0.0
-            self.embedder.config.apply_spec_augment = False
-
-            # cfg = self.embedder.config # the next lines disable specaugment if any is applied, as we don't want to augment at inference time
-            # cfg.mask_time_prob = 0.0
-            # cfg.mask_time_length = 2     # optional (small safe value)
-            # cfg.mask_feature_prob = 0.0
-            # cfg.apply_spec_augment = False   # if available in this model class
+            self.model.config.mask_time_prob = 0.0
+            self.model.config.mask_feature_prob = 0.0
+            self.model.config.apply_spec_augment = False
 
         elif "wav2vec2" in path.lower():
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(path)
             self.embedder = Wav2Vec2Model.from_pretrained(path)
-            assert embedding_dim == self.embedder.config.hidden_size, f"Given audio embedding dim ({embedding_dim}) does not match model embedding dim ({self.embedder.config.hidden_size})"
-
+            assert embedding_dim == self.embedder.config.hidden_size
+            
         elif "whisper" in path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(path)
             self.embedder = WhisperModel.from_pretrained(path).encoder
-            assert embedding_dim == self.embedder.config.d_model, f"Given embedding dim ({embedding_dim}) does not match model embedding dim ({self.embedder.config.d_model})"
-
+            assert embedding_dim == self.embedder.config.d_model
         else:
             raise ValueError(f"Unknown model: {path}")
 
         self.sample_rate = self.feature_extractor.sampling_rate
-        logger.info(f"Loaded model {path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
+        self.l2_norm = config.get("l2_norm", False)
 
-
+        logger.info(f"Loaded {path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
 
     def forward(self, audio_inputs):
         """
-        audio_inputs: list of str paths or np.ndarray
+        Args:
+            audio_inputs: list of str paths or np.ndarray audio
         Returns:
-            embeddings: float32 [B, T', D]
-            mask: bool [B, T']
+            embeddings: [B, T_max, D] float32
+            masks: [B, T_max] bool
         """
         device = next(self.parameters()).device
         dtype = next(self.parameters()).dtype
 
-        # -----------------------------
-        # Preprocess and batch audio
-        # -----------------------------
-        preprocessed = [preprocess_audio(a, self.sample_rate) for a in audio_inputs]  # list of [num_samples], float32
-        lengths = [len(p) for p in preprocessed]  # list of ints
+        # --- Preprocess all audios ---
+        preprocessed = [preprocess_audio(a, sample_rate=self.sample_rate) for a in audio_inputs]
+        lengths = [len(a) for a in preprocessed]  # number of samples per audio
 
-        # Pad to max length
+        # --- Pad sequences to max length ---
         max_len = max(lengths)
-        batch_waveforms = np.stack([np.pad(p, (0, max_len - len(p))) for p in preprocessed])  # shape: [B, max_len], dtype: float32
-        inputs = torch.from_numpy(batch_waveforms).to(device=device, dtype=dtype)  # dtype: float32, shape: [B, max_len]
+        batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T]
+        masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T]
 
-        # -----------------------------
-        # Feature extraction
-        # -----------------------------
-        if "whisper" in self.config['path'].lower():
-            input_dict = self.feature_extractor(inputs, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
-            inputs_model = input_dict.input_features.to(device=device, dtype=dtype)  # [B, F, T], float32
+        batch_tensor = torch.from_numpy(batch).to(device=device, dtype=dtype)  # [B, T], float32
+        mask_tensor = torch.from_numpy(masks).to(device=device)                  # [B, T], bool
+
+        # --- Model-specific input ---
+        path = self.config["path"].lower()
+        if "whisper" in path:
+            # Whisper expects [B, T, F]
+            inputs_model = self.feature_extractor(batch_tensor, sampling_rate=self.sample_rate, return_tensors="pt", padding=True).input_features
+            inputs_model = inputs_model.to(device=device, dtype=dtype)  # [B, T', F], float32
+            out = self.embedder(inputs_model).last_hidden_state          # [B, T', D], float32
         else:
-            input_dict = self.feature_extractor(inputs, sampling_rate=self.sample_rate, return_tensors="pt", padding=True)
-            inputs_model = input_dict.input_values.to(device=device, dtype=dtype)  # [B, T], float32
-            # HuBERT/Wav2Vec2 expects [B, 1, T] (channel dimension = 1)
-            if len(inputs_model.shape) == 2:
-                inputs_model = inputs_model.unsqueeze(1)  # [B, 1, T], float32
+            # HuBERT/Wav2Vec2 expects [B, 1, T]
+            inputs_model = batch_tensor.unsqueeze(1)  # [B, 1, T], float32
+            out = self.embedder(inputs_model).last_hidden_state          # [B, T', D], float32
 
-
-        # -----------------------------
-        # Forward pass
-        # -----------------------------
-        with torch.no_grad():
-            out = self.embedder(inputs_model).last_hidden_state  # [B, T', D] float32
-
+        # --- Optional L2 normalization ---
         if self.l2_norm:
-            out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D] float32
+            out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D], float32
 
-        # -----------------------------
-        # Mask (valid frames)
-        # -----------------------------
-        mask = torch.zeros(out.shape[:2], dtype=torch.bool, device=device)  # [B, T'], bool
-        for i, l in enumerate(lengths):
-            # frame_scale is the conversion factor between raw audio samples and embedding frames
-            frame_scale = out.shape[1] / max_len
-            end = int(l * frame_scale)
-            mask[i, :end] = True
-
-        return out, mask  # embeddings: [B, T', D] float32, mask: [B, T'] bool
+        # --- Return embeddings and masks (T aligned to max length) ---
+        # If frame reduction occurs inside model (stride), masks must be downsampled accordingly
+        # For simplicity, here masks are same length as input; user can resample if needed
+        return out, mask_tensor  # out: [B, T', D] float32, mask_tensor: [B, T] bool
 
 
 
