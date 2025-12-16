@@ -122,16 +122,16 @@ class Embedder(nn.Module):
         input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
         inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
         inputs = inputs.to(device=device, dtype=dtype)  # [B, T', F], float32
-        out = self.embedder(inputs).last_hidden_state  # [B, T', D], float32
+        embeds = self.embedder(inputs).last_hidden_state  # [B, T', D], float32
 
         # --- Optional L2 normalization ---
         if self.l2_norm:
-            out = torch.nn.functional.normalize(out, dim=-1)  # [B, T', D], float32
+            embeds = torch.nn.functional.normalize(embeds, dim=-1)  # [B, T', D], float32
 
         # --- Return embeddings and masks (T aligned to max length) ---
         # If frame reduction occurs inside model (stride), masks must be downsampled accordingly
         # For simplicity, here masks are same length as input; user can resample if needed
-        return out, masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+        return embeds, masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
 
 
 
