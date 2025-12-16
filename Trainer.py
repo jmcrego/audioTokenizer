@@ -227,7 +227,7 @@ class Trainer:
         print(log_str)
 
         log_str = (
-            f"{'Eval' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
+            f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
             f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "

@@ -59,7 +59,6 @@ if __name__ == "__main__":
     projector = config["projector"]
     llm_path = config["llm"]["path"]
     lora_path = config["lora"]["path"]
-    audio_embedding_dim = config["audio"]["embedding_dim"]
     asr_token = config["asr_token"]
     stt_token = config["stt_token"]
     end_token = config["end_token"]
