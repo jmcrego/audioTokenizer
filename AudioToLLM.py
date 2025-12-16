@@ -35,7 +35,7 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # Load LoRA adapters
-        if 'path' in config['lora']:
+        if config['lora']['path'] is not None:
             self.llm_model = PeftModel.from_pretrained(self.llm_model, config['lora']['path'], is_trainable=not is_infer)
             logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
         else:
