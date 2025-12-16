@@ -89,6 +89,8 @@ class Dataset(Dataset):
                 if len(parts) < 5:
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
+                tgt_lang = None #ATTENTION!!! i only use ASR task
+                stt = None #ATTENTION!!! i only use ASR task
 
                 prompt_ids = tokenizer(
                     self.build_prompt(lang, tgt_lang),
@@ -113,7 +115,7 @@ class Dataset(Dataset):
                     "prompt_ids": prompt_ids,
                     "target_ids": target_ids,
                     "total_length": total_length,
-                    "text": ""  # dummy for SFTTrainer
+                    #"text": ""  # dummy for SFTTrainer
                 })
             logger.debug(f"Read dataset {file_path} with {len(self.data)} samples")
 
