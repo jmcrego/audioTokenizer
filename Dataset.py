@@ -64,8 +64,7 @@ class Dataset(Dataset):
         stt_token="[STT]",
         end_token="[END]",
         sample_rate=16000,
-        chunk_size=3200,
-        stride=1600,
+        downsample_ratio=320,
         stack_size=8,
         max_seq_len=1000,
         seed=42,
@@ -75,8 +74,7 @@ class Dataset(Dataset):
         self.stt_token = stt_token
         self.end_token = end_token
         self.sample_rate = sample_rate
-        self.chunk_size = chunk_size
-        self.stride = stride
+        self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
         self.max_seq_len = max_seq_len
 
@@ -149,16 +147,28 @@ class Dataset(Dataset):
             raise ValueError("No ASR or STT text provided")
 
     def audio_length_in_tokens(self, filepath):
-        """Estimate number of tokens for audio after embedding/projector"""
+        """
+        Estimate number of tokens produced from an audio file
+        after audio embedding + frame stacking (no chunking).
+        """
         try:
             info = sf.info(filepath)
             if not info.duration:
                 return 0
-            total_samples = int(info.duration * self.sample_rate)
-            n_chunks = max(0, (total_samples - self.chunk_size) // self.stride + 1)
-            n_tokens = (n_chunks + self.stack_size - 1) // self.stack_size
+
+            # total audio samples
+            n_samples = int(info.duration * self.sample_rate)
+
+            # number of frame-level embeddings
+            # (audio encoder internal downsampling)
+            n_frames = (n_samples + self.downsample_ratio - 1) // self.downsample_ratio
+
+            # number of tokens after stacking frames
+            n_tokens = (n_frames + self.stack_size - 1) // self.stack_size
+
             return n_tokens
-        except:
+
+        except Exception:
             return 0
 
 
@@ -170,12 +180,15 @@ if __name__ == "__main__":
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
+
     # Create dataset from file
     ds = Dataset(file_path=sys.argv[1], tokenizer=tokenizer)
     print(f"Dataset size: {len(ds)} samples")
+
     # Create sampler from datset
     sampler = BatchedLengthSampler(ds, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
+
     # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
         print(f"Batch {i}")

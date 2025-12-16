@@ -25,6 +25,7 @@ class AudioToLLM(torch.nn.Module):
 
         ###### Embedder (frozen) ####################################
         self.audio_embedder = Embedder(config['audio'])
+        self.audio_embedding_dim = self.audio_embedder.embedding_dim
 
         ###### Tokenizer ##################################################
         llm_path = config['llm']['path']
@@ -35,6 +36,7 @@ class AudioToLLM(torch.nn.Module):
 
         ###### LLM (frozen) + LoRa (trainable) ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
+        self.llm_embedding_dim = self.llm_model.config.hidden_size
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # Load LoRA adapters
@@ -56,7 +58,7 @@ class AudioToLLM(torch.nn.Module):
 
 
         ###### Projector (trainable) ######################################
-        self.projector = Projector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
+        self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
 
         ### set to correct device/dtype
         self.audio_embedder.to(device=device, dtype=dtype)
