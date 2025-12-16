@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import LambdaLR
 
-from AudioToLLMDataset import BatchedLengthSampler 
+from Dataset import BatchedLengthSampler 
 
-logger = logging.getLogger("AudioToLLMTrainer")
+logger = logging.getLogger("Trainer")
 
 class Color: #for logging
     RESET = "\033[0m"
@@ -26,7 +26,7 @@ class Color: #for logging
     CYAN = "\033[36m"
 
 
-class AudioToLLMTrainer:
+class Trainer:
     def __init__(
         self,
         model,

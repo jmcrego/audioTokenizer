@@ -1,10 +1,9 @@
 import torch
 import logging
-from typing import Optional
 import torch.nn as nn
 import torch.nn.functional as F
 
-logger = logging.getLogger("AudioToLLMProjector")
+logger = logging.getLogger("Projector")
 
 def build_rope_freqs(n_positions: int, dim: int, base: float = 10000.0) -> torch.Tensor:
     """
@@ -51,7 +50,7 @@ def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
 
 
 
-class AudioToLLMProjector(nn.Module):
+class Projector(nn.Module):
     """
     Projects audio embeddings into LLM embedding space using superframe stacking,
     a low-rank MLP, and RoPE positional encoding.
@@ -67,7 +66,7 @@ class AudioToLLMProjector(nn.Module):
             rank_dim: Low-rank internal dimension (default 256)
         """
         super().__init__()
-        logger.info(f"Initializing AudioiToLLMProjector {config} audio_embedding_dim={audio_embedding_dim}")
+        logger.info(f"Initializing Projector {config} audio_embedding_dim={audio_embedding_dim}")
 
         self.config = config
         path = config['path']
@@ -93,9 +92,9 @@ class AudioToLLMProjector(nn.Module):
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
             self.load_state_dict(state_dict, strict=True)
-            logger.info(f"Loaded AudioToLLMProjector from {path}")
+            logger.info(f"Loaded Projector from {path}")
         else:
-            logger.info("Initialized AudioToLLMProjector with random weights")            
+            logger.info("Initialized Projector with random weights")            
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
@@ -149,9 +148,9 @@ class AudioToLLMProjector(nn.Module):
 if __name__ == "__main__":
     import json
     import argparse
-    from AudioEmbedder import AudioEmbedder
+    from Embedder import Embedder
 
-    parser = argparse.ArgumentParser(description="Test Projector using an Audio Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Test Projector using an Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Config file")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")
     args = parser.parse_args()
@@ -162,8 +161,8 @@ if __name__ == "__main__":
         config = json.load(file)
 
 
-    embedder = AudioEmbedder(config=config['audio'])
-    projector = AudioToLLMProjector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
+    embedder = Embedder(config=config['audio'])
+    projector = Projector(config=config['projector'], audio_embedding_dim=config['audio']['embedding_dim'])
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
     print("Embeddings shape:", embed.shape)

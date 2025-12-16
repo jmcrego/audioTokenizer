@@ -7,7 +7,7 @@ import soundfile as sf
 from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
 
-logger = logging.getLogger("AudioToLLMDataset")
+logger = logging.getLogger("Dataset")
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
@@ -50,7 +50,7 @@ class BatchedLengthSampler(Sampler):
         return len(self.dataset)
 
 
-class AudioDataset(Dataset):
+class Dataset(Dataset):
     """
     PyTorch Dataset for audio-to-LLM SFT training.
     Builds prompt/target, estimates audio token lengths, and filters by max_seq_len.
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct", use_fast=True)
     # Create dataset from file
-    ds = AudioDataset(file_path=sys.argv[1], tokenizer=tokenizer)
+    ds = Dataset(file_path=sys.argv[1], tokenizer=tokenizer)
     print(f"Dataset size: {len(ds)} samples")
     # Create sampler from datset
     sampler = BatchedLengthSampler(ds, shuffle=True)

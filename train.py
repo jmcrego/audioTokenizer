@@ -6,8 +6,8 @@ import logging
 import numpy as np
 
 from AudioToLLMWrapper import AudioToLLMWrapper
-from AudioToLLMTrainer import AudioToLLMTrainer
-from AudioToLLMDataset import AudioDataset
+from Trainer import Trainer
+from Dataset import Dataset
 
 logger = logging.getLogger("train_sft")
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Datasets 
     # -----------------------------
 
-    train_dataset = AudioDataset(
+    train_dataset = Dataset(
         file_path=args.train,
         tokenizer=model.tokenizer,
         asr_token=config["asr_token"],
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         max_seq_len=config["max_seq_len"]
     )
 
-    eval_dataset = AudioDataset(
+    eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
         asr_token="[ASR]",
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # Create Trainer
     # -----------------------------
 
-    trainer = AudioToLLMTrainer(
+    trainer = Trainer(
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

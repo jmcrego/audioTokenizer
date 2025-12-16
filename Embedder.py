@@ -9,7 +9,7 @@ import numpy as np
 import torch.nn as nn
 import soundfile as sf
 
-logger = logging.getLogger("AudioEmbedder")
+logger = logging.getLogger("Embedder")
 
 # next are to speed up the embedding
 # torch.backends.cuda.matmul.allow_tf32 = True
@@ -67,7 +67,7 @@ def get_model_stride(embedder, feature_extractor, model_name):
         return stride
 
 
-class AudioEmbedder(nn.Module):
+class Embedder(nn.Module):
     """
     Audio embeddings extractor with chunk/stride support.
     Models supported: 'mhubert-147', 'wav2vec2-xlsr-53', 'whisper'
@@ -76,7 +76,7 @@ class AudioEmbedder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        logger.info(f"Initializing AudioEmbedder {config}")
+        logger.info(f"Initializing Embedder {config}")
         self.config = config
         
         path = config['path']
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    audio_embedder = AudioEmbedder(config=config['audio'])
+    audio_embedder = Embedder(config=config['audio'])
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
     print(f"Output embeddings {embeddings.shape}, took {time.time()-t:.2f} sec")

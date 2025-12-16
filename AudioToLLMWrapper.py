@@ -6,21 +6,21 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 
-from AudioEmbedder import AudioEmbedder
-from AudioToLLMProjector import AudioToLLMProjector
+from Embedder import Embedder
+from Projector import Projector
 
 logger = logging.getLogger("AudioToLLMWrapper")
 
 class AudioToLLMWrapper(torch.nn.Module):
     """
-    Wrapper combining AudioEmbedder -> Projector -> LLM
+    Wrapper combining Embedder -> Projector -> LLM
     Class used for training (not inference)
     """
     def __init__(self, config, device, dtype, is_infer=False):
         super().__init__()
 
-        ###### Audio Embedder (frozen) ####################################
-        self.audio_embedder = AudioEmbedder(config['audio'])
+        ###### Embedder (frozen) ####################################
+        self.audio_embedder = Embedder(config['audio'])
         self.audio_embedder.to(device=device, dtype=dtype)
         self.audio_embedder.eval()
 
@@ -46,7 +46,7 @@ class AudioToLLMWrapper(torch.nn.Module):
         self.llm_model.to(device, dtype=dtype)
 
         ###### Projector (trainable) ######################################
-        self.projector = AudioToLLMProjector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
+        self.projector = Projector(config['projector'], audio_embedding_dim=config["audio"]["embedding_dim"])
         self.projector.to(device=device, dtype=dtype)
         logger.info(f"Loaded LLM model from {llm_path}")
 
