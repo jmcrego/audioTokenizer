@@ -67,13 +67,13 @@ class Embedder(nn.Module):
         super().__init__()
         self.config = config
         self.path = config["path"]
-        embedding_dim = config["embedding_dim"]
 
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = HubertModel.from_pretrained(self.path)
-            assert embedding_dim == self.embedder.config.hidden_size
+            self.embedding_dim = self.embedder.config.hidden_size
+            assert config["embedding_dim"] == self.embedding_dim
             # Disable augmentation
             self.embedder.config.mask_time_prob = 0.0
             self.embedder.config.mask_feature_prob = 0.0
@@ -83,13 +83,15 @@ class Embedder(nn.Module):
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = Wav2Vec2Model.from_pretrained(self.path)
-            assert embedding_dim == self.embedder.config.hidden_size
+            self.embedding_dim = self.embedder.config.hidden_size
+            assert config["embedding_dim"] == self.embedding_dim
 
         elif "whisper" in self.path.lower():
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
             self.embedder = WhisperModel.from_pretrained(self.path).encoder
-            assert embedding_dim == self.embedder.config.d_model
+            self.embedding_dim = self.embedder.config.d_model
+            assert config["embedding_dim"] == self.embedding_dim
         else:
             raise ValueError(f"Unknown model: {self.path}")
 
@@ -97,7 +99,7 @@ class Embedder(nn.Module):
         self.l2_norm = config.get("l2_norm", False)
         self.ratio = self._downsample_ratio()
 
-        logger.info(f"Loaded {self.path}, embedding_dim={embedding_dim}, sample_rate={self.sample_rate}")
+        logger.info(f"Loaded {self.path}, embedding_dim={self.embedding_dim}, sample_rate={self.sample_rate} downsample_ratio={self.ratio}")
 
     def forward(self, audio_inputs):
         """
@@ -155,115 +157,6 @@ class Embedder(nn.Module):
         for layer in self.embedder.feature_extractor.conv_layers:
             stride *= layer.conv.stride[0]
         return stride #usually 320
-
-
-
-    # def forward(self, audio_inputs) -> tuple[torch.Tensor, torch.Tensor]:
-    #     """
-    #     Extract embeddings from a batch of audio files or numpy arrays with chunk/stride.
-    #     Args:
-    #         audio_inputs: List of str paths or np.ndarray audio chunks.
-    #     Returns:
-    #         embeddings: torch.Tensor [B, T, D] padded to the longest sequence
-    #         mask: torch.BoolTensor [B, T] indicating valid frames
-    #     """
-    #     param = next(self.parameters())
-    #     device = param.device
-    #     dtype  = param.dtype
-    #     embedding_dim = self.config['embedding_dim']
-    #     l2_norm = self.config['l2_norm']
-
-    #     all_chunks = []
-    #     lengths = []
-
-    #     # ----------------------------------------------
-    #     # --- preprocess audios and build chunks -------
-    #     # ----------------------------------------------
-    #     t = time.time()
-    #     for i, audio in enumerate(audio_inputs):
-    #         wav = preprocess_audio(audio, sample_rate=self.sample_rate)
-    #         n_samples = len(wav)
-    #         # # 1. Compute chunk start positions
-    #         # starts = np.arange(0, n_samples, stride)
-    #         # # 2. Pad wav ONCE so all end slices exist
-    #         # padded_len = starts[-1] + chunk_size
-    #         # if padded_len > n_samples:
-    #         #     wav = np.pad(wav, (0, padded_len - n_samples))
-    #         # # 3. Extract chunks: fast vectorized slicing
-    #         # chunks = np.stack([wav[s:s + chunk_size] for s in starts])
-    #         # # results
-    #         # all_chunks.append(chunks) # [n_chunks, chunk_size]
-    #         # lengths.append(len(chunks)) # number of chunks per audio input
-    #         # logger.debug(f"audio {i}, n_samples={n_samples} n_chunks={len(chunks)} time={n_samples/self.sample_rate:.2f} sec")
-    #     t_preprocess = time.time()-t
-
-    #     # ----------------------------------------------
-    #     # --- concat chunks, extract feats/embeds ------
-    #     # ----------------------------------------------
-    #     t = time.time()
-    #     # Concatenate all chunks for batch processing
-    #     batch_chunks = np.concatenate(all_chunks, axis=0)  # [C, cs] # C ~ Total chunks; cs ~ chunk size (number of samples in a chunk)
-    #     logger.debug(f"Concatenated n_chunks={batch_chunks.shape[0]} chunk_size={chunk_size} samples")
-
-    #     # Prepare waveforms for the embedding (not feature extraction)
-    #     input_dict = self.feature_extractor(batch_chunks, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-    #     inputs = input_dict.input_values if "whisper" not in path.lower() else input_dict.input_features
-
-    #     if device.type == "cuda":
-    #         inputs = inputs.to(device, dtype=dtype, non_blocking=True)
-    #     else:
-    #         inputs = inputs.to(device, dtype=dtype)
-
-    #     #C ~ batch size (total number of chunks)
-    #     #F ~ time dimension (number of frames per audio chunk)
-    #     #f ~ feature dimension (for spectrograms)
-
-    #     # Forward pass
-    #     with torch.no_grad():
-    #         out = self.embedder(inputs).last_hidden_state  # [C, E, D] # E ~ number of embeddings in chunk (frames) # D ~ embedding dimension
-
-    #     t_embeddings = time.time()-t
-    #     logger.debug(f"Extracted embeddings {out.shape} dtype={out.dtype}")
-
-    #     # Optional L2 normalization (only for computing clusters)
-    #     if l2_norm:
-    #         out = torch.nn.functional.normalize(out, dim=-1)
-
-    #     # ----------------------------------------------
-    #     # --- back to original format ------------------
-    #     # ----------------------------------------------
-    #     t = time.time()
-    #     # Split outputs back into original audios (B), each audio input is an entry in batch
-    #     embeddings = []
-    #     masks = []
-    #     idx = 0
-    #     for i, n_chunks in enumerate(lengths): #n_chunks (nC) is the number of chunks on each audio file
-    #         emb_audio = out[idx: idx + n_chunks]  # [nC_i, E, D] #nC_i ~ number of chunks in this audio file
-    #         idx += n_chunks
-    #         # Flatten chunks along time dimension
-    #         emb_audio = emb_audio.reshape(-1, embedding_dim)  # [nC_i*E, D] # nC_i*E is the number of embeddings in current audio file
-    #         embeddings.append(emb_audio)
-    #         # mask: valid embeddings are all ones as we padded only at audio level
-    #         mask = torch.ones(emb_audio.shape[0], dtype=torch.bool, device=device) #[nC_i*E]
-    #         masks.append(mask)
-    #         logger.debug(f"Audio {i} embeddings = {emb_audio.shape} mask = {mask.shape}")
-
-    #     #embeddings ~ [B, nC_i*E, D] (nC_i*E is different on each list element)
-    #     #masks = [B, nC_i*E]
-
-    #     # ----------------------------------------------
-    #     # --- add padding and return tensors -----------
-    #     # ----------------------------------------------
-    #     # Pad all sequences to the max length of embeddings (T)
-    #     max_len = max(e.shape[0] for e in embeddings)
-    #     padded_embeddings = torch.stack([torch.nn.functional.pad(e, (0,0,0,max_len - e.shape[0])) for e in embeddings]) #[B, T, D] 
-    #     logger.debug(f"Padded embeddings: {padded_embeddings.shape}")
-    #     padded_masks = torch.stack([torch.nn.functional.pad(m, (0,max_len - m.shape[0])) for m in masks]) #[B, T]
-    #     logger.debug(f"Padded masks: {padded_masks.shape} invalid frames={(~padded_masks).sum().item()}")
-    #     t_formatting = time.time()-t
-
-    #     logger.debug(f"Embedder times (msec): preprocess={1000*t_preprocess:.1f}, embedding={1000*t_embeddings:.1f}, formatting={1000*t_formatting:.1f}")
-    #     return padded_embeddings, padded_masks
 
 
 

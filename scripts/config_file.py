@@ -5,8 +5,6 @@ config = {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
         "embedding_dim": 768,
         "l2_norm": False,
-        "chunk_size" : 3200,
-        "stride": 1600
     },
     "projector": {
         "path": None,
