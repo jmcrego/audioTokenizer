@@ -4,6 +4,7 @@ import os
 import json
 import torch
 import logging
+import argparse
 import numpy as np
 
 from AudioToLLM import AudioToLLM
@@ -34,8 +35,9 @@ def get_device_dtype():
     dtype = torch.float32
     return device, dtype    
 
+
+
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
@@ -43,8 +45,8 @@ if __name__ == "__main__":
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
     # optimization pars
-    parser.add_argument("--lr_proj", type=float, default=1e-5, help="Learning rate for projector layers")
-    parser.add_argument("--lr_llm", type=float, default=5e-5, help="Learning rate for LoRA layers")
+    parser.add_argument("--lr_proj", type=float, default=1e-4, help="Learning rate for projector layers")
+    parser.add_argument("--lr_llm", type=float, default=1e-5, help="Learning rate for LoRA layers")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
