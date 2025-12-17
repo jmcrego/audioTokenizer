@@ -34,6 +34,7 @@ class Color: #for logging
 class Trainer:
     def __init__(
         self,
+        config,
         model,
         train_dataset,
         eval_dataset=None,
@@ -55,6 +56,7 @@ class Trainer:
 
         self.seed_everything(seed)
 
+        self.config = config
         self.model = model
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset

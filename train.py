@@ -125,6 +125,7 @@ if __name__ == "__main__":
     # -----------------------------
 
     trainer = Trainer(
+        config=config,
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

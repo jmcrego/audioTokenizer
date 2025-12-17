@@ -18,8 +18,6 @@ class AudioToLLM(torch.nn.Module):
     def __init__(self, config, device, dtype, is_infer=False):
         super().__init__()
 
-        self.config = config
-
         ###### Embedder ####################################
         self.audio_embedder = Embedder(config['audio'])
 
