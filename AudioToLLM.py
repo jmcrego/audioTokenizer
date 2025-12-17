@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from Embedder import Embedder
 from Projector import Projector
-from BackboneLLM import BackboneLLM
+from Backbone import Backbone
 
 logger = logging.getLogger("AudioToLLM")
 
@@ -25,7 +25,7 @@ class AudioToLLM(torch.nn.Module):
         self.audio_embedder = Embedder(config['audio'])
 
         ###### LLM (frozen) + LoRa (trainable) ############################
-        self.backbone_llm = BackboneLLM(config['llm'], config['lora'])
+        self.backbone_llm = Backbone(config['llm'], config['lora'])
         self.llm_model = self.backbone_llm.llm_model
         self.tokenizer = self.backbone_llm.tokenizer
 

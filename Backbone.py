@@ -7,9 +7,9 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import get_peft_model, PeftModel, LoraConfig
 
-logger = logging.getLogger("BackboneLLM")
+logger = logging.getLogger("Backbone")
 
-class BackboneLLM(torch.nn.Module):
+class Backbone(torch.nn.Module):
     """
     Wrapper for the base LLM
     """
@@ -36,6 +36,7 @@ class BackboneLLM(torch.nn.Module):
             self.llm_model = PeftModel.from_pretrained(self.llm_model, config_lora["path"])
             logger.info(f"Loaded LoRa adapters from {lora_cfg}")
         else:
+            # create new lora adapters
             lora_cfg = LoraConfig(
                 r=config_lora["config"]["lora_r"],
                 lora_alpha=config_lora["config"]["lora_alpha"],
@@ -44,7 +45,6 @@ class BackboneLLM(torch.nn.Module):
                 bias=config_lora["config"]["bias"],
                 task_type=config_lora["config"]["task_type"],
             )
-            # create new lora adapters
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
             logger.info(f"Initialized LoRa adapters")
 
