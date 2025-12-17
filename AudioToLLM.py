@@ -288,7 +288,7 @@ class AudioToLLM(torch.nn.Module):
             prompt,
             return_tensors="pt",
             padding=False,
-            trunctaion=False,
+            truncation=False,
 #            add_special_tokens=False,
         ).input_ids.to(device)
 

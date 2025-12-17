@@ -95,7 +95,7 @@ class Dataset(Dataset):
                     self.build_prompt(lang, tgt_lang),
                     return_tensors="pt",
                     padding=False,
-                    trunctaion=False,
+                    truncation=False,
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
@@ -103,7 +103,7 @@ class Dataset(Dataset):
                     self.build_target(asr, stt),
                     return_tensors="pt",
                     padding=False,
-                    trunctaion=False,
+                    truncation=False,
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
