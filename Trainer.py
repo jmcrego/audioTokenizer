@@ -227,7 +227,8 @@ class Trainer:
 
         log_str = (
             f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{step/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_llm={Color.GREEN}{lr_llm:.6e}{Color.RESET} | "
@@ -237,7 +238,8 @@ class Trainer:
 
         log_str = (
             f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{step/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
             f"lr_llm={lr_llm:.6e} | "
