@@ -6,11 +6,9 @@ import json
 import logging
 import torch.nn as nn
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import get_peft_model, PeftModel, LoraConfig
-
 from Embedder import Embedder
 from Projector import Projector
+from BackboneLLM import BackboneLLM
 
 logger = logging.getLogger("AudioToLLM")
 
@@ -25,40 +23,14 @@ class AudioToLLM(torch.nn.Module):
 
         ###### Embedder (frozen) ####################################
         self.audio_embedder = Embedder(config['audio'])
-        self.audio_embedding_dim = self.audio_embedder.embedding_dim
-
-        ###### Tokenizer ##################################################
-        llm_path = config['llm']['path']
-        self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
-        logger.info(f"Loaded Tokenizer from {llm_path}")
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
 
         ###### LLM (frozen) + LoRa (trainable) ############################
-        self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
-        self.llm_embedding_dim = self.llm_model.config.hidden_size
-        logger.info(f"Loaded LLM model from {llm_path}")
-
-        # Load LoRA adapters
-        if config['lora']['path'] is not None:
-            self.llm_model = PeftModel.from_pretrained(self.llm_model, config['lora']['path'], is_trainable=not is_infer)
-            logger.info(f"Loaded LoRa adapters from {config['lora']['path']}")
-        else:
-            # Initialize LoRa in LLM
-            lora_cfg = LoraConfig(
-                r=config["lora"]["config"]["lora_r"],
-                lora_alpha=config["lora"]["config"]["lora_alpha"],
-                target_modules=config["lora"]["config"]["target_modules"],
-                lora_dropout=config["lora"]["config"]["lora_dropout"],
-                bias=config["lora"]["config"]["bias"],
-                task_type=config["lora"]["config"]["task_type"],
-            )
-            self.llm_model = get_peft_model(self.llm_model, lora_cfg)
-            logger.info(f"Initialized LoRa adapters")
-
+        self.backbone_llm = BackboneLLM(config['llm'], config['lora'])
+        self.llm_model = self.backbone_llm.llm_model
+        self.tokenizer = self.backbone_llm.tokenizer
 
         ###### Projector (trainable) ######################################
-        self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
+        self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedder.embedding_dim, llm_embedding_dim=self.llm_model.config.hidden_size)
 
         ### set to correct device/dtype
         self.audio_embedder.to(device=device, dtype=dtype)
@@ -101,7 +73,6 @@ class AudioToLLM(torch.nn.Module):
         with open(f"{path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {path}.config.json")
-
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):
