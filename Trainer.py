@@ -170,8 +170,6 @@ class Trainer:
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
 
-
-
     # -----------------------
     # Load checkpoint
     # -----------------------
