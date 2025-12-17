@@ -67,13 +67,13 @@ if __name__ == "__main__":
     # Task → prompt
     # --------------------------------------------------
     if args.task == "transcribe":
-        prompt = f"\nTranscribe.\n{asr_token}"
+        prompt = f"\nTranscribe.\n"
     elif args.task.startswith("transcribe_translate2"):
         tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranscribe then translate into {tgt_lang}.\n{asr_token}"
+        prompt = f"\nTranscribe then translate into {tgt_lang}.\n"
     elif args.task.startswith("translate2"):
         tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranslate into {tgt_lang}.\n{stt_token}"
+        prompt = f"\nTranslate into {tgt_lang}.\n"
     else:
         raise ValueError(f"Unknown task: {args.task}")
 

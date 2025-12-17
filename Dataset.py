@@ -88,8 +88,6 @@ class Dataset(Dataset):
                 if len(parts) < 5:
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
-                tgt_lang = None #ATTENTION!!! i only use ASR task
-                stt = None #ATTENTION!!! i only use ASR task
 
                 prompt_ids = tokenizer(
                     self.build_prompt(lang, tgt_lang),
@@ -132,21 +130,21 @@ class Dataset(Dataset):
 
     def build_prompt(self, lang, tgt_lang):
         if lang and tgt_lang:
-            return f"\nTranscribe then translate into {tgt_lang}.\n{self.asr_token}"
+            return f"\nTranscribe then translate into {tgt_lang}.\n"
         elif lang:
-            return f"\nTranscribe.\n{self.asr_token}"
+            return f"\nTranscribe.\n"
         elif tgt_lang:
-            return f"\nTranslate into {tgt_lang}.\n{self.stt_token}"
+            return f"\nTranslate into {tgt_lang}.\n"
         else:
             raise ValueError("No lang or tgt_lang provided")
 
     def build_target(self, asr, stt):
         if asr and stt:
-            return f"{asr} {self.stt_token} {stt} {self.end_token}"
+            return f"{self.asr_token} {asr} {self.stt_token} {stt} {self.end_token}"
         elif asr:
-            return f"{asr} {self.end_token}"
+            return f"{self.asr_token} {asr} {self.end_token}"
         elif stt:
-            return f"{stt} {self.end_token}"
+            return f"{self.stt_token} {stt} {self.end_token}"
         else:
             raise ValueError("No ASR or STT text provided")
 
