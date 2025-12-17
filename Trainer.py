@@ -342,11 +342,10 @@ def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
 
         try:
             for path in glob.glob(f"{old_ckpt_path}.*"):
+                logger.info(f"Removing {path}.*")
                 if os.path.isdir(path):
-                    logger.info(f"Removing directory {path}")
                     shutil.rmtree(path)
                 else:
-                    logger.info(f"Removing file {path}")
                     os.remove(path)
         except Exception as e:
             print(f"Error removing old checkpoint {old_ckpt_path}: {e}")
