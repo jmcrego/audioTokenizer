@@ -2,7 +2,6 @@
 # AudioToLLM.py
 
 import torch
-import json
 import logging
 import torch.nn as nn
 
@@ -21,21 +20,23 @@ class AudioToLLM(torch.nn.Module):
 
         self.config = config
 
-        ###### Embedder (frozen) ####################################
+        ###### Embedder ####################################
         self.audio_embedder = Embedder(config['audio'])
 
-        ###### LLM (frozen) + LoRa (trainable) ############################
+        ###### Backbone ############################
         self.backbone = Backbone(config['llm'], config['lora'])
         self.llm_model = self.backbone.llm_model
         self.tokenizer = self.backbone.tokenizer
 
-        ###### Projector (trainable) ######################################
+        ###### Projector ######################################
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedder.embedding_dim, llm_embedding_dim=self.llm_model.config.hidden_size)
 
-        ### set to correct device/dtype
+        ###################################
+        ### set to correct device/dtype ###
+        ###################################
         self.audio_embedder.to(device=device, dtype=dtype)
         self.projector.to(device=device, dtype=dtype)
-        self.llm_model.to(device, dtype=dtype)
+        self.llm_model.to(device=device, dtype=dtype)
 
         ### freeze/unfreeze parameters and set eval mode if needed
         if is_infer:
@@ -59,20 +60,6 @@ class AudioToLLM(torch.nn.Module):
         self.audio_embedder.eval()
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
-
-
-    def save(self, path):
-        # Save projector to path.proj.pt
-        torch.save(self.projector.state_dict(), path + ".proj.pt")
-        logger.info(f"Saved Projector to {path}.proj.pt")
-        # Save LoRa adapters (PEFT) to path.lora/{adapter_model.bin,adapter_config.json}
-        self.llm_model.save_pretrained(path + ".lora")
-        logger.info(f"Saved LoRa adapters to {path}.lora")
-        # Save config to path.config.json}
-        self.config['lora']['path'] = path + ".lora"
-        with open(f"{path}.config.json", "w", encoding="utf-8") as file:
-            json.dump(self.config, file, indent=4)
-        logger.info(f"Saved config to {path}.config.json")
 
 
     def forward(self, audio_paths, prompt_ids, target_ids):

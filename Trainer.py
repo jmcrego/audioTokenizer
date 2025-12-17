@@ -3,6 +3,7 @@
 import os
 import re
 import glob
+import json
 import torch
 import shutil
 import random
@@ -144,27 +145,35 @@ class Trainer:
     def save_checkpoint(self, step=None, prefix="checkpoint"):
         step_str = f"_step{step}" if step is not None else ""
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
-        # save Projector and LoRa adapters (ckpt_path.proj.pt / ckpt_path.lora/{adapter_model.bin,adapter_config.json})
-        self.model.save(ckpt_path)
+
+        # Save Projector
+        torch.save(self.model.projector.state_dict(), ckpt_path + ".proj.pt")
+        logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
+
+        # Save model LoRa adapters (PEFT)
+        self.model.llm_model.save_pretrained(ckpt_path + ".lora")
+        logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
+
         # save optimizer state (ckpt_path.optim.pt)
-        # state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
-        # torch.save(state, f"{ckpt_path}.optim.pt")
-        # print(f"Saved checkpoint to {ckpt_path}")
+        state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
+        torch.save(state, f"{ckpt_path}.optim.pt")
+        print(f"Saved checkpoint to {ckpt_path}")
+
+        # Save config file after updating lora path
+        self.config['lora']['path'] = ckpt_path + ".lora"
+        with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
+            json.dump(self.config, file, indent=4)
+        logger.info(f"Saved config to {ckpt_path}.config.json")
+
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
+
 
 
     # -----------------------
     # Load checkpoint
     # -----------------------
     def load_checkpoint(self, ckpt_path):
-        # if not os.path.exists(ckpt_path):
-        #     raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
-
-        # state = torch.load(ckpt_path, map_location=self.device)
-        # self.model.load_state_dict(state["model_state_dict"])
-        # self.optimizer.load_state_dict(state["optimizer_state_dict"])
-        # self.step = state.get("step", 0)
         print(f"Loaded checkpoint from {ckpt_path}, resuming at step {self.step}")
 
     # -----------------------
