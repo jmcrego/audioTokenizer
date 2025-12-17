@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
     # optimization pars
-    parser.add_argument("--lr_llm", type=float, default=1e-4, help="Learning rate for LoRA layers")
+    parser.add_argument("--lr_lora", type=float, default=1e-4, help="Learning rate for LoRA layers")
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     # training pars
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         eval_dataset=eval_dataset,
         batch_size=args.batch_size,
         lr_proj=args.lr_proj,
-        lr_llm=args.lr_llm,
+        lr_lora=args.lr_lora,
         max_steps=args.max_steps,
         max_epochs=args.max_epochs,
         save_best_n=args.save_best_n,

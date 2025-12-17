@@ -40,7 +40,7 @@ class Trainer:
         eval_dataset=None,
         batch_size=4,
         lr_proj=5e-4,
-        lr_llm=1e-4,
+        lr_lora=1e-4,
         max_steps=10000,
         max_epochs=10,
         save_best_n=3,
@@ -62,7 +62,7 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
         self.lr_proj = lr_proj
-        self.lr_llm = lr_llm
+        self.lr_lora = lr_lora
         self.max_steps = max_steps
         self.max_epochs = max_epochs
         self.save_best_n = save_best_n
@@ -109,9 +109,9 @@ class Trainer:
         # -----------------------
         self.optimizer = torch.optim.AdamW([
             {"params": self.model.projector.parameters(), "lr": lr_proj},
-            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_llm},
+            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
         ])
-        logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_llm={lr_llm}")
+        logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(0.01 * self.max_steps), num_training_steps=self.max_steps)
         logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps, with {int(0.01 * self.max_steps)} warmup_steps")
@@ -220,7 +220,7 @@ class Trainer:
         s = int(elapsed % 60)
 
         lr_proj = self.optimizer.param_groups[0]["lr"]
-        lr_llm = self.optimizer.param_groups[1]["lr"]
+        lr_lora = self.optimizer.param_groups[1]["lr"]
 
         w_step = len(str(self.max_steps))
         w_epoch = len(str(self.max_epochs))
@@ -231,7 +231,7 @@ class Trainer:
             # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
-            f"lr_llm={Color.GREEN}{lr_llm:.6e}{Color.RESET} | "
+            f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
             f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
         )
         print(log_str)
@@ -242,7 +242,7 @@ class Trainer:
             # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
-            f"lr_llm={lr_llm:.6e} | "
+            f"lr_lora={lr_lora:.6e} | "
             f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         )
         logger.info(log_str)
