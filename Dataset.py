@@ -81,27 +81,33 @@ class Dataset(Dataset):
 
         self.data = []
         with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
+            for i,line in enumerate(f):
                 parts = line.strip().split("\t")
                 if len(parts) < 5:
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
 
+                prompt = self.build_prompt(lang, tgt_lang)
                 prompt_ids = tokenizer(
-                    self.build_prompt(lang, tgt_lang),
+                    prompt,
                     return_tensors="pt",
                     padding=False,
                     truncation=False,
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
+                target = self.build_target(asr, stt)
                 target_ids = tokenizer(
-                    self.build_target(asr, stt),
+                    target,
                     return_tensors="pt",
                     padding=False,
                     truncation=False,
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
+
+                if i%100000 == 0:
+                    logger.debug(f"prompt={prompt}###")
+                    logger.debug(f"target={target}###")
 
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
@@ -138,11 +144,11 @@ class Dataset(Dataset):
 
     def build_target(self, asr, stt):
         if asr and stt:
-            return f"{self.asr_token} {asr} {self.stt_token} {stt}{self.tokenizr.eos_token}"
+            return f"{self.asr_token} {asr} {self.stt_token} {stt}{self.tokenizer.eos_token}"
         elif asr:
-            return f"{self.asr_token} {asr}{self.tokenizr.eos_token}"
+            return f"{self.asr_token} {asr}{self.tokenizer.eos_token}"
         elif stt:
-            return f"{self.stt_token} {stt}{self.tokenizr.eos_token}"
+            return f"{self.stt_token} {stt}{self.tokenizer.eos_token}"
         else:
             raise ValueError("No ASR or STT text provided")
 
