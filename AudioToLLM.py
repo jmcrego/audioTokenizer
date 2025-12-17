@@ -363,7 +363,7 @@ class AudioToLLM(torch.nn.Module):
             attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
             do_sample=(temperature > 0),
-            temperature=temperature if temperature > 0 else 1.0,
+            temperature=temperature,
             top_p=top_p,
             pad_token_id=self.tokenizer.pad_token_id,
             eos_token_id=self.tokenizer.eos_token_id,
@@ -375,8 +375,8 @@ class AudioToLLM(torch.nn.Module):
         # ============================================================
         # 9) SLICE GENERATED TOKENS ONLY (CRITICAL)
         # ============================================================
-        gen_tokens = outputs[:, max_len:]
-
+        prefix_len = inputs_embeds.size(1)
+        gen_tokens = outputs[:, prefix_len:]   # ← CRITICAL
         texts = self.tokenizer.batch_decode(
             gen_tokens,
             skip_special_tokens=True,
