@@ -95,14 +95,16 @@ class Dataset(Dataset):
                     self.build_prompt(lang, tgt_lang),
                     return_tensors="pt",
                     padding=False,
-                    truncation=False
+                    trunctaion=False,
+                    add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 target_ids = tokenizer(
                     self.build_target(asr, stt),
                     return_tensors="pt",
                     padding=False,
-                    truncation=False
+                    trunctaion=False,
+                    add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)

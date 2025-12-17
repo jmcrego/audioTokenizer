@@ -287,7 +287,9 @@ class AudioToLLM(torch.nn.Module):
         prompt_ids = self.tokenizer(
             prompt,
             return_tensors="pt",
-            add_special_tokens=False,
+            padding=False,
+            trunctaion=False,
+#            add_special_tokens=False,
         ).input_ids.to(device)
 
         logger.info(f"prompt: {prompt}")
@@ -323,7 +325,7 @@ class AudioToLLM(torch.nn.Module):
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
-            do_sample=temperature < 1.,
+            do_sample=False,
             temperature=temperature,
             top_p=top_p,
             pad_token_id=self.tokenizer.eos_token_id,
