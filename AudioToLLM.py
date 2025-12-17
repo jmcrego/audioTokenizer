@@ -25,9 +25,9 @@ class AudioToLLM(torch.nn.Module):
         self.audio_embedder = Embedder(config['audio'])
 
         ###### LLM (frozen) + LoRa (trainable) ############################
-        self.backbone_llm = Backbone(config['llm'], config['lora'])
-        self.llm_model = self.backbone_llm.llm_model
-        self.tokenizer = self.backbone_llm.tokenizer
+        self.backbone = Backbone(config['llm'], config['lora'])
+        self.llm_model = self.backbone.llm_model
+        self.tokenizer = self.backbone.tokenizer
 
         ###### Projector (trainable) ######################################
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedder.embedding_dim, llm_embedding_dim=self.llm_model.config.hidden_size)

@@ -11,14 +11,13 @@ logger = logging.getLogger("Backbone")
 
 class Backbone(torch.nn.Module):
     """
-    Wrapper for the base LLM
+    Wrapper for the base LLM with LoRA adapters
     """
     def __init__(self, config, config_lora):
         super().__init__()
 
-        self.config = config
-
-        llm_path = config['path']
+        llm_path = config["path"]
+        lora_path = config_lora["path"]
 
         ###### Tokenizer ##################################################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
@@ -31,19 +30,19 @@ class Backbone(torch.nn.Module):
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # LoRA adapters
-        if config_lora["path"] is not None:
+        if lora_path is not None:
             # load preexisting lora adapters
-            self.llm_model = PeftModel.from_pretrained(self.llm_model, config_lora["path"])
-            logger.info(f"Loaded LoRa adapters from {lora_cfg}")
+            self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path)
+            logger.info(f"Loaded LoRa adapters from {lora_path}")
         else:
             # create new lora adapters
             lora_cfg = LoraConfig(
-                r=config_lora["config"]["lora_r"],
-                lora_alpha=config_lora["config"]["lora_alpha"],
-                target_modules=config_lora["config"]["target_modules"],
-                lora_dropout=config_lora["config"]["lora_dropout"],
-                bias=config_lora["config"]["bias"],
-                task_type=config_lora["config"]["task_type"],
+                r=config_lora["r"],
+                lora_alpha=config_lora["lora_alpha"],
+                target_modules=config_lora["target_modules"],
+                lora_dropout=config_lora["lora_dropout"],
+                bias=config_lora["bias"],
+                task_type=config_lora["task_type"],
             )
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
             logger.info(f"Initialized LoRa adapters")
