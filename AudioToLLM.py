@@ -265,81 +265,121 @@ class AudioToLLM(torch.nn.Module):
         """
         device = self.llm_model.device
         dtype  = next(self.projector.parameters()).dtype
+        B = len(audio_files)
 
         # --------------------------------------------------
         # 1) Audio → embeddings → LLM projected embeddings 
         # --------------------------------------------------
         audio_embs, audio_mask = self.audio_embedder(audio_files)
         audio_embs = audio_embs.to(device, dtype)
-        audio_mask = audio_mask.to(device)
+        audio_mask = audio_mask.to(device).bool()
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_embs = proj_embs.to(device, dtype)
-        proj_mask = proj_mask.to(device)
+        proj_mask = proj_mask.to(device).bool()
+
         logger.info(f"proj_embs size = {proj_embs.shape}")
         logger.info(f"proj_mask size = {proj_mask.shape}")
 
-        B, S, D = proj_embs.shape
+        audio_lens = proj_mask.sum(dim=1)  # [B]
 
         # --------------------------------------------------
-        # 2) Prompt embeddings
+        # 2) PROMPT → TOKEN IDS → EMBEDDINGS (FROZEN)
         # --------------------------------------------------
         prompt_ids = self.tokenizer(
             prompt,
             return_tensors="pt",
             padding=False,
             truncation=False,
-#            add_special_tokens=False,
-        ).input_ids.to(device)
+            add_special_tokens=False,
+        ).input_ids.to(device) # [1, T_prompt]
+
+        T_prompt = prompt_ids.size(1)
 
         logger.info(f"prompt: {prompt}")
 
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
-        prompt_embs = prompt_embs.expand(B, -1, -1)
+        prompt_embs = prompt_embs.to(device=device, dtype=dtype)
+        prompt_embs = prompt_embs.expand(B, -1, -1) # [B, T_prompt, D]
+
         logger.info(f"prompt_embs size = {prompt_embs.shape}")
 
-        # --------------------------------------------------
-        # 3) Concatenate embeddings
-        # --------------------------------------------------
-        inputs_embeds = torch.cat([proj_embs, prompt_embs], dim=1)
+        # ============================================================
+        # 3) TOTAL LENGTHS (exactly like training)
+        # ============================================================
+        total_lens = audio_lens + T_prompt
+        max_len = total_lens.max().item()
 
-        attention_mask = torch.cat(
-            [
-                proj_mask,
-                torch.ones(
-                    (B, prompt_embs.size(1)),
-                    device=device,
-                    dtype=torch.long,
-                ),
-            ],
-            dim=1,
-        )
+        # ============================================================
+        # 4) ALLOCATE INPUTS (exactly like training)
+        # ============================================================
+        D = proj_embs.size(-1)
+
+        inputs_embeds = torch.zeros(
+            (B, max_len, D),
+            device=device,
+            dtype=dtype,
+        )  # [B, max_len, D]
+
+        attention_mask = (
+            torch.arange(max_len, device=device).unsqueeze(0) < total_lens.unsqueeze(1)
+        ).long()  # [B, max_len]
+
+        # ============================================================
+        # 6) COPY AUDIO EMBEDDINGS
+        # ============================================================
+        batch_idx = torch.arange(B, device=device)
+
+        max_audio = proj_embs.size(1)
+        audio_idx = torch.arange(max_audio, device=device).unsqueeze(0)
+        audio_valid = audio_idx < audio_lens.unsqueeze(1)
+
+        inputs_embeds[
+            batch_idx.unsqueeze(1).expand_as(audio_idx)[audio_valid], audio_idx[audio_valid],
+        ] = proj_embs[audio_valid]
+
+
+        # ============================================================
+        # 7) COPY PROMPT EMBEDDINGS
+        # ============================================================
+        prompt_idx = torch.arange(T_prompt, device=device).unsqueeze(0)
+        dest_prompt_pos = audio_lens.unsqueeze(1) + prompt_idx
+
+        prompt_valid = prompt_idx < T_prompt
+
+        inputs_embeds[
+            batch_idx.unsqueeze(1).expand_as(prompt_idx)[prompt_valid],
+            dest_prompt_pos[prompt_valid],
+        ] = prompt_embs[prompt_valid]
 
         logger.info(f"inputs_embeds size = {inputs_embeds.shape}")
         logger.info(f"attention_mask size = {attention_mask.shape}")
 
-        # --------------------------------------------------
-        # 4) Generate
-        # --------------------------------------------------
+        # ============================================================
+        # 8) GENERATION
+        # ============================================================
         outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
-            do_sample=False,
-            temperature=temperature,
+            do_sample=(temperature > 0),
+            temperature=temperature if temperature > 0 else 1.0,
             top_p=top_p,
-            pad_token_id=self.tokenizer.eos_token_id,
-            eos_token_id=None,#self.tokenizer.eos_token_id,
-        )
+            pad_token_id=self.tokenizer.pad_token_id,
+            eos_token_id=self.tokenizer.eos_token_id,
+            use_cache=True,
+        )  # [B, max_len + new_tokens]
+
         logger.info(f"outputs size = {outputs.shape}")
 
-        # --------------------------------------------------
-        # 6) Decode ONLY generated tokens
-        # --------------------------------------------------
-        gen_tokens = outputs#[:, inputs_embeds.size(1):]
+        # ============================================================
+        # 9) SLICE GENERATED TOKENS ONLY (CRITICAL)
+        # ============================================================
+        gen_tokens = outputs[:, max_len:]
+
         texts = self.tokenizer.batch_decode(
             gen_tokens,
-            skip_special_tokens=False,
+            skip_special_tokens=True,
         )
         logger.info(f"texts = {texts[0]}")
 
