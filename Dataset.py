@@ -106,6 +106,7 @@ class Dataset(Dataset):
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 if i%100000 == 0:
+                    logger.debug(f"sample={i}###")
                     logger.debug(f"prompt={prompt}###")
                     logger.debug(f"target={target}###")
 
