@@ -27,7 +27,6 @@ config = {
     },
     "asr_token": "[ASR]",
     "stt_token": "[STT]",
-    "end_token": "[END]"
 }
 
 with open(f"config.json", "w", encoding="utf-8") as file:

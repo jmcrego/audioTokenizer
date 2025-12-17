@@ -62,7 +62,6 @@ class Dataset(Dataset):
         tokenizer,
         asr_token="[ASR]",
         stt_token="[STT]",
-        end_token="[END]",
         sample_rate=16000,
         downsample_ratio=320,
         stack_size=8,
@@ -72,7 +71,6 @@ class Dataset(Dataset):
         self.tokenizer = tokenizer
         self.asr_token = asr_token
         self.stt_token = stt_token
-        self.end_token = end_token
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
@@ -140,11 +138,11 @@ class Dataset(Dataset):
 
     def build_target(self, asr, stt):
         if asr and stt:
-            return f"{self.asr_token} {asr} {self.stt_token} {stt} {self.end_token}"
+            return f"{self.asr_token} {asr} {self.stt_token} {stt}{self.tokenizr.eos_token}"
         elif asr:
-            return f"{self.asr_token} {asr} {self.end_token}"
+            return f"{self.asr_token} {asr}{self.tokenizr.eos_token}"
         elif stt:
-            return f"{self.stt_token} {stt} {self.end_token}"
+            return f"{self.stt_token} {stt}{self.tokenizr.eos_token}"
         else:
             raise ValueError("No ASR or STT text provided")
 
