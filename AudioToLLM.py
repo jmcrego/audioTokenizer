@@ -323,7 +323,7 @@ class AudioToLLM(torch.nn.Module):
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
-            do_sample=temperature > 0,
+            do_sample=temperature < 1.,
             temperature=temperature,
             top_p=top_p,
             pad_token_id=self.tokenizer.eos_token_id,
