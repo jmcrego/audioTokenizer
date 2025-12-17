@@ -24,8 +24,7 @@ config = {
         "task_type": "CAUSAL_LM"
     },
     "asr_token": "[ASR]",
-    "stt_token": "[STT]",
-    "step": 0
+    "stt_token": "[STT]"
 }
 
 with open(f"config.json", "w", encoding="utf-8") as file:
