@@ -284,7 +284,7 @@ class AudioToLLM(torch.nn.Module):
         audio_lens = proj_mask.sum(dim=1)  # [B]
 
         # --------------------------------------------------
-        # 2) PROMPT → TOKEN IDS → EMBEDDINGS (FROZEN)
+        # 2) PROMPT → TOKEN IDS
         # --------------------------------------------------
         prompt_ids = self.tokenizer(
             prompt,
@@ -298,6 +298,9 @@ class AudioToLLM(torch.nn.Module):
 
         logger.info(f"prompt: {prompt}")
 
+        # --------------------------------------------------
+        # 3) EMBEDDINGS (FROZEN)
+        # --------------------------------------------------
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
         prompt_embs = prompt_embs.to(device=device, dtype=dtype)
         prompt_embs = prompt_embs.expand(B, -1, -1) # [B, T_prompt, D]
@@ -305,13 +308,13 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"prompt_embs size = {prompt_embs.shape}")
 
         # ============================================================
-        # 3) TOTAL LENGTHS (exactly like training)
+        # 4) TOTAL LENGTHS (exactly like training)
         # ============================================================
         total_lens = audio_lens + T_prompt
         max_len = total_lens.max().item()
 
         # ============================================================
-        # 4) ALLOCATE INPUTS (exactly like training)
+        # 5) ALLOCATE INPUTS (exactly like training)
         # ============================================================
         D = proj_embs.size(-1)
 
@@ -373,10 +376,10 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"outputs size = {outputs.shape}")
 
         # ============================================================
-        # 9) SLICE GENERATED TOKENS ONLY (CRITICAL)
+        # 9) SLICE GENERATED TOKENS ONLY 
         # ============================================================
         prefix_len = inputs_embeds.size(1)
-        gen_tokens = outputs[:, prefix_len:]   # ← CRITICAL
+        gen_tokens = outputs[:, prefix_len:]
         texts = self.tokenizer.batch_decode(
             gen_tokens,
             skip_special_tokens=True,
