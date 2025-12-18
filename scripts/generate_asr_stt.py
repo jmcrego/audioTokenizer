@@ -6,16 +6,16 @@ for l in sys.stdin:
         continue
 
     # ASR + STT task
-    print("\t".join(toks))
+    print(f"{t[0]}\t{t[1]}\t{t[2]}\t{t[3]}\t{t[4]}")
 
     # ASR task
     t = toks[:]
     t[3] = ""
     t[4] = ""
-    print("\t".join(t))
+    print(f"{t[0]}\t{t[1]}\t{t[2]}\t{t[3]}\t{t[4]}")
 
     # STT task
     t = toks[:]
     t[1] = ""
     t[2] = ""
-    print("\t".join(t))
+    print(f"{t[0]}\t{t[1]}\t{t[2]}\t{t[3]}\t{t[4]}")

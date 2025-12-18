@@ -45,5 +45,5 @@ class Backbone(torch.nn.Module):
                 task_type=config_lora["task_type"],
             )
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
-            logger.info(f"Initialized LoRa adapters")
+            logger.info(f"Initialized LoRa adapters {lora_cfg}")
 

@@ -150,6 +150,7 @@ class Dataset(Dataset):
                     "total_length": total_length,
                     "audio_time": audio_time,
                 })
+                
             logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({self.tasks})")
 
 
