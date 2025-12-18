@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     tgt_lang = args.task.split("2")[1] if "translate2" in args.task else ""
     prompt = build_prompt("x", tgt_lang, config["asr_token"], config["stt_token"])
-    logger.info("<prompt>{prompt}</prompt>")
+    logger.info(f"<prompt>{prompt}</prompt>")
     
     # --------------------------------------------------
     # Load models
