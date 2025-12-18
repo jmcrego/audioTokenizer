@@ -11,7 +11,7 @@ from transformers import PreTrainedTokenizerBase
 logger = logging.getLogger("Dataset")
 
 
-def build_prompt(self, lang, tgt_lang, asr_token, stt_token):
+def build_prompt(lang, tgt_lang, asr_token, stt_token):
     if lang and tgt_lang:
         return f"\nTranscribe then translate into {tgt_lang}.\n{asr_token} "
     elif lang:
@@ -22,7 +22,7 @@ def build_prompt(self, lang, tgt_lang, asr_token, stt_token):
         raise ValueError("No lang or tgt_lang provided")
 
 
-def build_target(self, asr, stt, asr_token, stt_token, eos_token):
+def build_target(asr, stt, asr_token, stt_token, eos_token):
     if asr and stt:
         return f"{asr} {stt_token} {stt}{eos_token}"
     elif asr:
