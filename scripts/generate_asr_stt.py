@@ -1,8 +1,9 @@
 import sys
 
-for l in sys.stdin:
+for i,l in enumerate(sys.stdin):
     toks = l.strip().split("\t")
     if len(toks) != 5:
+        sys.stderr.write(f"line {i}: bad number of tokens: {l}")
         continue
 
     # ASR + STT task
