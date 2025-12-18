@@ -107,21 +107,15 @@ class Trainer:
         # -----------------------
         # Optimizer & Scheduler
         # -----------------------
+
         self.optimizer = torch.optim.AdamW([
             {"params": self.model.projector.parameters(), "lr": lr_proj},
-            {"params": [p for n,p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
+            {"params": [p for n, p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(0.01 * self.max_steps), num_training_steps=self.max_steps)
         logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps, with {int(0.01 * self.max_steps)} warmup_steps")
-
-        # Scheduler: Linear warmup + decay
-        # def lr_lambda(current_step):
-        #     if current_step < warmup_steps:
-        #         return float(current_step) / float(max(1, warmup_steps))
-        #     return max(0.0, float(self.max_steps - current_step) / float(max(1, self.max_steps - warmup_steps)))    
-        # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
 
         # For logging
         self.step = 0 # microbatch step (not optimizer step)
@@ -171,6 +165,7 @@ class Trainer:
 
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
+
 
     # -----------------------
     # Load checkpoint
