@@ -12,6 +12,7 @@ from peft import PeftModel
 
 from train import get_device_dtype
 from AudioToLLM import AudioToLLM
+from Dataset import build_prompt
 
 logger = logging.getLogger("infer")
 
@@ -58,29 +59,21 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # Task → prompt
     # --------------------------------------------------
-    if args.task == "transcribe":
-        prompt = f"\nTranscribe.\n[ASR] I no"
-    elif args.task.startswith("transcribe_translate2"):
-        tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranscribe then translate into {tgt_lang}.\n[ASR]"
-    elif args.task.startswith("translate2"):
-        tgt_lang = args.task.split("2")[1]
-        prompt = f"\nTranslate into {tgt_lang}.\n[STT]"
-    else:
-        raise ValueError(f"Unknown task: {args.task}")
-
+    tgt_lang = args.task.split("2")[1] if "translate2" in args.task else ""
+    prompt = build_prompt("x", tgt_lang)
+    
     # --------------------------------------------------
     # Load models
     # --------------------------------------------------
-    t0 = time.time()
+    t = time.time()
 
     model = AudioToLLM(config, device, dtype, is_infer=True)
-    logger.info(f"Loading took {time.time() - t0:.2f} sec")
+    logger.info(f"Loading took {time.time() - t:.2f} sec")
 
     # --------------------------------------------------
     # Inference
     # --------------------------------------------------
-    t1 = time.time()
+    t = time.time()
 
     with open(args.output, "w", encoding="utf-8") if args.output else nullcontext() as out_file:
         for audio_file in args.audio_files.split(","):
@@ -98,4 +91,4 @@ if __name__ == "__main__":
             else:
                 print(text)
 
-    logger.info(f"Generation took {time.time() - t1:.2f} sec")
+    logger.info(f"Generation took {time.time() - t:.2f} sec")
