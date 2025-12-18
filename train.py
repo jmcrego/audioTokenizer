@@ -44,11 +44,10 @@ if __name__ == "__main__":
     # dataset paths
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
-    # optimization pars
+    # train/opt pars
     parser.add_argument("--lr_lora", type=float, default=1e-4, help="Learning rate for LoRA layers")
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
-    # training pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
@@ -61,6 +60,9 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
+    if args.log_steps % args.accum_steps != 0:
+        raise ValueError(f"--log_every ({args.log_every}) must be a multiple of --accum_steps ({args.accum_steps})")
+    
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
 
