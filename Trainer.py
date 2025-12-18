@@ -126,6 +126,7 @@ class Trainer:
         # For logging
         self.step = 0
         self.epoch = 0
+        self.samples = 0
         self.start_time = datetime.now()
 
 
@@ -272,7 +273,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{step*self.batch_size/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{self.samples/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
             # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
@@ -283,7 +284,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {step*self.batch_size/len(self.train_dataset):.3f}/{self.max_epochs}] "
+            f"Epoch {self.samples/len(self.train_dataset):.3f}/{self.max_epochs}] "
             # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
@@ -326,10 +327,11 @@ class Trainer:
         optimizer.zero_grad()
 
         while self.max_steps and self.step < self.max_steps:
-            self.epoch += 1
+            self.epoch += 1            
 
             for batch in self.train_loader:
                 self.step += 1
+                self.samples += batch.shape[0]
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
