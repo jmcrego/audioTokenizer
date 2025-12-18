@@ -135,21 +135,21 @@ class Dataset(Dataset):
 
     def build_prompt(self, lang, tgt_lang):
         if lang and tgt_lang:
-            return f"\nTranscribe then translate into {tgt_lang}.\n"
+            return f"\nTranscribe then translate into {tgt_lang}.\n{self.asr_token} "
         elif lang:
-            return f"\nTranscribe.\n"
+            return f"\nTranscribe.\n{self.asr_token} "
         elif tgt_lang:
-            return f"\nTranslate into {tgt_lang}.\n"
+            return f"\nTranslate into {tgt_lang}.\n{self.stt_token} "
         else:
             raise ValueError("No lang or tgt_lang provided")
 
     def build_target(self, asr, stt):
         if asr and stt:
-            return f"{self.asr_token} {asr} {self.stt_token} {stt}{self.tokenizer.eos_token}"
+            return f"{asr} {self.stt_token} {stt}{self.tokenizer.eos_token}"
         elif asr:
-            return f"{self.asr_token} {asr}{self.tokenizer.eos_token}"
+            return f"{asr}{self.tokenizer.eos_token}"
         elif stt:
-            return f"{self.stt_token} {stt}{self.tokenizer.eos_token}"
+            return f"{stt}{self.tokenizer.eos_token}"
         else:
             raise ValueError("No ASR or STT text provided")
 
