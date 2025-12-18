@@ -2,7 +2,7 @@ import sys
 
 for i,l in enumerate(sys.stdin):
     toks = l.strip().split("\t")
-    if len(toks) != 5:
+    if len(toks) < 5:
         sys.stderr.write(f"line {i}: bad number of tokens: {l}")
         continue
 

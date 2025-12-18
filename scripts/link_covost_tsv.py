@@ -114,12 +114,19 @@ def main():
                     continue
 
                 transc = row[3]
+                if not transc:
+                    continue
 
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
                     entry = name2entry[fname]
                     transl = entry[1]
                     split = entry[2]
+
+                    if not transl:
+                        continue
+                    if not split:
+                        continue
 
                     fdo.write(
                         str(path) + '\t' +
