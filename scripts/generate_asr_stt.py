@@ -6,6 +6,7 @@ for l in sys.stdin:
         continue
 
     # ASR + STT task
+    t = toks[:]
     print(f"{t[0]}\t{t[1]}\t{t[2]}\t{t[3]}\t{t[4]}")
 
     # ASR task
