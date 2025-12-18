@@ -331,7 +331,7 @@ class Trainer:
 
             for batch in self.train_loader:
                 self.step += 1
-                self.samples += batch.shape[0]
+                self.samples += batch["prompt_ids"].size(0)
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
