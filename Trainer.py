@@ -124,7 +124,7 @@ class Trainer:
         # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lr_lambda)
 
         # For logging
-        self.step = 0
+        self.step = 0 # microbatch step (not optimizer step)
         self.epoch = 0
         self.samples = 0
         self.start_time = datetime.now()
@@ -331,7 +331,7 @@ class Trainer:
             self.epoch += 1            
 
             for batch in self.train_loader:
-                self.step += 1
+                self.step += 1 # microbatch step (not optimizer step)
                 self.samples += batch["prompt_ids"].size(0)
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
