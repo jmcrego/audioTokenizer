@@ -4,6 +4,7 @@ import torch
 import logging
 import numpy as np
 import soundfile as sf
+from collections import defaultdict
 
 from torch.utils.data import Dataset, Sampler
 from transformers import PreTrainedTokenizerBase
@@ -24,11 +25,11 @@ def build_prompt(lang, tgt_lang, asr_token, stt_token):
 
 def build_target(asr, stt, stt_token, eos_token):
     if asr and stt:
-        return f"{asr} {stt_token} {stt}{eos_token}"
+        return f"{asr} {stt_token} {stt}{eos_token}", "asr+stt"
     elif asr:
-        return f"{asr}{eos_token}"
+        return f"{asr}{eos_token}", "asr"
     elif stt:
-        return f"{stt}{eos_token}"
+        return f"{stt}{eos_token}", "stt"
     else:
         raise ValueError("No ASR or STT text provided")
 
@@ -102,6 +103,8 @@ class Dataset(Dataset):
         #random seed for reproducibility
         np.random.seed(seed)
 
+        self.tasks = defaultdict(int)
+
         self.data = []
         with open(file_path, "r", encoding="utf-8") as f:
             for i,line in enumerate(f):
@@ -119,7 +122,9 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
+                target, task = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
+                self.tasks[task] += 1
+
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",
@@ -143,7 +148,7 @@ class Dataset(Dataset):
                     "total_length": total_length,
                     "audio_time": audio_time,
                 })
-            logger.debug(f"Read dataset {file_path} with {len(self.data)} samples")
+            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({self.tasks}})")
 
 
     def __len__(self):
