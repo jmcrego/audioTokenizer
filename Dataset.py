@@ -10,6 +10,29 @@ from transformers import PreTrainedTokenizerBase
 
 logger = logging.getLogger("Dataset")
 
+
+def build_prompt(self, lang, tgt_lang, asr_token, stt_token):
+    if lang and tgt_lang:
+        return f"\nTranscribe then translate into {tgt_lang}.\n{asr_token} "
+    elif lang:
+        return f"\nTranscribe.\n{asr_token} "
+    elif tgt_lang:
+        return f"\nTranslate into {tgt_lang}.\n{stt_token} "
+    else:
+        raise ValueError("No lang or tgt_lang provided")
+
+
+def build_target(self, asr, stt, asr_token, stt_token, eos_token):
+    if asr and stt:
+        return f"{asr} {stt_token} {stt}{eos_token}"
+    elif asr:
+        return f"{asr}{eos_token}"
+    elif stt:
+        return f"{stt}{eos_token}"
+    else:
+        raise ValueError("No ASR or STT text provided")
+
+
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
         self.dataset = dataset
@@ -87,7 +110,7 @@ class Dataset(Dataset):
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
 
-                prompt = self.build_prompt(lang, tgt_lang)
+                prompt = build_prompt(lang, tgt_lang, self.asr_token, self.stt_token)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -96,7 +119,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = self.build_target(asr, stt)
+                target = build_target(asr, stt, self.asr_token, self.stt_token, self.tokenizer.eos_token)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",
@@ -105,10 +128,10 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                if i%100000 == 0:
-                    logger.debug(f"sample={i}###")
-                    logger.debug(f"prompt={prompt}###")
-                    logger.debug(f"target={target}###")
+                if i % 100000 == 0:
+                    logger.info(f"sample={i}###")
+                    logger.info(f"prompt={prompt}###")
+                    logger.info(f"target={target}###")
 
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
@@ -132,26 +155,6 @@ class Dataset(Dataset):
         item = self.data[idx]
         return item
 
-
-    def build_prompt(self, lang, tgt_lang):
-        if lang and tgt_lang:
-            return f"\nTranscribe then translate into {tgt_lang}.\n{self.asr_token} "
-        elif lang:
-            return f"\nTranscribe.\n{self.asr_token} "
-        elif tgt_lang:
-            return f"\nTranslate into {tgt_lang}.\n{self.stt_token} "
-        else:
-            raise ValueError("No lang or tgt_lang provided")
-
-    def build_target(self, asr, stt):
-        if asr and stt:
-            return f"{asr} {self.stt_token} {stt}{self.tokenizer.eos_token}"
-        elif asr:
-            return f"{asr}{self.tokenizer.eos_token}"
-        elif stt:
-            return f"{stt}{self.tokenizer.eos_token}"
-        else:
-            raise ValueError("No ASR or STT text provided")
 
     def audio_length_in_tokens(self, filepath):
         """
