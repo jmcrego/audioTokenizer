@@ -25,11 +25,11 @@ def build_prompt(lang, tgt_lang, asr_token, stt_token):
 
 def build_target(asr, stt, stt_token, eos_token):
     if asr and stt:
-        return f"{asr} {stt_token} {stt}{eos_token}", "asr+stt"
+        return f"{asr} {stt_token} {stt}{eos_token}"
     elif asr:
-        return f"{asr}{eos_token}", "asr"
+        return f"{asr}{eos_token}"
     elif stt:
-        return f"{stt}{eos_token}", "stt"
+        return f"{stt}{eos_token}"
     else:
         raise ValueError("No ASR or STT text provided")
 
@@ -112,6 +112,7 @@ class Dataset(Dataset):
                 if len(parts) < 5:
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
+                task = "asr+stt" if asr and stt else "asr" if asr else "stt" if stt else None
 
                 prompt = build_prompt(lang, tgt_lang, self.asr_token, self.stt_token)
                 prompt_ids = tokenizer(
@@ -122,7 +123,8 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target, task = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
+                target = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
+
                 self.tasks[task] += 1
 
                 target_ids = tokenizer(
