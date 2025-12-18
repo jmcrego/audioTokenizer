@@ -129,9 +129,7 @@ class Dataset(Dataset):
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 if i % 100000 == 0:
-                    logger.info(f"sample={i}###")
-                    logger.info(f"prompt={prompt}###")
-                    logger.info(f"target={target}###")
+                    logger.info(f"sample={i} prompt={prompt} target={target}")
 
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
