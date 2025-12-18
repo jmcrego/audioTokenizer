@@ -108,7 +108,7 @@ class Dataset(Dataset):
         self.data = []
         with open(file_path, "r", encoding="utf-8") as f:
             for i,line in enumerate(f):
-                parts = line.strip().split("\t")
+                parts = line.strip("\n").split("\t")
                 if len(parts) < 5:
                     continue
                 audio_path, lang, asr, tgt_lang, stt = parts[:5]
