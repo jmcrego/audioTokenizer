@@ -174,26 +174,70 @@ class Trainer:
     # -----------------------
     # Load checkpoint
     # -----------------------
-    def load_checkpoint(self, ckpt_path):
-        print(f"Loaded checkpoint from {ckpt_path}, resuming at step {self.step}")
+    # def load_checkpoint(self, ckpt_path):
+    #     """
+    #     Load projector, LoRA adapters, optimizer state, and step.
+    #     ckpt_path is the prefix without extension, e.g.:
+    #     sft4/checkpoint_step49000
+    #     """
+
+    #     # -----------------------
+    #     # Load Projector
+    #     # -----------------------
+    #     proj_path = ckpt_path + ".proj.pt"
+    #     if os.path.exists(proj_path):
+    #         state = torch.load(proj_path, map_location="cpu")
+    #         self.model.projector.load_state_dict(state, strict=True)
+    #         logger.info(f"Loaded Projector from {proj_path}")
+    #     else:
+    #         raise FileNotFoundError(f"Missing projector checkpoint: {proj_path}")
+
+    #     # -----------------------
+    #     # Load LoRA adapters (PEFT)
+    #     # -----------------------
+    #     lora_path = ckpt_path + ".lora"
+    #     if os.path.exists(lora_path):
+    #         # IMPORTANT:
+    #         # Assumes self.model.llm_model is already wrapped with PEFT
+    #         self.model.llm_model.load_adapter(lora_path, adapter_name="default")
+    #         self.model.llm_model.set_adapter("default")
+    #         logger.info(f"Loaded LoRA adapters from {lora_path}")
+    #     else:
+    #         raise FileNotFoundError(f"Missing LoRA checkpoint: {lora_path}")
+
+    #     # -----------------------
+    #     # Load optimizer + step
+    #     # -----------------------
+    #     optim_path = ckpt_path + ".optim.pt"
+    #     if os.path.exists(optim_path):
+    #         state = torch.load(optim_path, map_location="cpu")
+    #         self.optimizer.load_state_dict(state["optimizer_state_dict"])
+    #         self.step = state.get("step", 0)
+    #         logger.info(f"Loaded optimizer state from {optim_path} (step={self.step})")
+    #     else:
+    #         logger.warning(f"No optimizer state found at {optim_path}, starting fresh optimizer")
+    #         self.step = 0
+
+    #     print(f"Loaded checkpoint from {ckpt_path}, resuming at step {self.step}")
+
 
     # -----------------------
     # Resume from latest checkpoint automatically
     # -----------------------
-    def resume_latest_checkpoint(self, prefix="checkpoint"):
-        # find all checkpoints with the given prefix
-        files = [f for f in os.listdir(self.output_dir) if f.startswith(prefix) and f.endswith(".pt")]
-        if not files:
-            print("No checkpoint found, starting from scratch.")
-            return False
-        # pick the one with the largest step number
-        def step_from_name(f):
-            import re
-            m = re.search(r"_step(\d+)", f)
-            return int(m.group(1)) if m else 0
-        latest_ckpt = max(files, key=step_from_name)
-        self.load_checkpoint(os.path.join(self.output_dir, latest_ckpt))
-        return True
+    # def resume_latest_checkpoint(self, prefix="checkpoint"):
+    #     # find all checkpoints with the given prefix
+    #     files = [f for f in os.listdir(self.output_dir) if f.startswith(prefix) and f.endswith(".pt")]
+    #     if not files:
+    #         print("No checkpoint found, starting from scratch.")
+    #         return False
+    #     # pick the one with the largest step number
+    #     def step_from_name(f):
+    #         import re
+    #         m = re.search(r"_step(\d+)", f)
+    #         return int(m.group(1)) if m else 0
+    #     latest_ckpt = max(files, key=step_from_name)
+    #     self.load_checkpoint(os.path.join(self.output_dir, latest_ckpt))
+    #     return True
 
     # -----------------------
     # Collator function
@@ -228,7 +272,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{step/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{step*self.batch_size/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
             # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
@@ -239,7 +283,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {step*self.batch_size*self.accum_steps/len(self.train_dataset):.3f}/{self.max_epochs}] "
+            f"Epoch {step*self.batch_size/len(self.train_dataset):.3f}/{self.max_epochs}] "
             # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
