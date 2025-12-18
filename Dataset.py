@@ -22,7 +22,7 @@ def build_prompt(lang, tgt_lang, asr_token, stt_token):
         raise ValueError("No lang or tgt_lang provided")
 
 
-def build_target(asr, stt, asr_token, stt_token, eos_token):
+def build_target(asr, stt, stt_token, eos_token):
     if asr and stt:
         return f"{asr} {stt_token} {stt}{eos_token}"
     elif asr:
@@ -119,7 +119,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, self.asr_token, self.stt_token, self.tokenizer.eos_token)
+                target = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",
