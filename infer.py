@@ -55,13 +55,12 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    audio = config["audio"]
-    projector = config["projector"]
-    llm_path = config["llm"]["path"]
-    lora_path = config["lora"]["path"]
-    asr_token = config["asr_token"]
-    stt_token = config["stt_token"]
-    end_token = config["end_token"]
+    # audio = config["audio"]
+    # projector = config["projector"]
+    # llm_path = config["llm"]["path"]
+    # lora_path = config["lora"]["path"]
+    # asr_token = config["asr_token"]
+    # stt_token = config["stt_token"]
 
     # --------------------------------------------------
     # Task → prompt
