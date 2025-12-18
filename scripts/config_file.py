@@ -9,7 +9,6 @@ config = {
         "path": None,
         "stack_size": 8,
         "rank_dim": 256,
-        "max_seq_len": 1024
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct"

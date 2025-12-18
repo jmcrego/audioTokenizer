@@ -73,7 +73,7 @@ class Projector(nn.Module):
         stack_size = config['stack_size']
         stacked_dim = audio_embedding_dim * stack_size
         rank_dim = config['rank_dim']
-        max_seq_len = config['max_seq_len']
+        # max_seq_len = config['max_seq_len']
 
         # --- Low-Rank MLP ---
         self.proj = nn.Sequential(
@@ -84,8 +84,8 @@ class Projector(nn.Module):
         )
 
         # precompute the RoPE frequencies
-        rope_freqs = build_rope_freqs(max_seq_len, llm_embedding_dim)
-        self.register_buffer("rope_freqs", rope_freqs, persistent=False)
+        # rope_freqs = build_rope_freqs(max_seq_len, llm_embedding_dim)
+        # self.register_buffer("rope_freqs", rope_freqs, persistent=False)
 
         # load projector if given
         if path is not None:
@@ -130,8 +130,8 @@ class Projector(nn.Module):
         x = self.proj(x)  # [B, N, llm_dim]
 
         # Apply RoPE (scale positions by stack_size for superframes)
-        rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * S # [N, llm_dim//2]
-        x = apply_rope(x, rope_freqs)
+        # rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * S # [N, llm_dim//2]
+        # x = apply_rope(x, rope_freqs)
 
         # ---- build superframe mask ----
         # padded frames contaminate superframes... all superframes become masked if any of their frames are masked
