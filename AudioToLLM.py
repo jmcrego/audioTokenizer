@@ -312,12 +312,16 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"inputs_embeds size = {inputs_embeds.shape}")
         logger.info(f"attention_mask size = {attention_mask.shape}")
 
+        B, T, _ = inputs_embeds.shape
+        position_ids = torch.arange(T, device=inputs_embeds.device).unsqueeze(0)
+
         # ============================================================
         # 8) GENERATION
         # ============================================================
         outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
+            position_ids=position_ids,
             max_new_tokens=max_new_tokens,
             do_sample=(temperature > 0),
             temperature=temperature,
