@@ -151,7 +151,7 @@ class Dataset(Dataset):
                     "audio_time": audio_time,
                 })
                 
-            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({self.tasks})")
+            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({dict(self.tasks)})")
 
 
     def __len__(self):
