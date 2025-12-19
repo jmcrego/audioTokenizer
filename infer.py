@@ -72,13 +72,9 @@ if __name__ == "__main__":
     model = AudioToLLM(config, device, dtype, is_infer=True)
     logger.info(f"Loading took {time.time() - t:.2f} sec")
 
-    prompt = "\nTranscribe.\n[ASR]"
     inputs = model.tokenizer(prompt, return_tensors="pt").to(device)
-
     out = model.llm_model.generate(**inputs, max_new_tokens=50)
-    print(out)
     print(model.tokenizer.batch_decode(out, skip_special_tokens=False)[0])
-    kk
 
     # --------------------------------------------------
     # Inference
