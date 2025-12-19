@@ -117,7 +117,7 @@ class Trainer:
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps)} warmup steps)")
+        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps}) warmup steps)")
 
         # For logging
         self.step = 0 # optimizer step
