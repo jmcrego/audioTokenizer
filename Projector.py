@@ -7,55 +7,11 @@ import torch.nn.functional as F
 
 logger = logging.getLogger("Projector")
 
-def build_rope_freqs(n_positions: int, dim: int, base: float = 10000.0) -> torch.Tensor:
-    """
-    Build rotary positional embedding frequencies.
-
-    Args:
-        n_positions: maximum number of positions
-        dim: embedding dimension (should be even)
-        base: RoPE base (default 10000)
-
-    Returns:
-        freqs: [n_positions, dim//2] tensor
-    """
-    if dim % 2 != 0:
-        raise ValueError("RoPE dimension must be even.")
-    half = dim // 2
-    freqs = 1.0 / (base ** (torch.arange(0, half, 1).float() / half))
-    positions = torch.arange(n_positions).float()[:, None]
-    return positions * freqs[None, :]  # shape [n_positions, half]
-
-def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
-    """
-    Apply rotary positional embedding to input tensor.
-
-    Args:
-        x: [B, N, D] input embeddings
-        freqs: [N, D//2] RoPE frequencies
-
-    Returns:
-        x_rot: [B, N, D] embeddings with RoPE applied
-    """
-    B, N, D = x.shape
-    half = D // 2
-    x1 = x[..., :half]
-    x2 = x[..., half:]
-
-    cos = freqs.cos().unsqueeze(0)  # [1, N, D//2]
-    sin = freqs.sin().unsqueeze(0)
-
-    x1_rot = x1 * cos - x2 * sin
-    x2_rot = x1 * sin + x2 * cos
-
-    return torch.cat([x1_rot, x2_rot], dim=-1)
-
-
 
 class Projector(nn.Module):
     """
     Projects audio embeddings into LLM embedding space using superframe stacking,
-    a low-rank MLP, and RoPE positional encoding.
+    a low-rank MLP.
     """
 
     def __init__(self, config, audio_embedding_dim, llm_embedding_dim):
@@ -73,7 +29,6 @@ class Projector(nn.Module):
         stack_size = config['stack_size']
         stacked_dim = audio_embedding_dim * stack_size
         rank_dim = config['rank_dim']
-        # max_seq_len = config['max_seq_len']
 
         # --- Low-Rank MLP ---
         self.proj = nn.Sequential(
@@ -82,10 +37,6 @@ class Projector(nn.Module):
             nn.Linear(rank_dim, llm_embedding_dim),
             nn.LayerNorm(llm_embedding_dim),
         )
-
-        # precompute the RoPE frequencies
-        # rope_freqs = build_rope_freqs(max_seq_len, llm_embedding_dim)
-        # self.register_buffer("rope_freqs", rope_freqs, persistent=False)
 
         # load projector if given
         if path is not None:
@@ -128,10 +79,6 @@ class Projector(nn.Module):
 
         # ---- low-rank projection ----
         x = self.proj(x)  # [B, N, llm_dim]
-
-        # Apply RoPE (scale positions by stack_size for superframes)
-        # rope_freqs = self.rope_freqs[:N].to(x.device, x.dtype) * S # [N, llm_dim//2]
-        # x = apply_rope(x, rope_freqs)
 
         # ---- build superframe mask ----
         # padded frames contaminate superframes... all superframes become masked if any of their frames are masked

@@ -252,8 +252,6 @@ class AudioToLLM(torch.nn.Module):
 
         T_prompt = prompt_ids.size(1)
 
-        logger.info(f"prompt: {prompt}")
-
         # --------------------------------------------------
         # 3) EMBEDDINGS (FROZEN)
         # --------------------------------------------------
