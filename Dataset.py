@@ -135,7 +135,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                if i % 100000 == 0:
+                if i % 1000 == 0:
                     logger.info(f"sample={i} prompt={prompt} target={target}")
 
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)
