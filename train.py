@@ -51,11 +51,11 @@ if __name__ == "__main__":
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use around 5%)")
     # train pars
-    parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
+    parser.add_argument("--batch_size", type=int, default=8, help="Numer of sampels in a batch")
+    parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many batchs before optimizing")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-    parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
-    parser.add_argument("--log_every", type=int, default=100, help="Logging after this many steps")
+    parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many optimization steps")
+    parser.add_argument("--log_every", type=int, default=100, help="Logging after this many optimization steps")
     parser.add_argument("--save_best_n", type=int, default=3, help="Save top N checkpoints")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
@@ -64,7 +64,10 @@ if __name__ == "__main__":
 
     if args.log_every % args.accum_steps != 0:
         raise ValueError(f"--log_every ({args.log_every}) must be a multiple of --accum_steps ({args.accum_steps})")
-    
+
+    if args.eval_every % args.accum_steps != 0:
+        raise ValueError(f"--eval_every ({args.eval_every}) must be a multiple of --accum_steps ({args.accum_steps})")
+
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
 

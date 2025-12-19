@@ -300,7 +300,7 @@ class Trainer:
                         self.save_checkpoint(self.step)
 
                     if self.max_steps and self.step >= self.max_steps:
-                        print(f"Reached max steps {self.max_steps}, stopping training after "
+                        logger.info(f"Reached max steps {self.max_steps}, stopping training after "
                               f"{self.sample} samples, "
                               f"{self.step} steps, "
                               f"{self.batch} batches, "
@@ -308,7 +308,7 @@ class Trainer:
                         break
 
             if self.max_epochs and self.epoch >= self.max_epochs:
-                print(f"Reached max epochs {self.max_epochs}, stopping training after "
+                logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
                       f"{self.sample} samples, "
                       f"{self.step} steps, "
                       f"{self.batch} batches, "
