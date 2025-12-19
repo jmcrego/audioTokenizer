@@ -63,7 +63,6 @@ if __name__ == "__main__":
     logger.info(f"<tgt_lang>{tgt_lang}</tgt_lang>")
     prompt = build_prompt("x", tgt_lang, config["asr_token"], config["stt_token"])
     logger.info(f"<prompt>{prompt}</prompt>")
-    kk
     
     # --------------------------------------------------
     # Load models
