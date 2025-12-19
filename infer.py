@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
     # Inference params
-    parser.add_argument("--max_new_tokens", type=int, default=128, help="Maximum number of output tokens to generate")
+    parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
     # Task params
