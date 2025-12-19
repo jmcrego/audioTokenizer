@@ -76,7 +76,7 @@ if __name__ == "__main__":
     inputs = model.tokenizer(prompt, return_tensors="pt").to(device)
 
     out = model.llm_model(**inputs, max_new_tokens=50)
-    print(model.tokenizer.decode(out[0], skip_special_tokens=False))
+    print(model.tokenizer.batch_decode(out, skip_special_tokens=False)[0])
     kk
 
     # --------------------------------------------------
