@@ -187,12 +187,17 @@ class AudioToLLM(torch.nn.Module):
         # LABELS 
         labels[ batch_idx_target[target_valid], dest_target_pos[target_valid] ] = target_ids[target_valid]
 
+        # POSITIONAL IDs
+        B, T, _ = inputs_embeds.shape
+        position_ids = torch.arange(T, device=inputs_embeds.device).unsqueeze(0)
+
         # --------------------------------------------------------
         # 8) LLM FORWARD
         # --------------------------------------------------------
         outputs = self.llm_model(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
+            position_ids=position_ids,
             labels=labels,
         )
         logger.debug(f"LLM outputs: loss={outputs.loss} logits={outputs.logits.shape} dtype={outputs.logits.dtype}")
@@ -311,6 +316,10 @@ class AudioToLLM(torch.nn.Module):
 
         logger.info(f"inputs_embeds size = {inputs_embeds.shape}")
         logger.info(f"attention_mask size = {attention_mask.shape}")
+
+        # ============================================================
+        # 8) BUID POSITIONAL IDs (RoPE)
+        # ============================================================
 
         B, T, _ = inputs_embeds.shape
         position_ids = torch.arange(T, device=inputs_embeds.device).unsqueeze(0)
