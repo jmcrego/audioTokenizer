@@ -61,8 +61,8 @@ if __name__ == "__main__":
     # --------------------------------------------------
     tgt_lang = args.task.split("2")[1] if "translate2" in args.task else ""
     prompt = build_prompt("x", tgt_lang, config["asr_token"], config["stt_token"])
-    prompt = prompt.replace("[ASR] ","")
-    logger.info(f"prompt: {prompt}")
+#    prompt = prompt.replace("[ASR] ","")
+#    logger.info(f"prompt: {prompt}")
 
     # --------------------------------------------------
     # Load models
@@ -71,6 +71,13 @@ if __name__ == "__main__":
 
     model = AudioToLLM(config, device, dtype, is_infer=True)
     logger.info(f"Loading took {time.time() - t:.2f} sec")
+
+    prompt = "\nTranscribe.\n[ASR]"
+    inputs = model.tokenizer(prompt, return_tensors="pt").to(device)
+
+    out = model.llm_model(**inputs, max_new_tokens=50)
+    print(model.tokenizer.decode(out[0], skip_special_tokens=False))
+    kk
 
     # --------------------------------------------------
     # Inference
