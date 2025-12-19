@@ -300,11 +300,19 @@ class Trainer:
                         self.save_checkpoint(self.step)
 
                     if self.max_steps and self.step >= self.max_steps:
-                        print(f"Reached max steps {self.max_steps}, stopping training.")
+                        print(f"Reached max steps {self.max_steps}, stopping training after "
+                              f"{self.sample} samples, "
+                              f"{self.step} steps, "
+                              f"{self.batch} batches, "
+                              f"{self.sample/len(self.train_dataset):.3f} epochs.")
                         break
 
             if self.max_epochs and self.epoch >= self.max_epochs:
-                print(f"Reached max epochs {self.max_epochs}, stopping training.")
+                print(f"Reached max epochs {self.max_epochs}, stopping training after "
+                      f"{self.sample} samples, "
+                      f"{self.step} steps, "
+                      f"{self.batch} batches, "
+                      f"{self.sample/len(self.train_dataset):.3f} epochs.")
                 break
 
         logger.info("End training")
@@ -326,7 +334,7 @@ class Trainer:
         log_str = (
             f"{'Eval' if is_eval else 'Train'} "
             f"[Step {Color.CYAN}{self.step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{self.samples/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{self.sample/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
@@ -337,7 +345,7 @@ class Trainer:
         log_str = (
             f"{'Eval ' if is_eval else 'Train'} "
             f"[Step {self.step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {self.samples/len(self.train_dataset):.3f}/{self.max_epochs}] "
+            f"Epoch {self.sample/len(self.train_dataset):.3f}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
             f"lr_lora={lr_lora:.6e} | "
