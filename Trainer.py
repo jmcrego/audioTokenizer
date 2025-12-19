@@ -257,7 +257,7 @@ class Trainer:
         accum_loss = 0.0
 
         while self.max_steps and self.step < self.max_steps:
-            self.epoch += 1            
+            self.epoch += 1
 
             for batch in self.train_loader:
                 self.batch += 1
@@ -278,7 +278,7 @@ class Trainer:
                 loss.backward()
 
                 # Gradient accumulation
-                if self.step % self.accum_steps == 0:
+                if self.batch % self.accum_steps == 0:
                     # Gradient clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                     # Optimizer step
