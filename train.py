@@ -44,12 +44,14 @@ if __name__ == "__main__":
     # dataset paths
     parser.add_argument("--train", required=True, help="Training dataset file")
     parser.add_argument("--eval", default=None, help="Evaluation dataset file")
-    # train/opt pars
+    # opt pars
     parser.add_argument("--lr_lora", type=float, default=1e-4, help="Learning rate for LoRA layers")
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
-    parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
+    parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use around 5%)")
+    # train pars
+    parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many steps before optimizing")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=1000, help="Run evaluation after this many steps")
@@ -136,6 +138,7 @@ if __name__ == "__main__":
         lr_lora=args.lr_lora,
         max_steps=args.max_steps,
         max_epochs=args.max_epochs,
+        warmup_steps=args.warmup_steps,
         save_best_n=args.save_best_n,
         eval_every=args.eval_every,
         log_every=args.log_every,

@@ -43,6 +43,7 @@ class Trainer:
         lr_lora=1e-4,
         max_steps=10000,
         max_epochs=10,
+        warmup_steps=0,
         save_best_n=3,
         eval_every=1000,
         log_every=50,
@@ -65,6 +66,7 @@ class Trainer:
         self.lr_lora = lr_lora
         self.max_steps = max_steps
         self.max_epochs = max_epochs
+        self.warmup_steps = warmup_steps
         self.save_best_n = save_best_n
         self.eval_every = eval_every
         self.log_every = log_every
@@ -114,13 +116,14 @@ class Trainer:
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(0.01 * self.max_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps, with {int(0.01 * self.max_steps)} warmup_steps")
+        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
+        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps)} warmup steps)")
 
         # For logging
-        self.step = 0 # microbatch step (not optimizer step)
+        self.step = 0 # optimizer step
+        self.batch = 0 # microbatch step
         self.epoch = 0
-        self.samples = 0
+        self.sample = 0
         self.start_time = datetime.now()
 
 
@@ -166,75 +169,6 @@ class Trainer:
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
 
-
-    # -----------------------
-    # Load checkpoint
-    # -----------------------
-    # def load_checkpoint(self, ckpt_path):
-    #     """
-    #     Load projector, LoRA adapters, optimizer state, and step.
-    #     ckpt_path is the prefix without extension, e.g.:
-    #     sft4/checkpoint_step49000
-    #     """
-
-    #     # -----------------------
-    #     # Load Projector
-    #     # -----------------------
-    #     proj_path = ckpt_path + ".proj.pt"
-    #     if os.path.exists(proj_path):
-    #         state = torch.load(proj_path, map_location="cpu")
-    #         self.model.projector.load_state_dict(state, strict=True)
-    #         logger.info(f"Loaded Projector from {proj_path}")
-    #     else:
-    #         raise FileNotFoundError(f"Missing projector checkpoint: {proj_path}")
-
-    #     # -----------------------
-    #     # Load LoRA adapters (PEFT)
-    #     # -----------------------
-    #     lora_path = ckpt_path + ".lora"
-    #     if os.path.exists(lora_path):
-    #         # IMPORTANT:
-    #         # Assumes self.model.llm_model is already wrapped with PEFT
-    #         self.model.llm_model.load_adapter(lora_path, adapter_name="default")
-    #         self.model.llm_model.set_adapter("default")
-    #         logger.info(f"Loaded LoRA adapters from {lora_path}")
-    #     else:
-    #         raise FileNotFoundError(f"Missing LoRA checkpoint: {lora_path}")
-
-    #     # -----------------------
-    #     # Load optimizer + step
-    #     # -----------------------
-    #     optim_path = ckpt_path + ".optim.pt"
-    #     if os.path.exists(optim_path):
-    #         state = torch.load(optim_path, map_location="cpu")
-    #         self.optimizer.load_state_dict(state["optimizer_state_dict"])
-    #         self.step = state.get("step", 0)
-    #         logger.info(f"Loaded optimizer state from {optim_path} (step={self.step})")
-    #     else:
-    #         logger.warning(f"No optimizer state found at {optim_path}, starting fresh optimizer")
-    #         self.step = 0
-
-    #     print(f"Loaded checkpoint from {ckpt_path}, resuming at step {self.step}")
-
-
-    # -----------------------
-    # Resume from latest checkpoint automatically
-    # -----------------------
-    # def resume_latest_checkpoint(self, prefix="checkpoint"):
-    #     # find all checkpoints with the given prefix
-    #     files = [f for f in os.listdir(self.output_dir) if f.startswith(prefix) and f.endswith(".pt")]
-    #     if not files:
-    #         print("No checkpoint found, starting from scratch.")
-    #         return False
-    #     # pick the one with the largest step number
-    #     def step_from_name(f):
-    #         import re
-    #         m = re.search(r"_step(\d+)", f)
-    #         return int(m.group(1)) if m else 0
-    #     latest_ckpt = max(files, key=step_from_name)
-    #     self.load_checkpoint(os.path.join(self.output_dir, latest_ckpt))
-    #     return True
-
     # -----------------------
     # Collator function
     # -----------------------
@@ -268,7 +202,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{self.samples/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
+            f"Epoch {Color.CYAN}{self.sample/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
             # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
@@ -279,7 +213,7 @@ class Trainer:
 
         log_str = (
             f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {self.samples/len(self.train_dataset):.3f}/{self.max_epochs}] "
+            f"Epoch {self.sample/len(self.train_dataset):.3f}/{self.max_epochs}] "
             # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
@@ -306,7 +240,7 @@ class Trainer:
             total_loss += outputs["loss"].item()
             n_batches += 1
         avg_loss = total_loss / max(1, n_batches)
-        self.log_fn(avg_loss, self.step, self.epoch, is_eval=True)
+        self.log_fn(avg_loss, is_eval=True)
 
         self.model.train()
         return avg_loss
@@ -326,8 +260,8 @@ class Trainer:
             self.epoch += 1            
 
             for batch in self.train_loader:
-                self.step += 1 # microbatch step (not optimizer step)
-                self.samples += batch["prompt_ids"].size(0)
+                self.batch += 1
+                self.sample += batch["prompt_ids"].size(0)
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
@@ -354,24 +288,20 @@ class Trainer:
                     self.scheduler.step()
 
                     # Logging (log_every must be multiple of accum_steps)
+                    self.step += 1 
                     if self.step % self.log_every == 0:
                         avg_loss = accum_loss / self.accum_steps
-                        self.log_fn(avg_loss.item(), self.step, self.epoch)
+                        self.log_fn(avg_loss.item())
                     accum_loss = 0.0
 
+                    # Evaluation + checkpoint
+                    if self.eval_loader is not None and self.step % self.eval_every == 0:
+                        self.evaluate()
+                        self.save_checkpoint(self.step)
 
-                # Logging
-                # if self.step % self.log_every == 0:
-                #     self.log_fn(loss.item() * self.accum_steps, self.step, self.epoch)
-
-                # Evaluation + checkpoint
-                if self.eval_loader is not None and self.step % self.eval_every == 0:
-                    self.evaluate()
-                    self.save_checkpoint(self.step)
-
-                if self.max_steps and self.step >= self.max_steps:
-                    print(f"Reached max steps {self.max_steps}, stopping training.")
-                    break
+                    if self.max_steps and self.step >= self.max_steps:
+                        print(f"Reached max steps {self.max_steps}, stopping training.")
+                        break
 
             if self.max_epochs and self.epoch >= self.max_epochs:
                 print(f"Reached max epochs {self.max_epochs}, stopping training.")
@@ -382,7 +312,7 @@ class Trainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, step, epoch, is_eval=False):
+    def log_fn(self, loss, is_eval=False):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -392,12 +322,11 @@ class Trainer:
         lr_lora = self.optimizer.param_groups[1]["lr"]
 
         w_step = len(str(self.max_steps))
-        w_epoch = len(str(self.max_epochs))
 
         log_str = (
-            f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
+            f"{'Eval' if is_eval else 'Train'} "
+            f"[Step {Color.CYAN}{self.step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
             f"Epoch {Color.CYAN}{self.samples/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
-            # f"Epoch {Color.CYAN}{epoch:>{w_epoch}d}{Color.RESET}/{self.max_epochs}] "
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
@@ -406,9 +335,9 @@ class Trainer:
         print(log_str)
 
         log_str = (
-            f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
+            f"{'Eval ' if is_eval else 'Train'} "
+            f"[Step {self.step:>{w_step}d}/{self.max_steps}, "
             f"Epoch {self.samples/len(self.train_dataset):.3f}/{self.max_epochs}] "
-            # f"Epoch {epoch:>{w_epoch}d}/{self.max_epochs}] "
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
             f"lr_lora={lr_lora:.6e} | "
