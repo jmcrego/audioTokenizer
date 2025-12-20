@@ -20,7 +20,7 @@ code2lang={
     "ru": "Russian",
 }
 
-def build_prompt(lang, tgt_lang, asr_token, stt_token):
+def build_prompt_old(lang, tgt_lang, asr_token, stt_token):
     if lang and tgt_lang:
         return f"\nTranscribe then translate into {tgt_lang}.\n{asr_token} "
     elif lang:
@@ -31,7 +31,7 @@ def build_prompt(lang, tgt_lang, asr_token, stt_token):
         raise ValueError("No lang or tgt_lang provided")
 
 
-def build_target(asr, stt, stt_token, eos_token):
+def build_target_old(asr, stt, stt_token, eos_token):
     if asr and stt:
         return f"{asr} {stt_token} {stt}{eos_token}"
     elif asr:
@@ -42,7 +42,12 @@ def build_target(asr, stt, stt_token, eos_token):
         raise ValueError("No ASR or STT text provided")
 
 
-def build_prompt2(src_lang=None, tgt_lang=None):
+def build_prompt(src_lang=None, tgt_lang=None):
+    if src_lang is not None and src_lang not in code2lang:
+        raise ValueError(f"Source language code '{src_lang}' not found.")        
+    if tgt_lang is not None and tgt_lang not in code2lang:
+        raise ValueError(f"Target language code '{tgt_lang}' not found.")        
+
     src_lang = code2lang.get(src_lang)
     tgt_lang = code2lang.get(tgt_lang)
 
@@ -63,20 +68,21 @@ def build_prompt2(src_lang=None, tgt_lang=None):
     prompt += "Answer:\n"
     return prompt
 
-def build_target2(asr=None, stt=None, asr_token="[ASR]", stt_token="[STT]", eos_token="<eos>"):
+def build_target(asr=None, stt=None, asr_token="[ASR]", stt_token="[STT]", eos_token="<eos>"):
+    if (asr is None or asr == "") and (stt is None or stt == ""):
+        raise ValueError("No ASR or STT text provided.")
+
     target = ""
-    
-    if asr is not None:
+
+    if asr is not None and asr != "":
         target += f"{asr_token}\n{asr}\n"
-    
-    if stt is not None:
+
+    if stt is not None and stt != "":
         target += f"{stt_token}\n{stt}\n"
-    
-    if not target:
-        raise ValueError("No ASR or STT text provided")
-    
+
     target += eos_token
     return target
+ 
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
