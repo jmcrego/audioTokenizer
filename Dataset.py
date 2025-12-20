@@ -161,10 +161,15 @@ class Dataset(Dataset):
                 parts = line.strip("\n").split("\t")
                 if len(parts) < 5:
                     continue
-                audio_path, lang, asr, tgt_lang, stt = parts[:5]
-                task = "asr+stt" if asr and stt else "asr" if asr else "stt" if stt else None
+                audio_path, src_lang, asr, tgt_lang, stt = parts[:5]
 
-                prompt = build_prompt(lang, tgt_lang, self.asr_token, self.stt_token)
+                task = "asr+stt" if asr and stt else "asr" if asr else "stt" if stt else None
+                self.tasks[task] += 1
+
+                src_lang = src_lang if src_lang else None
+                tgt_lang = tgt_lang if tgt_lang else None
+
+                prompt = build_prompt(src_lang, tgt_lang)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -173,10 +178,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, self.stt_token, self.tokenizer.eos_token)
-
-                self.tasks[task] += 1
-
+                target = build_target(asr, stt, self.asr_token, self.stt_token, self.tokenizer.eos_token)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",
