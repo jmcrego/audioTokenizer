@@ -62,11 +62,11 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
-    if args.log_every % args.accum_steps != 0:
-        raise ValueError(f"--log_every ({args.log_every}) must be a multiple of --accum_steps ({args.accum_steps})")
+    # if args.log_every % args.accum_steps != 0:
+    #     raise ValueError(f"--log_every ({args.log_every}) must be a multiple of --accum_steps ({args.accum_steps})")
 
-    if args.eval_every % args.accum_steps != 0:
-        raise ValueError(f"--eval_every ({args.eval_every}) must be a multiple of --accum_steps ({args.accum_steps})")
+    # if args.eval_every % args.accum_steps != 0:
+    #     raise ValueError(f"--eval_every ({args.eval_every}) must be a multiple of --accum_steps ({args.accum_steps})")
 
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
