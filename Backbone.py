@@ -17,7 +17,6 @@ class Backbone(torch.nn.Module):
         super().__init__()
 
         llm_path = config["path"]
-        lora_path = config_lora["path"]
 
         ###### Tokenizer ##################################################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
@@ -30,22 +29,23 @@ class Backbone(torch.nn.Module):
         logger.info(f"Loaded LLM model from {llm_path}")
 
         # LoRA adapters
-        if lora_path is not None:
-            # load preexisting lora adapters
-            self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path)
-            logger.info(f"Loaded LoRa adapters from {lora_path}")
-        else:
-            # create new lora adapters
-            lora_cfg = LoraConfig(
-                r=config_lora["r"],
-                lora_alpha=config_lora["lora_alpha"],
-                target_modules=config_lora["target_modules"],
-                lora_dropout=config_lora["lora_dropout"],
-                bias=config_lora["bias"],
-                task_type=config_lora["task_type"],
-            )
-            self.llm_model = get_peft_model(self.llm_model, lora_cfg)
-            logger.info(f"Initialized LoRa adapters {lora_cfg}")
-
+        if config_lora is not None:
+            lora_path = config_lora["path"]
+            if lora_path is not None:
+                # load preexisting lora adapters
+                self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path)
+                logger.info(f"Loaded LoRa adapters from {lora_path}")
+            else:
+                # create new lora adapters
+                lora_cfg = LoraConfig(
+                    r=config_lora["r"],
+                    lora_alpha=config_lora["lora_alpha"],
+                    target_modules=config_lora["target_modules"],
+                    lora_dropout=config_lora["lora_dropout"],
+                    bias=config_lora["bias"],
+                    task_type=config_lora["task_type"],
+                )
+                self.llm_model = get_peft_model(self.llm_model, lora_cfg)
+                logger.info(f"Initialized LoRa adapters {lora_cfg}")
 
         assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
