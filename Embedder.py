@@ -145,7 +145,8 @@ class Embedder(nn.Module):
             preprocessed,
             sampling_rate=self.sample_rate,
             return_tensors="pt",
-            padding=True
+            padding=True,
+            return_attention_mask=True
         )
 
         # For HuBERT / wav2vec2:
@@ -160,7 +161,7 @@ class Embedder(nn.Module):
             sample_mask = None
         else:
             inputs = feat.input_values.to(device, dtype=torch.float32)
-            sample_mask = feat.attention_mask.to(device)
+            sample_mask = feat.attention_mask.to(device)  # [B, T_samples]
 
         logger.debug(
             f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}"
