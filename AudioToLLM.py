@@ -86,8 +86,8 @@ class AudioToLLM(torch.nn.Module):
             embs, embs_mask = self.audio_embedder(audio_paths)
             embs = embs.to(device=device)
             embs_mask = embs_mask.bool().to(device)
-            logging.info(f"embs.shape = {embs.shape}")
-            logging.info(f"embs_mask.shape = {embs_mask.shape}")
+            # logging.info(f"embs.shape = {embs.shape}")
+            # logging.info(f"embs_mask.shape = {embs_mask.shape}")
 
         # ----------------------------
         # 2) Projector (trainable)
@@ -95,8 +95,8 @@ class AudioToLLM(torch.nn.Module):
         proj_embs, proj_mask = self.projector(embs, embs_mask)
         proj_mask = proj_mask.bool()
         B, S, D = proj_embs.shape
-        logging.info(f"proj_embs.shape = {proj_embs.shape}")
-        logging.info(f"proj_mask.shape = {proj_mask.shape}")
+        # logging.info(f"proj_embs.shape = {proj_embs.shape}")
+        # logging.info(f"proj_mask.shape = {proj_mask.shape}")
 
         # ----------------------------
         # 3) Prompt embeddings (frozen)
@@ -105,7 +105,7 @@ class AudioToLLM(torch.nn.Module):
         T_prompt = prompt_ids.size(1)
         with torch.no_grad():
             prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
-            logging.info(f"prompt_embs.shape = {prompt_embs.shape}")
+            # logging.info(f"prompt_embs.shape = {prompt_embs.shape}")
 
         # ----------------------------
         # 4) Target embeddings (frozen)
@@ -114,7 +114,7 @@ class AudioToLLM(torch.nn.Module):
         L_labels = target_ids.size(1)
         with torch.no_grad():
             target_embs = self.llm_model.get_input_embeddings()(target_ids)
-            logging.info(f"target_embs.shape = {target_embs.shape}")
+            # logging.info(f"target_embs.shape = {target_embs.shape}")
 
         # ----------------------------
         # 5) Lengths
@@ -124,7 +124,7 @@ class AudioToLLM(torch.nn.Module):
         target_lens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1) #[B]
         total_lens = audio_lens + prompt_lens + target_lens #[B]
         max_len = total_lens.max().item()
-        logging.info(f"max_len={max_len}")
+        # logging.info(f"max_len={max_len}")
 
         # ----------------------------
         # 6) Allocate tensors
@@ -132,9 +132,9 @@ class AudioToLLM(torch.nn.Module):
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype) #[B, max_len, D]
         attention_mask = (torch.arange(max_len, device=device).unsqueeze(0) < total_lens.unsqueeze(1)).long()
         labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
-        logging.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
-        logging.info(f"attention_mask.shape = {attention_mask.shape}")
-        logging.info(f"labels.shape = {labels.shape}")
+        # logging.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
+        # logging.info(f"attention_mask.shape = {attention_mask.shape}")
+        # logging.info(f"labels.shape = {labels.shape}")
 
         # ----------------------------
         # 7) Copy audio embeddings
@@ -152,7 +152,7 @@ class AudioToLLM(torch.nn.Module):
         batch_idx_prompt = batch_arange.unsqueeze(1).expand_as(prompt_idx)
         inputs_embeds[batch_idx_prompt[prompt_valid], dest_prompt_pos[prompt_valid]] = prompt_embs[prompt_valid].to(llm_dtype)
         assert (dest_prompt_pos[prompt_valid] < inputs_embeds.size(1)).all()
-        
+
         # ----------------------------
         # 9) Copy target embeddings and labels
         # ----------------------------
