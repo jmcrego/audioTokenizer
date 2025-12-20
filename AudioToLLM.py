@@ -86,6 +86,8 @@ class AudioToLLM(torch.nn.Module):
             embs, embs_mask = self.audio_embedder(audio_paths)
             embs = embs.to(device=device)
             embs_mask = embs_mask.bool().to(device)
+            logging.info(f"embs.shape = {embs.shape}")
+            logging.info(f"embs_mask.shape = {embs_mask.shape}")
 
         # ----------------------------
         # 2) Projector (trainable)
@@ -93,6 +95,8 @@ class AudioToLLM(torch.nn.Module):
         proj_embs, proj_mask = self.projector(embs, embs_mask)
         proj_mask = proj_mask.bool()
         B, S, D = proj_embs.shape
+        logging.info(f"proj_embs.shape = {proj_embs.shape}")
+        logging.info(f"proj_mask.shape = {proj_mask.shape}")
 
         # ----------------------------
         # 3) Prompt embeddings (frozen)
@@ -101,6 +105,7 @@ class AudioToLLM(torch.nn.Module):
         T_prompt = prompt_ids.size(1)
         with torch.no_grad():
             prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
+            logging.info(f"prompt_embs.shape = {prompt_embs.shape}")
 
         # ----------------------------
         # 4) Target embeddings (frozen)
@@ -109,48 +114,53 @@ class AudioToLLM(torch.nn.Module):
         L_labels = target_ids.size(1)
         with torch.no_grad():
             target_embs = self.llm_model.get_input_embeddings()(target_ids)
+            logging.info(f"target_embs.shape = {target_embs.shape}")
 
         # ----------------------------
         # 5) Lengths
         # ----------------------------
-        audio_lens  = proj_mask.sum(dim=1)
-        prompt_lens = (prompt_ids != self.tokenizer.pad_token_id).sum(dim=1)
-        target_lens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1)
-        total_lens = audio_lens + prompt_lens + target_lens
+        audio_lens  = proj_mask.sum(dim=1) #[B]
+        prompt_lens = (prompt_ids != self.tokenizer.pad_token_id).sum(dim=1) #[B]
+        target_lens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1) #[B]
+        total_lens = audio_lens + prompt_lens + target_lens #[B]
         max_len = total_lens.max().item()
+        logging.info(f"max_len={max_len}")
 
         # ----------------------------
         # 6) Allocate tensors
         # ----------------------------
-        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
+        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype) #[B, max_len, D]
         attention_mask = (torch.arange(max_len, device=device).unsqueeze(0) < total_lens.unsqueeze(1)).long()
         labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
+        logging.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
+        logging.info(f"attention_mask.shape = {attention_mask.shape}")
+        logging.info(f"labels.shape = {labels.shape}")
 
         # ----------------------------
         # 7) Copy audio embeddings
         # ----------------------------
         audio_idx = torch.arange(S, device=device).unsqueeze(0).expand(B, S)
         audio_valid = audio_idx < audio_lens.unsqueeze(1)
-        inputs_embeds[batch_arange.unsqueeze(1).expand_as(audio_idx)[audio_valid],
-                      audio_idx[audio_valid]] = proj_embs[audio_valid].to(llm_dtype)
+        inputs_embeds[batch_arange.unsqueeze(1).expand_as(audio_idx)[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid].to(llm_dtype)
 
         # ----------------------------
         # 8) Copy prompt embeddings
         # ----------------------------
-        dest_prompt_pos = audio_lens.unsqueeze(1) + torch.arange(T_prompt, device=device).unsqueeze(0)
-        inputs_embeds[batch_arange.unsqueeze(1).expand_as(dest_prompt_pos),
-                      dest_prompt_pos] = prompt_embs.to(llm_dtype)
-
+        prompt_idx = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, T_prompt)
+        prompt_valid = prompt_idx < prompt_lens.unsqueeze(1)
+        dest_prompt_pos = audio_lens.unsqueeze(1) + prompt_idx
+        batch_idx_prompt = batch_arange.unsqueeze(1).expand_as(prompt_idx)
+        inputs_embeds[batch_idx_prompt[prompt_valid], dest_prompt_pos[prompt_valid]] = prompt_embs[prompt_valid].to(llm_dtype)
+        assert (dest_prompt_pos[prompt_valid] < inputs_embeds.size(1)).all()
+        
         # ----------------------------
         # 9) Copy target embeddings and labels
         # ----------------------------
         target_idx = torch.arange(L_labels, device=device).unsqueeze(0).expand(B, L_labels)
         target_valid = target_idx < target_lens.unsqueeze(1)
         dest_target_pos = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + target_idx
-        inputs_embeds[batch_arange.unsqueeze(1).expand_as(target_idx)[target_valid],
-                      dest_target_pos[target_valid]] = target_embs[target_valid].to(llm_dtype)
-        labels[batch_arange.unsqueeze(1).expand_as(target_idx)[target_valid],
-               dest_target_pos[target_valid]] = target_ids[target_valid]
+        inputs_embeds[batch_arange.unsqueeze(1).expand_as(target_idx)[target_valid], dest_target_pos[target_valid]] = target_embs[target_valid].to(llm_dtype)
+        labels[batch_arange.unsqueeze(1).expand_as(target_idx)[target_valid], dest_target_pos[target_valid]] = target_ids[target_valid]
 
         # ----------------------------
         # 10) Positional IDs
@@ -204,8 +214,7 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 2) Prompt → embeddings
         # ----------------------------
-        prompt_ids = self.tokenizer(prompt, return_tensors="pt",
-                                    padding=False, truncation=False, add_special_tokens=False).input_ids.to(device)
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids.to(device)
         T_prompt = prompt_ids.size(1)
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids).expand(B, -1, -1)
 
@@ -226,15 +235,13 @@ class AudioToLLM(torch.nn.Module):
         T_audio = proj_embs.size(1)
         audio_idx = torch.arange(T_audio, device=device).unsqueeze(0).expand(B, T_audio)
         audio_valid = audio_idx < audio_lens.unsqueeze(1)
-        inputs_embeds[batch_idx.unsqueeze(1).expand_as(audio_idx)[audio_valid],
-                      audio_idx[audio_valid]] = proj_embs[audio_valid].to(llm_dtype)
+        inputs_embeds[batch_idx.unsqueeze(1).expand_as(audio_idx)[audio_valid], audio_idx[audio_valid]] = proj_embs[audio_valid].to(llm_dtype)
 
         # ----------------------------
         # 5) Copy prompt embeddings
         # ----------------------------
         dest_prompt_pos = audio_lens.unsqueeze(1) + torch.arange(T_prompt, device=device).unsqueeze(0)
-        inputs_embeds[batch_idx.unsqueeze(1).expand_as(dest_prompt_pos),
-                      dest_prompt_pos] = prompt_embs.to(llm_dtype)
+        inputs_embeds[batch_idx.unsqueeze(1).expand_as(dest_prompt_pos), dest_prompt_pos] = prompt_embs.to(llm_dtype)
 
         # ----------------------------
         # 6) Positional IDs
