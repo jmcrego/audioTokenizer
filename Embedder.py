@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import soxr
-import time
-import json
 import torch
 import logging
 import numpy as np
@@ -16,41 +14,46 @@ logger = logging.getLogger("Embedder")
 # torch.backends.cudnn.benchmark = True
 
 def preprocess_audio(audio_input, sample_rate=16000, channel=0):
-    """Load WAV from file or an audio chunk (float32 numpy array), convert to mono (channel), resample (sample_rate), normalize, ..."""
+    """
+    Load audio from:
+      - file path (str)
+      - numpy array (float waveform)
 
+    Returns:
+      wav: np.ndarray, shape [T_samples], dtype float32
+    """
+
+    # -----------------------------
+    # Load audio
+    # -----------------------------
     if isinstance(audio_input, str):
-        wav, sr = sf.read(audio_input)
+        wav, sr = sf.read(audio_input)              # wav: [T] or [T, C]
     elif isinstance(audio_input, np.ndarray):
         wav = audio_input
-        sr = sample_rate 
+        sr = sample_rate
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
-    logger.debug(f"preprocess: wav size={wav.shape} sr={sr} time={wav.shape[0]/sr:.2f} sec")
+
+    logger.debug(f"preprocess: wav shape={wav.shape}, sr={sr}")
 
     # -----------------------------
-    # --- mono CHANNEL ------------
+    # Convert to mono
     # -----------------------------
-    if len(wav.shape) > 1:
+    if wav.ndim > 1:
         if channel == -1:
-            wav = np.mean(wav, axis=1)
+            wav = wav.mean(axis=1)                  # [T]
         else:
-            wav = wav[:, channel]
-        logger.debug(f"preprocess: handled channels, wav size={wav.shape} time={wav.shape[0]/sr:.2f} sec")
+            wav = wav[:, channel]                   # [T]
 
     # -----------------------------
-    # --- RESAMPLE ----------------
+    # Resample if needed
     # -----------------------------
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
-        logger.debug(f"preprocess: resampled, wav size={wav.shape} sr={sample_rate} time={wav.shape[0]/sample_rate:.2f} sec")
+        sr = sample_rate
 
     # -----------------------------
-    # --- Normalize audio amplitude
-    # -----------------------------
-    wav = wav / max(1e-8, np.abs(wav).max())
-
-    # -----------------------------
-    # --- ENSURE float32 dtype ----
+    # Convert to float32
     # -----------------------------
     wav = wav.astype(np.float32)
 
@@ -59,21 +62,29 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
 
 class Embedder(nn.Module):
     """
-    Audio embedding extractor for: 'mhubert', 'wav2vec2', 'whisper'
-    No manual chunking; handles padding and masks.
+    Audio → frame embeddings extractor.
+
+    Output:
+      frames: [B, T_frames, D]   float32
+      mask:   [B, T_frames]      bool (True = valid frame)
     """
 
     def __init__(self, config):
         super().__init__()
-        self.config = config
+
+        #self.config = config
         self.path = config["path"]
 
+        # ----------------------------------------------------
+        # Load backbone
+        # ----------------------------------------------------
         if "mhubert" in self.path.lower():
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = HubertModel.from_pretrained(self.path)
             self.embedding_dim = self.embedder.config.hidden_size
-            # Disable augmentation
+
+            # Disable SpecAugment
             self.embedder.config.mask_time_prob = 0.0
             self.embedder.config.mask_feature_prob = 0.0
             self.embedder.config.apply_spec_augment = False
@@ -91,13 +102,22 @@ class Embedder(nn.Module):
             self.embedding_dim = self.embedder.config.d_model
 
         else:
-            raise ValueError(f"Unknown model: {self.path}")
+            raise ValueError(f"Unknown audio model: {self.path}")
 
         self.sample_rate = self.feature_extractor.sampling_rate
         self.l2_norm = config.get("l2_norm", False)
         self.downsample_ratio = self._downsample_ratio()
+        
+        # wrapper may also do this
+        self.embedder.eval()  
+        for p in self.embedder.parameters():
+            p.requires_grad = False
 
-        logger.info(f"Loaded {self.path}, embedding_dim={self.embedding_dim}, sample_rate={self.sample_rate} downsample_ratio={self.downsample_ratio}")
+        logger.info(f"Loaded {self.path} | "
+                    f"embedding_dim={self.embedding_dim} | "
+                    f"sample_rate={self.sample_rate} | "
+                    f"downsample_ratio={self.downsample_ratio}")
+
 
     def forward(self, audio_inputs):
         """
@@ -108,40 +128,119 @@ class Embedder(nn.Module):
             masks: [B, T_max] bool
         """
         device = next(self.parameters()).device
-        dtype = next(self.parameters()).dtype
+        # always use the original dtype (never cast!)
 
-        # --- Preprocess all audios ---
-        preprocessed = [preprocess_audio(a, sample_rate=self.sample_rate) for a in audio_inputs]
-        lengths = [len(a) for a in preprocessed]  # number of samples per audio
+        # ====================================================
+        # 1. Preprocess each audio independently
+        # ====================================================
+        preprocessed = [
+            preprocess_audio(a, sample_rate=self.sample_rate) 
+            for a in audio_inputs
+        ] # waveforms: list of np.ndarray [T_i]
 
-        # --- Pad sequences to max length ---
-        max_len = max(lengths)
-        batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T_samples]
-        masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T_samples]
+        # ====================================================
+        # 2. Feature extractor (handles padding + mask)
+        # ====================================================
+        feat = self.feature_extractor(
+            preprocessed,
+            sampling_rate=self.sample_rate,
+            return_tensors="pt",
+            padding=True
+        )
 
-        input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-        inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
-        inputs = inputs.to(device=device, dtype=dtype)  # [B, T_frames, F], float32
+        # For HuBERT / wav2vec2:
+        #   input_values: [B, T_samples]
+        #   attention_mask: [B, T_samples]
+        #
+        # For Whisper:
+        #   input_features: [B, n_mels, T_frames]
 
-        # Compute frames (embeddings)
-        frames = self.embedder(inputs).last_hidden_state  # [B, T_frames, D], float32
+        if "whisper" in self.path.lower():
+            inputs = feat.input_features.to(device, dtype=torch.float32)
+            sample_mask = None
+        else:
+            inputs = feat.input_values.to(device, dtype=torch.float32)
+            sample_mask = feat.attention_mask.to(device)
 
-        # --- Optional L2 normalization ---
+        logger.debug(
+            f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}"
+        )
+
+        # ====================================================
+        # 3. Encoder forward
+        # ====================================================
+        with torch.no_grad():
+            if sample_mask is not None:
+                outputs = self.embedder(
+                    inputs,
+                    attention_mask=sample_mask
+                )
+            else:
+                outputs = self.embedder(inputs)
+
+            frames = outputs.last_hidden_state
+            # frames: [B, T_frames, D], float32
+
+        logger.debug(f"Frame embeddings: {frames.shape}")
+
+        # ====================================================
+        # 4. L2 normalization if required
+        # ====================================================
         if self.l2_norm:
-            frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
+            frames = torch.nn.functional.normalize(frames, dim=-1)
 
-        # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
-        # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
-        # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
-        # using: frame_masks = masks[:, ::4]
-        # kept idx:     0       4       8
-        # frame_masks:  1       1       0
-        # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
-        frames_masks = masks[:, ::self.downsample_ratio]
-        frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
-        frames_masks = torch.from_numpy(frames_masks).to(device)
+        # ====================================================
+        # 5. Frame-level mask 
+        # ====================================================
+        if "whisper" in self.path.lower():
+            # Whisper encoder outputs are always dense
+            frames_mask = torch.ones(
+                frames.shape[:2],
+                dtype=torch.bool,
+                device=device
+            )
+        else:
+            frames_mask = self.embedder._get_feature_vector_attention_mask(
+                frames.shape[1],
+                sample_mask
+            ).bool()
 
-        return frames, frames_masks  # out: [B, T', D] float32, mask_tensor: [B, T] bool
+        logger.debug(f"Frame mask: {frames_mask.shape}")
+
+        return frames, frames_mask
+
+
+
+        # lengths = [len(a) for a in preprocessed]  # number of samples per audio
+
+        # # --- Pad sequences to max length ---
+        # max_len = max(lengths)
+        # batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T_samples]
+        # masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T_samples]
+
+        # input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
+        # inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
+        # inputs = inputs.to(device=device, dtype=dtype)  # [B, T_frames, F], float32
+
+        # # Compute frames (embeddings)
+        # frames = self.embedder(inputs).last_hidden_state  # [B, T_frames, D], float32
+
+        # # --- Optional L2 normalization ---
+        # if self.l2_norm:
+        #     frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
+
+        # # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
+        # # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
+        # # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
+        # # using: frame_masks = masks[:, ::4]
+        # # kept idx:     0       4       8
+        # # frame_masks:  1       1       0
+        # # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
+        # frames_masks = masks[:, ::self.downsample_ratio]
+        # frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
+        # frames_masks = torch.from_numpy(frames_masks).to(device)
+
+        # return frames, frames_masks  # out: [B, T_frames, D] float32, mask_tensor: [B, T_frames] bool
 
 
     def _downsample_ratio(self):
@@ -161,6 +260,8 @@ class Embedder(nn.Module):
 
 if __name__ == "__main__":
     import argparse
+    import time
+    import json
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Config file")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")

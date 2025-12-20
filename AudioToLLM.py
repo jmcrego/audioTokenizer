@@ -32,8 +32,7 @@ class AudioToLLM(torch.nn.Module):
         ###################################
         ### set to correct device/dtype ###
         ###################################
-        self.audio_embedder.to(device=device, dtype=dtype)
-        self.projector.to(device=device, dtype=dtype)
+#        self.projector.to(device=device, dtype=dtype)
         self.llm_model.to(device=device, dtype=dtype)
 
         ### freeze/unfreeze parameters and set eval mode if needed
