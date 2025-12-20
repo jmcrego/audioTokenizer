@@ -88,7 +88,7 @@ class Projector(nn.Module):
 
         # ---- superframe mask ----
 
-        # A superframe is valid only if *all* its S frames are valid
+        # A superframe is valid only if ALL its S frames are valid
         # If any frame is padded → entire superframe is masked out        
         if mask is None:
             sf_mask = None

@@ -47,3 +47,5 @@ class Backbone(torch.nn.Module):
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
             logger.info(f"Initialized LoRa adapters {lora_cfg}")
 
+
+        assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
