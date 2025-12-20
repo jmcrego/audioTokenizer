@@ -61,6 +61,10 @@ class Projector(nn.Module):
         B, T, D = x.shape
         S = self.config['stack_size']
 
+        assert x.shape[1] % S == 0
+
+        x = x.to(dtype=next(self.proj.parameters()).dtype)
+
         # every sequence of audio embeddings (T) in batch must be merged into superframes (S embeddings -> 1 superframe)
         # this may introduce pad embeddings at the end (to fit superframe size S)
         # Superframes with any frame/embedding consisting of pad will then be discarded (the entire superframe is masked)
@@ -81,13 +85,14 @@ class Projector(nn.Module):
         x = self.proj(x)  # [B, N, llm_dim]
 
         # ---- build superframe mask ----
-        # padded frames contaminate superframes... all superframes become masked if any of their frames are masked
+        # A superframe is valid only if *all* its S frames are valid
+        # If any frame is padded → entire superframe is masked out        
         if mask is None:
             sf_mask = None
         else:
-            sf_mask = mask[:, :T2].view(B, N, S).all(dim=-1)
+            sf_mask = mask[:, :T2].view(B, N, S).all(dim=-1) # [B, N]
 
-        return x, sf_mask
+        return x, sf_mask 
     
 
 
@@ -105,7 +110,6 @@ if __name__ == "__main__":
 
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
-
 
     embedder = Embedder(config=config['audio'])
     projector = Projector(config=config['projector'], audio_embedding_dim=embedder.embedding_dim, llm_embedding_dim=2048)

@@ -211,39 +211,6 @@ class Embedder(nn.Module):
         return frames, frames_mask
 
 
-
-        # lengths = [len(a) for a in preprocessed]  # number of samples per audio
-
-        # # --- Pad sequences to max length ---
-        # max_len = max(lengths)
-        # batch = np.stack([np.pad(a, (0, max_len - len(a))) for a in preprocessed])  # float32, [B, T_samples]
-        # masks = np.stack([np.pad(np.ones(len(a), dtype=bool), (0, max_len - len(a))) for a in preprocessed])  # bool, [B, T_samples]
-
-        # input_dict = self.feature_extractor(batch, sampling_rate=self.sample_rate, return_tensors="pt", padding=False)
-        # inputs = input_dict.input_values if "whisper" not in self.path.lower() else input_dict.input_features
-        # inputs = inputs.to(device=device, dtype=dtype)  # [B, T_frames, F], float32
-
-        # # Compute frames (embeddings)
-        # frames = self.embedder(inputs).last_hidden_state  # [B, T_frames, D], float32
-
-        # # --- Optional L2 normalization ---
-        # if self.l2_norm:
-        #     frames = torch.nn.functional.normalize(frames, dim=-1)  # [B, T_frames, D], float32
-
-        # # Downsample mask: sample-level → frame-level (each downsample_ratio samples is one frame)
-        # # sample idx:   0 1 2 3 | 4 5 6 7 | 8 9 10 11
-        # # mask value:   1 1 1 1 | 1 1 0 0 | 0 0 0 0
-        # # using: frame_masks = masks[:, ::4]
-        # # kept idx:     0       4       8
-        # # frame_masks:  1       1       0
-        # # this is, a mask is valid (not padded) if its first audio sample is valid (not padded)
-        # frames_masks = masks[:, ::self.downsample_ratio]
-        # frames_masks = frames_masks[:, :frames.shape[1]]  # same length than frames
-        # frames_masks = torch.from_numpy(frames_masks).to(device)
-
-        # return frames, frames_masks  # out: [B, T_frames, D] float32, mask_tensor: [B, T_frames] bool
-
-
     def _downsample_ratio(self):
         """
         Compute the ratio between number of audio samples and features (or embeddings)
@@ -276,4 +243,4 @@ if __name__ == "__main__":
     audio_embedder = Embedder(config=config['audio'])
     t = time.time()
     embeddings, masks = audio_embedder(args.audio_files.split(','))
-    print(f"Output embeddings {embeddings.shape}, maks {masks.shape}, took {time.time()-t:.2f} sec")
+    print(f"Output embeddings {embeddings.shape}, masks {masks.shape}, took {time.time()-t:.2f} sec")
