@@ -54,8 +54,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8, help="Numer of sampels in a batch")
     parser.add_argument("--accum_steps", type=int, default=8, help="Accumulate this many batchs before optimizing")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
-    parser.add_argument("--eval_every", type=int, default=200, help="Run evaluation after this many optimization steps")
-    parser.add_argument("--log_every", type=int, default=20, help="Logging after this many optimization steps")
+    parser.add_argument("--eval_every", type=int, default=100, help="Evaluation (and saving checkpoint) after this many optimization steps")
+    parser.add_argument("--log_every", type=int, default=10, help="Logging after this many optimization steps")
     parser.add_argument("--save_best_n", type=int, default=3, help="Save top N checkpoints")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
