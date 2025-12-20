@@ -11,6 +11,14 @@ from transformers import PreTrainedTokenizerBase
 
 logger = logging.getLogger("Dataset")
 
+code2lang={
+    "fr": "French",
+    "ca": "Catalan",
+    "de": "German",
+    "es": "Spanish",
+    "en": "English",
+    "ru": "Russian",
+}
 
 def build_prompt(lang, tgt_lang, asr_token, stt_token):
     if lang and tgt_lang:
@@ -33,6 +41,42 @@ def build_target(asr, stt, stt_token, eos_token):
     else:
         raise ValueError("No ASR or STT text provided")
 
+
+def build_prompt2(src_lang=None, tgt_lang=None):
+    src_lang = code2lang.get(src_lang)
+    tgt_lang = code2lang.get(tgt_lang)
+
+    prompt = "\nTask:\n"
+    
+    if src_lang and tgt_lang:
+        prompt += (
+            f"1. Transcribe the speech.\n"
+            f"2. Translate the transcription into {tgt_lang}.\n"
+        )
+    elif src_lang:
+        prompt += "Transcribe the speech.\n"
+    elif tgt_lang:
+        prompt += f"Translate the speech into {tgt_lang}.\n"
+    else:
+        raise ValueError("No src_lang or tgt_lang provided")
+    
+    prompt += "Answer:\n"
+    return prompt
+
+def build_target2(asr=None, stt=None, asr_token="[ASR]", stt_token="[STT]", eos_token="<eos>"):
+    target = ""
+    
+    if asr is not None:
+        target += f"{asr_token}\n{asr}\n"
+    
+    if stt is not None:
+        target += f"{stt_token}\n{stt}\n"
+    
+    if not target:
+        raise ValueError("No ASR or STT text provided")
+    
+    target += eos_token
+    return target
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
