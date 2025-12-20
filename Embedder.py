@@ -72,7 +72,6 @@ class Embedder(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        #self.config = config
         self.path = config["path"]
 
         # ----------------------------------------------------
