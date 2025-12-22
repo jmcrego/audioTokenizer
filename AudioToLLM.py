@@ -220,8 +220,12 @@ class AudioToLLM(torch.nn.Module):
 
 
         # correct norm of proj_embs compared to prompt_embs
-        target_norm = prompt_embs.norm(dim=-1).mean().detach()
-        proj_embs = proj_embs / proj_embs.norm(dim=-1, keepdim=True) * target_norm
+        # compute target norm from prompt embeddings
+        target_norm = prompt_embs[:, 0].norm(dim=-1).mean().detach()
+        # normalize projector outputs
+        eps = 1e-6
+        proj_norm = proj_embs.norm(dim=-1, keepdim=True).clamp_min(eps)
+        proj_embs = proj_embs / proj_norm * target_norm
 
         logger.debug(
             f"proj norm={proj_embs.norm(dim=-1).mean():.2f}, "
