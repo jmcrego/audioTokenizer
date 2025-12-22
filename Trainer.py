@@ -122,6 +122,7 @@ class Trainer:
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
             self.step = state["step"]
             logger.info(f"Resume training from {config}, loaded optimizer/step={self.step}")
+            self.optimizer.add_param_group({"params": [self.model.projector.scale], "lr": self.lr_proj})
         else:
             self.step = 0
 
