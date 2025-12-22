@@ -124,7 +124,6 @@ class Trainer:
         else:
             self.step = 0
 
-        # For logging
         self.batch = 0 # microbatch step
         self.epoch = 0
         self.sample = 0
