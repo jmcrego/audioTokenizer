@@ -121,6 +121,7 @@ class Trainer:
             state = torch.load(config.replace(".config.json",".optim.pt"))
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
             self.step = state["step"]
+            logger.info(f"Resume training from {config}, loaded optimizer/step={self.step}")
         else:
             self.step = 0
 
@@ -130,7 +131,7 @@ class Trainer:
         self.start_time = datetime.now()
 
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps}) warmup steps)")
+        logger.info(f"Initialized Linear scheduler with warmup. {self.max_steps} steps, ({self.warmup_steps}) warmup steps)")
 
 
     # -----------------------------
