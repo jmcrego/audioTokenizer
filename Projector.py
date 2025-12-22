@@ -41,22 +41,24 @@ class Projector(nn.Module):
         # scale output to match the llm embeddings norm
         self.scale = nn.Parameter(torch.tensor(0.03))  # ~1 / sqrt(2048) => 1 / 45 ≈ 0.022
 
+        # if path is not None:
+        #     state_dict = torch.load(path, map_location="cpu")
+        #     missing, unexpected = self.load_state_dict(state_dict, strict=False) # will load everythin matching, if something new  will leave the new model just created  ###jmcc this wont be needed in future (use the commented code below)
+        #     logger.info(f"Missing keys: {missing}, unexpected keys: {unexpected}")
+        # else:
+        #     logger.info("Initialized Projector with random weights")            
+
+
+        load projector if given
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
-            missing, unexpected = self.load_state_dict(state_dict, strict=False) # will load everythin matching, if something new  will leave the new model just created  ###jmcc this wont be needed in future (use the commented code below)
-            logger.info(f"Missing keys: {missing}, unexpected keys: {unexpected}")
+            self.load_state_dict(state_dict, strict=True)
+            logger.info(f"Loaded Projector from {path}")
         else:
             logger.info("Initialized Projector with random weights")            
 
         logger.info(f"Projector scale = {self.scale.item()}")
 
-        # load projector if given
-        # if path is not None:
-        #     state_dict = torch.load(path, map_location="cpu")
-        #     self.load_state_dict(state_dict, strict=True)
-        #     logger.info(f"Loaded Projector from {path}")
-        # else:
-        #     logger.info("Initialized Projector with random weights")            
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):

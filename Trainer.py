@@ -118,14 +118,10 @@ class Trainer:
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
         if resume:
-            load_optim = config['projector']['path']
-            load_optim = load_optim.replace(".proj.pt",".optim.pt")
-            logger.info(f"optim path is {load_optim}")
-            state = torch.load(load_optim)
+            state = torch.load(config['projector']['path'].replace(".proj.pt",".optim.pt"))
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
             self.step = state["step"]
             logger.info(f"Resume training from {config}, loaded optimizer/step={self.step}")
-            self.optimizer.add_param_group({"params": [self.model.projector.scale], "lr": self.lr_proj}) ###jmcc this wont be needed in future
         else:
             self.step = 0
 
