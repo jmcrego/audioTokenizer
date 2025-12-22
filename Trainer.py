@@ -119,7 +119,7 @@ class Trainer:
 
         if resume:
             load_optim = config['projector']['path']
-            load_optim = load_optim.replace(".config.json",".optim.pt")
+            load_optim = load_optim.replace(".proj.pt",".optim.pt")
             logger.info(f"optim path is {load_optim}")
             state = torch.load(load_optim)
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
