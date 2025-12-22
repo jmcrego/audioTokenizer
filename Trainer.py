@@ -50,6 +50,7 @@ class Trainer:
         accum_steps=1,
         output_dir="./output_dir",
         seed=42,
+        resume=False,
     ):
         
         meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__" and not k.endswith('dataset') and not k == "model"}
@@ -116,15 +117,21 @@ class Trainer:
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps}) warmup steps)")
+        if resume:
+            state = torch.load(config.replace(".config.json",".optim.pt")
+            self.optimizer.load_state_dict(state["optimizer_state_dict"])
+            self.step = state["step"]
+        else:
+            self.step = 0
 
         # For logging
-        self.step = 0 # optimizer step
         self.batch = 0 # microbatch step
         self.epoch = 0
         self.sample = 0
         self.start_time = datetime.now()
+
+        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
+        logger.info(f"Initialized Linear scheduler with warmup for {self.max_steps} steps ({self.warmup_steps}) warmup steps)")
 
 
     # -----------------------------

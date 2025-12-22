@@ -57,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_every", type=int, default=100, help="Evaluation (and saving checkpoint) after this many optimization steps")
     parser.add_argument("--log_every", type=int, default=10, help="Logging after this many optimization steps")
     parser.add_argument("--save_best_n", type=int, default=3, help="Save top N checkpoints")
+    parser.add_argument("--resume", action="store_true", help="Resume previous training")
     # output
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
@@ -141,6 +142,7 @@ if __name__ == "__main__":
         log_every=args.log_every,
         accum_steps=args.accum_steps,
         output_dir=args.output_dir,
+        resume=args.resume,
     )
 
     # -----------------------------
