@@ -118,7 +118,7 @@ class Trainer:
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
         if resume:
-            state = torch.load(config.replace(".config.json",".optim.pt")
+            state = torch.load(config.replace(".config.json",".optim.pt"))
             self.optimizer.load_state_dict(state["optimizer_state_dict"])
             self.step = state["step"]
         else:
