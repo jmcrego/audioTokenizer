@@ -95,6 +95,8 @@ class Projector(nn.Module):
         else:
             sf_mask = mask[:, :T2].view(B, N, S).all(dim=-1) # [B, N]
 
+        logger.debug(f"proj mean={x.mean()} std={proj_out.std()} norm={proj_out.norm(dim=-1).mean()}")
+
         return x, sf_mask 
     
 
