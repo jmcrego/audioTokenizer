@@ -218,6 +218,11 @@ class AudioToLLM(torch.nn.Module):
         T_prompt = prompt_ids.size(1)
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids).expand(B, -1, -1)
 
+        logger.debug(
+            f"proj norm={proj_embs.norm(dim=-1).mean():.2f}"
+            f"text norm={prompt_embs.norm(dim=-1).mean():.2f}, "
+        )
+
         llm_dtype = next(self.llm_model.parameters()).dtype
 
         # ----------------------------
