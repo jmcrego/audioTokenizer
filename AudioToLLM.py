@@ -218,15 +218,6 @@ class AudioToLLM(torch.nn.Module):
         T_prompt = prompt_ids.size(1)
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids).expand(B, -1, -1)
 
-
-        # correct norm of proj_embs compared to prompt_embs
-        # compute target norm from prompt embeddings
-        target_norm = prompt_embs[:, 0].norm(dim=-1).mean().detach()
-        # normalize projector outputs
-        eps = 1e-6
-        proj_norm = proj_embs.norm(dim=-1, keepdim=True).clamp_min(eps)
-        proj_embs = proj_embs / proj_norm * target_norm
-
         logger.debug(
             f"proj norm={proj_embs.norm(dim=-1).mean():.2f}, "
             f"text norm={prompt_embs.norm(dim=-1).mean():.2f}"

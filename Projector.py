@@ -38,13 +38,25 @@ class Projector(nn.Module):
             nn.LayerNorm(llm_embedding_dim),
         )
 
-        # load projector if given
+        # scale output to match the llm embeddings norm
+        self.scale = nn.Parameter(torch.tensor(0.03))  # ~1 / sqrt(2048) => 1 / 45 ≈ 0.022
+
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
-            self.load_state_dict(state_dict, strict=True)
-            logger.info(f"Loaded Projector from {path}")
+            missing, unexpected = self.load_state_dict(state_dict, strict=False) # will load everythin matching, if something new  will leave the new model just created
+            logger.info(f"Missing keys: {missing}, unexpected keys: {unexpected}")
         else:
             logger.info("Initialized Projector with random weights")            
+
+        logger.info(f"Projector scale = {self.scale.item()}")
+
+        # load projector if given
+        # if path is not None:
+        #     state_dict = torch.load(path, map_location="cpu")
+        #     self.load_state_dict(state_dict, strict=True)
+        #     logger.info(f"Loaded Projector from {path}")
+        # else:
+        #     logger.info("Initialized Projector with random weights")            
 
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
@@ -85,6 +97,9 @@ class Projector(nn.Module):
 
         x = x.to(dtype=next(self.proj.parameters()).dtype)
         x = self.proj(x)  # [B, N, llm_dim]
+
+        x = x / x.norm(dim=-1, keepdim=True).clamp_min(1e-6) # ensures L2 normalization per vector
+        x = x * torch.clamp(self.scale, 0.01, 0.2) #scales to LLM-compatible (similar embeddings) magnitude, safely bounded 
 
         # ---- superframe mask ----
 
