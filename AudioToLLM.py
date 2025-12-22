@@ -207,6 +207,7 @@ class AudioToLLM(torch.nn.Module):
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_embs = proj_embs.to(device=device, dtype=dtype)
         proj_mask = proj_mask.bool()
+        proj_embs = proj_embs * 0.03 #trick to correct norm of embeddings which is far higher than LLM text embeddings
 
         audio_lens = proj_mask.sum(dim=1)
         D = proj_embs.size(-1)
@@ -219,8 +220,8 @@ class AudioToLLM(torch.nn.Module):
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids).expand(B, -1, -1)
 
         logger.debug(
-            f"proj norm={proj_embs.norm(dim=-1).mean():.2f}"
-            f"text norm={prompt_embs.norm(dim=-1).mean():.2f}, "
+            f"proj norm={proj_embs.norm(dim=-1).mean():.2f}, "
+            f"text norm={prompt_embs.norm(dim=-1).mean():.2f}"
         )
 
         llm_dtype = next(self.llm_model.parameters()).dtype
