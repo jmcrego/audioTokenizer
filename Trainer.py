@@ -261,7 +261,6 @@ class Trainer:
                 # Backward pass
                 scaler.scale(loss).backward()
 
-
                 # Gradient accumulation
                 if self.batch % self.accum_steps == 0:
                     # Unscale gradients before clipping
