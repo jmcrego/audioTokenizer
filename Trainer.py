@@ -272,7 +272,8 @@ class Trainer:
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
-                with torch.amp.autocast(device_type="cuda", enabled=False):
+                with torch.cuda.amp.autocast(device_type='cuda', dtype=torch.float16):
+#                with torch.amp.autocast(device_type="cuda", enabled=False):
                     outputs = self.model(**batch)
                     # loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
                     raw_loss = outputs["loss"]

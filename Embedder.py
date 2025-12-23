@@ -193,7 +193,6 @@ class Embedder(nn.Module):
 
 
 
-
 if __name__ == "__main__":
     import argparse
     import time
