@@ -254,13 +254,6 @@ class Trainer:
                 with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                     outputs = self.model(**batch)
 
-                    # Compute norms
-                    proj_embs = outputs["audio_embeddings"]  # projector output
-                    text_embs = outputs["text_embeddings"]   # LLM embedding output (if available)
-                    audio_norm = batch_embedding_norm(proj_embs, mask=outputs.get("proj_mask", None))
-                    text_norm = batch_embedding_norm(text_embs)
-                    # end compute norms
-
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
                     accum_loss += raw_loss.detach()
@@ -288,7 +281,6 @@ class Trainer:
                     if self.step % self.log_every == 0:
                         avg_loss = accum_loss / self.accum_steps
                         self.log_fn(avg_loss.item())
-                        logger.info(f"Step {self.step}: audio norm={audio_norm.item():.2f}, text norm={text_norm.item():.2f}")
                     accum_loss = 0.0
 
                     # Evaluation + checkpoint
