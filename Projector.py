@@ -7,19 +7,12 @@ import torch.nn.functional as F
 
 logger = logging.getLogger("Projector")
 
-
 class Projector(nn.Module):
     """
     Projects audio embeddings into LLM embedding space using superframe stacking
     and a low-rank MLP with RMSNorm.
     """
     def __init__(self, config, audio_embedding_dim, llm_embedding_dim):
-        """
-        Args:
-            config contains:
-            audio_embedding_dim: Original audio frame dimension (e.g., 768 for mHuBERT)
-            llm_dimension: Target LLM embedding size (e.g., 2048)
-        """
         super().__init__()
         logger.info(f"Initializing Projector {config}, audio_embedding_dim={audio_embedding_dim}, llm_embedding_dim={llm_embedding_dim}")
 
@@ -37,7 +30,7 @@ class Projector(nn.Module):
             nn.RMSNorm(llm_embedding_dim),
         )
 
-        #load projector if given
+        # --- Load projector if given ---
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
             self.load_state_dict(state_dict, strict=True)
@@ -57,6 +50,7 @@ class Projector(nn.Module):
         """
         B, T, D = x.shape
         S = self.config['stack_size']
+        logger.debug(f"input.shape={x.shape}")
 
         # ---- pad to full superframe ----
         pad_len = (S - (T % S)) % S
@@ -71,14 +65,17 @@ class Projector(nn.Module):
 
         # ----´Stack frames into superframes ----
         x = x.view(B, N, S * D)  # stack frames into superframes [B, N, S*D]
+        logger.debug(f"stacked superframes.shape={x.shape}")
 
         # ---- low-rank projection into llm space ----
         x = x.to(dtype=next(self.proj.parameters()).dtype)
         x = self.proj(x)  # [B, N, llm_dim]
+        logger.debug(f"proj output.shape={x.shape}")
 
         # ---- superframe mask ----
         # A superframe is valid only if ALL its S frames are valid. If any frame is padded → entire superframe is masked out        
         sf_mask = None if mask is None else mask[:, :T2].view(B, N, S).all(dim=-1) # [B, N]
+        logger.debug(f"proj mask.shape={sf_mask.shape}")
 
         logger.debug(f"proj mean={x.mean()} std={x.std()} norm={x.norm(dim=-1).mean()}")
         return x, sf_mask 
