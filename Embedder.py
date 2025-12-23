@@ -159,7 +159,8 @@ class Embedder(nn.Module):
             else:
                 frames = self.embedder(inputs).last_hidden_state
 
-        # frames: [B, T_frames, D], float32
+        # mhubert: [B, T_frames, D]
+        # whisper: [B, T_frames=1500, D]
         logger.debug(f"Frame embeddings: {frames.shape}")
 
         # ====================================================
@@ -170,6 +171,9 @@ class Embedder(nn.Module):
             frames_mask = torch.ones(frames.shape[:2], dtype=torch.bool, device=device)
         else:
             frames_mask = self.embedder._get_feature_vector_attention_mask(frames.shape[1], sample_mask).bool()
+
+        # mhubert: [B, T_frames]
+        # whisper: [B, T_frames=1500]
         logger.debug(f"Frame mask: {frames_mask.shape}")
 
         return frames, frames_mask
