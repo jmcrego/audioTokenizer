@@ -145,8 +145,8 @@ class Embedder(nn.Module):
                 sampling_rate=self.sample_rate,
                 return_tensors="pt",
 #                padding="max_length",
-                max_length=3000,
-                truncation=True,
+#                max_length=3000,
+#                truncation=True,
             )#.input_features.to(device)
         else:
             feat = self.feature_extractor(
