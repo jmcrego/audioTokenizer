@@ -3,7 +3,6 @@ import json
 config = {
     "audio": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
-        "l2_norm": False,
     },
     "projector": {
         "path": None,

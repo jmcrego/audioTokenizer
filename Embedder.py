@@ -104,7 +104,6 @@ class Embedder(nn.Module):
             raise ValueError(f"Unknown audio model: {self.path}")
 
         self.sample_rate = self.feature_extractor.sampling_rate
-        self.l2_norm = config.get("l2_norm", False)
         self.downsample_ratio = self._downsample_ratio()
         
         # wrapper may also do this
@@ -127,7 +126,6 @@ class Embedder(nn.Module):
             masks: [B, T_max] bool
         """
         device = next(self.parameters()).device
-        # always use the original dtype (never cast!)
 
         # ====================================================
         # 1. Preprocess each audio independently
@@ -147,7 +145,6 @@ class Embedder(nn.Module):
             padding=True,
             return_attention_mask=True
         )
-
         # For HuBERT / wav2vec2:
         #   input_values: [B, T_samples]
         #   attention_mask: [B, T_samples]
@@ -171,40 +168,22 @@ class Embedder(nn.Module):
         # ====================================================
         with torch.no_grad():
             if sample_mask is not None:
-                outputs = self.embedder(
-                    inputs,
-                    attention_mask=sample_mask
-                )
+                outputs = self.embedder(inputs, attention_mask=sample_mask)
             else:
                 outputs = self.embedder(inputs)
 
             frames = outputs.last_hidden_state
             # frames: [B, T_frames, D], float32
-
         logger.debug(f"Frame embeddings: {frames.shape}")
 
         # ====================================================
-        # 4. L2 normalization if required
-        # ====================================================
-        if self.l2_norm:
-            frames = torch.nn.functional.normalize(frames, dim=-1)
-
-        # ====================================================
-        # 5. Frame-level mask 
+        # 4. Frame-level mask 
         # ====================================================
         if "whisper" in self.path.lower():
-            # Whisper encoder outputs are always dense
-            frames_mask = torch.ones(
-                frames.shape[:2],
-                dtype=torch.bool,
-                device=device
-            )
+            # Whisper encoder outputs are always dense (no mask; all valild)
+            frames_mask = torch.ones(frames.shape[:2], dtype=torch.bool, device=device)
         else:
-            frames_mask = self.embedder._get_feature_vector_attention_mask(
-                frames.shape[1],
-                sample_mask
-            ).bool()
-
+            frames_mask = self.embedder._get_feature_vector_attention_mask(frames.shape[1], sample_mask).bool()
         logger.debug(f"Frame mask: {frames_mask.shape}")
 
         return frames, frames_mask
