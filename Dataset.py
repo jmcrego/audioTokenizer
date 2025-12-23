@@ -192,7 +192,7 @@ class Dataset(Dataset):
                 if i % 10000 == 0:
                     logger.info(f"sample={i} prompt={prompt} target={target}")
 
-                audio_time, n_audio = self.audio_length_in_tokens(audio_path)
+                audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
                     logger.info(f"Skipped audio by len={n_audio} {audio_path}")
@@ -217,7 +217,7 @@ class Dataset(Dataset):
         return item
 
 
-    def audio_length_in_tokens(self, filepath):
+    def audio_length_in_embeddings(self, filepath):
         """
         Estimate number of tokens produced from an audio file
         after audio embedding + frame stacking (no chunking).
