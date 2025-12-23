@@ -136,6 +136,7 @@ class Embedder(nn.Module):
         # 2. Feature extractor (handles padding + mask)
         # ====================================================
         if "whisper" in self.path.lower():
+            logger.debug(f"Whisper")
             feat = self.feature_extractor(
                 preprocessed,
                 sampling_rate=self.sample_rate,
