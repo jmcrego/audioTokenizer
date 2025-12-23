@@ -130,15 +130,11 @@ class Embedder(nn.Module):
         # ====================================================
         # 1. Preprocess each audio independently
         # ====================================================
-        preprocessed = [
-            preprocess_audio(a, sample_rate=self.sample_rate) 
-            for a in audio_inputs
-        ] # waveforms: list of np.ndarray [T_i]
+        preprocessed = [ preprocess_audio(a, sample_rate=self.sample_rate) for a in audio_inputs ] # waveforms: list of np.ndarray [T_i]
 
         # ====================================================
         # 2. Feature extractor (handles padding + mask)
         # ====================================================
-
         if "whisper" in self.path.lower():
             feat = self.feature_extractor(
                 preprocessed,
@@ -170,9 +166,7 @@ class Embedder(nn.Module):
             inputs = feat.input_values.to(device, dtype=torch.float32)
             sample_mask = feat.attention_mask.to(device)  # [B, T_samples]
 
-        logger.debug(
-            f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}"
-        )
+        logger.debug(f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}")
 
         # ====================================================
         # 3. Encoder forward
