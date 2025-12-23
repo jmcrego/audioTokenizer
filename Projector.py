@@ -19,7 +19,7 @@ class Projector(nn.Module):
         self.config = config
         path = config.get('path', None)
         rmsnorm_pre = config.get('rmsnorm_pre', True)
-        rmsnorm_mid = config.get('rmsnorm_mid', True)
+        rmsnorm_mid = config.get('rmsnorm_mid', False)
         rmsnorm_pos = config.get('rmsnorm_pos', True)
         middle_dim = config.get('middle_dim', llm_embedding_dim)
 
@@ -36,7 +36,7 @@ class Projector(nn.Module):
         self.act = nn.SiLU()
 
         # --- Mid RMSNorm ---
-        self.ln_mid = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_mid else nn.Identity()
+        self.ln_mid = nn.RMSNorm(middle_dim) if rmsnorm_mid else nn.Identity()
 
         # --- Output projector ---
         self.linear2 = nn.Linear(middle_dim, self.llm_embedding_dim, bias=False)
