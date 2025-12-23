@@ -7,7 +7,10 @@ config = {
     "projector": {
         "path": None,
         "stack_size": 8,
-        "rank_dim": 256,
+        "middle_dim": 2048,
+        "rmsnorm_pre": True,
+        "rmsnorm_mid": False,
+        "rmsnorm_pos": True,
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct"

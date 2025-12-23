@@ -17,69 +17,82 @@ class Projector(nn.Module):
         logger.info(f"Initializing Projector {config}, audio_embedding_dim={audio_embedding_dim}, llm_embedding_dim={llm_embedding_dim}")
 
         self.config = config
-        path = config['path']
-        stack_size = config['stack_size']
-        stacked_dim = audio_embedding_dim * stack_size
-        rank_dim = config['rank_dim']
+        path = config.get('path', None)
+        rmsnorm_pre = config.get('rmsnorm_pre', True)
+        rmsnorm_mid = config.get('rmsnorm_mid', True)
+        rmsnorm_pos = config.get('rmsnorm_pos', True)
+        middle_dim = config.get('middle_dim', llm_embedding_dim)
 
-        # --- Low-Rank MLP ---
-        self.proj = nn.Sequential(
-            nn.Linear(stacked_dim, rank_dim),
-            nn.SiLU(),
-            nn.Linear(rank_dim, llm_embedding_dim),
-            nn.RMSNorm(llm_embedding_dim),
-        )
+        self.stack_size = config.get('stack_size', 8)
+        self.stacked_dim = audio_embedding_dim * self.stack_size
+        self.llm_embedding_dim = llm_embedding_dim
 
-        # --- Load projector if given ---
+
+        # --- Pre RMSNorm ---
+        self.ln_pre = nn.RMSNorm(self.stacked_dim) if rmsnorm_pre else nn.Identity()
+
+        # --- Projector MLP ---
+        self.linear1 = nn.Linear(self.stacked_dim, middle_dim, bias=False)
+        self.act = nn.SiLU()
+
+        # --- Mid RMSNorm ---
+        self.ln_mid = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_mid else nn.Identity()
+
+        # --- Output projector ---
+        self.linear2 = nn.Linear(middle_dim, self.llm_embedding_dim, bias=False)
+
+        # --- Post RMSNorm ---
+        self.ln_pos = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_pos else nn.Identity()
+
+        # --- Load projector if path is provided ---
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
             self.load_state_dict(state_dict, strict=True)
             logger.info(f"Loaded Projector from {path}")
         else:
-            logger.info("Initialized Projector with random weights")            
+            logger.info("Initialized Projector with random weights")
 
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
+
+
+    def forward(self, x, mask=None):
         """
         Args:
-            x        : [B, T, D]
-            mask     : [B, T] or None
+            x: audio frame embeddings, shape [B, T, D_audio]
+            mask: optional boolean mask, shape [B, T]
         Returns:
-            out      : [B, N, llm_dim]
-            sf_mask  : [B, N]
+            proj_embs: projected embeddings, shape [B, T_new, D_llm]
+            proj_mask: mask for superframes, shape [B, T_new]
         """
-        B, T, D = x.shape
-        S = self.config['stack_size']
-        logger.debug(f"input.shape={x.shape}")
+        B, T, D_audio = x.shape
+        S = self.stack_size
 
-        # ---- pad to full superframe ----
-        pad_len = (S - (T % S)) % S
-        if pad_len > 0:
-            x = F.pad(x, (0, 0, 0, pad_len))
-            if mask is not None:
-                mask = F.pad(mask, (0, pad_len), value=False)
+        # --- Frame stacking ---
+        T_trim = (T // S) * S
+        x = x[:, :T_trim, :]
+        if mask is not None:
+            mask = mask[:, :T_trim]
 
-        T2 = x.shape[1] 
-        assert T2 % S == 0
-        N = T2 // S  # number of superframes after padding
+        x = x.view(B, T_trim // S, D_audio * S) # [B, T_trim, D_audio] -> [B, T_trim//S, D_audio*S]
+        if mask is not None:
+            mask = mask.view(B, T_trim // S, S)
+            proj_mask = mask.any(dim=-1)
+        else:
+            proj_mask = torch.ones(B, T_trim // S, dtype=torch.bool, device=x.device)
 
-        # ----´Stack frames into superframes ----
-        x = x.view(B, N, S * D)  # stack frames into superframes [B, N, S*D]
-        logger.debug(f"stacked superframes.shape={x.shape}")
+        # --- Pre RMSNorm ---
+        x = self.ln_pre(x)
+        # --- Linear1 + SiLU ---
+        x = self.linear1(x)
+        x = self.act(x)
+        # --- Mid RMSNorm ---
+        x = self.ln_mid(x)
+        # --- Linear2 ---
+        x = self.linear2(x)
+        # --- Post RMSNorm ---
+        x = self.ln_pos(x)
 
-        # ---- low-rank projection into llm space ----
-        x = x.to(dtype=next(self.proj.parameters()).dtype)
-        x = self.proj(x)  # [B, N, llm_dim]
-        logger.debug(f"proj output.shape={x.shape}")
-
-        # ---- superframe mask ----
-        # A superframe is valid only if ALL its S frames are valid. If any frame is padded → entire superframe is masked out        
-        sf_mask = None if mask is None else mask[:, :T2].view(B, N, S).all(dim=-1) # [B, N]
-        logger.debug(f"proj mask.shape={sf_mask.shape}")
-
-        logger.debug(f"proj mean={x.mean()} std={x.std()} norm={x.norm(dim=-1).mean()}")
-        return x, sf_mask 
-    
+        return x, proj_mask
 
 
 if __name__ == "__main__":
