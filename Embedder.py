@@ -78,7 +78,7 @@ class Embedder(nn.Module):
         # Load backbone
         # ----------------------------------------------------
         if "mhubert" in self.path.lower():
-            logger.debug(f"loading mhubert")
+            logger.debug(f"Loading mhubert")
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = HubertModel.from_pretrained(self.path)
@@ -90,14 +90,14 @@ class Embedder(nn.Module):
             self.embedder.config.apply_spec_augment = False
 
         elif "wav2vec2" in self.path.lower():
-            logger.debug(f"loading wav2vec2")
+            logger.debug(f"Loading wav2vec2")
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = Wav2Vec2Model.from_pretrained(self.path)
             self.embedding_dim = self.embedder.config.hidden_size
 
         elif "whisper" in self.path.lower():
-            logger.debug(f"loading whisper")
+            logger.debug(f"Loading whisper")
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
             self.embedder = WhisperModel.from_pretrained(self.path).encoder
@@ -139,36 +139,13 @@ class Embedder(nn.Module):
         # 2. Feature extractor (handles padding + mask)
         # ====================================================
         if "whisper" in self.path.lower():
-            logger.debug(f"Whisper")
-            feat = self.feature_extractor(
-                preprocessed,
-                sampling_rate=self.sample_rate,
-                return_tensors="pt",
-#                padding="max_length",
-#                max_length=3000,
-#                truncation=True,
-            )#.input_features.to(device)
+            feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt")
+            inputs = feat.input_features.to(device, dtype=torch.float32) #[B, n_mels, T_frames]
+            sample_mask = None # no masks needed
         else:
-            feat = self.feature_extractor(
-                preprocessed,
-                sampling_rate=self.sample_rate,
-                return_tensors="pt",
-                padding=True,
-                return_attention_mask=True
-            )
-        # For HuBERT / wav2vec2:
-        #   input_values: [B, T_samples]
-        #   attention_mask: [B, T_samples]
-        #
-        # For Whisper:
-        #   input_features: [B, n_mels, T_frames]
-
-        if "whisper" in self.path.lower():
-            inputs = feat.input_features.to(device, dtype=torch.float32)
-            sample_mask = None
-        else:
-            inputs = feat.input_values.to(device, dtype=torch.float32)
-            sample_mask = feat.attention_mask.to(device)  # [B, T_samples]
+            feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt", padding=True, return_attention_mask=True)
+            inputs = feat.input_values.to(device, dtype=torch.float32) # [B, T_samples] (no features extraction so far, only normalization + padding)
+            sample_mask = feat.attention_mask.to(device) # [B, T_samples] 
 
         logger.debug(f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}")
 
@@ -180,7 +157,8 @@ class Embedder(nn.Module):
                 frames = self.embedder(inputs, attention_mask=sample_mask).last_hidden_state
             else:
                 frames = self.embedder(inputs).last_hidden_state
-            # frames: [B, T_frames, D], float32
+
+        # frames: [B, T_frames, D], float32
         logger.debug(f"Frame embeddings: {frames.shape}")
 
         # ====================================================
