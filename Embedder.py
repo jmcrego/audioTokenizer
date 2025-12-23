@@ -78,6 +78,7 @@ class Embedder(nn.Module):
         # Load backbone
         # ----------------------------------------------------
         if "mhubert" in self.path.lower():
+            logger.debug(f"loading mhubert")
             from transformers import Wav2Vec2FeatureExtractor, HubertModel
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = HubertModel.from_pretrained(self.path)
@@ -89,12 +90,14 @@ class Embedder(nn.Module):
             self.embedder.config.apply_spec_augment = False
 
         elif "wav2vec2" in self.path.lower():
+            logger.debug(f"loading wav2vec2")
             from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.path)
             self.embedder = Wav2Vec2Model.from_pretrained(self.path)
             self.embedding_dim = self.embedder.config.hidden_size
 
         elif "whisper" in self.path.lower():
+            logger.debug(f"loading whisper")
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
             self.embedder = WhisperModel.from_pretrained(self.path).encoder
