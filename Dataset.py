@@ -195,6 +195,7 @@ class Dataset(Dataset):
                 audio_time, n_audio = self.audio_length_in_tokens(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
+                    logger.info(f"Skipped audio by len={n_audio} {audio_path}")
                     continue
 
                 self.data.append({
