@@ -227,7 +227,7 @@ class Dataset(Dataset):
             if not info.duration:
                 return 0, 0
             
-            if self.downsample_ratio == 160: #whisper
+            if self.downsample_ratio == 160: #whisper (this should be better done!!)
                 n_tokens = (WHISPER_FRAMES + self.stack_size - 1) // self.stack_size
                 return info.duration, n_tokens
 
