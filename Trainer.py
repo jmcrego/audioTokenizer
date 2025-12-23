@@ -334,7 +334,6 @@ class Trainer:
 
         lr_proj = self.optimizer.param_groups[0]["lr"]
         lr_lora = self.optimizer.param_groups[1]["lr"]
-        scale_val = self.model.projector.scale.item()
 
         w_step = len(str(self.max_steps))
 
@@ -345,7 +344,6 @@ class Trainer:
             f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
             f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
             f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
-            f"scale={scale_val:.6f} | "
             f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
         )
         print(log_str)
@@ -357,7 +355,6 @@ class Trainer:
             f"loss={loss:.4f} | "
             f"lr_proj={lr_proj:.6e}, "
             f"lr_lora={lr_lora:.6e} | "
-            f"scale={scale_val:.6f} | "
             f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         )
         logger.info(log_str)
