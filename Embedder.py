@@ -34,7 +34,7 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
 
-    logger.debug(f"preprocess: wav shape={wav.shape}, sr={sr}")
+    logger.debug(f"preprocess: input wav shape={wav.shape}, sr={sr}")
 
     # -----------------------------
     # Convert to mono
@@ -44,13 +44,14 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
             wav = wav.mean(axis=1)                  # [T]
         else:
             wav = wav[:, channel]                   # [T]
+        logger.debug(f"preprocess: convert to mono wav shape={wav.shape}")
 
     # -----------------------------
     # Resample if needed
     # -----------------------------
     if sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
-        sr = sample_rate
+        logger.debug(f"preprocess: resampled to {sample_rate} wav shape={wav.shape}")
 
     # -----------------------------
     # Convert to float32
