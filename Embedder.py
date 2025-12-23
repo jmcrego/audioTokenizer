@@ -13,7 +13,7 @@ logger = logging.getLogger("Embedder")
 # torch.backends.cuda.matmul.allow_tf32 = True
 # torch.backends.cudnn.benchmark = True
 
-def preprocess_audio(audio_input, sample_rate=16000, channel=0):
+def preprocess_audio(audio_input, sample_rate=None, channel=0):
     """
     Load audio from:
       - file path (str)
@@ -49,12 +49,12 @@ def preprocess_audio(audio_input, sample_rate=16000, channel=0):
     # -----------------------------
     # Resample if needed
     # -----------------------------
-    if sr != sample_rate:
+    if sample_rate is not None and sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
         logger.debug(f"preprocess: resampled to {sample_rate} wav shape={wav.shape}")
 
     # -----------------------------
-    # Convert to float32
+    # Convert to numpy float32
     # -----------------------------
     wav = wav.astype(np.float32)
 
@@ -140,12 +140,12 @@ class Embedder(nn.Module):
         # 2. Feature extractor (handles padding + mask)
         # ====================================================
         if "whisper" in self.path.lower():
-            feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt")
+            feat = self.feature_extractor(preprocessed, sampling_rate=None, return_tensors="pt")
             inputs = feat.input_features.to(device, dtype=torch.float32) #[B, n_mels, T_frames]
             sample_mask = None # no masks needed
         else:
             feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt", padding=True, return_attention_mask=True)
-            inputs = feat.input_values.to(device, dtype=torch.float32) # [B, T_samples] (no features extraction so far, only normalization + padding)
+            inputs = feat.input_values.to(device, dtype=torch.float32) # [B, T_samples] (no feature extraction so far, only normalization + padding)
             sample_mask = feat.attention_mask.to(device) # [B, T_samples] 
 
         logger.debug(f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}")
