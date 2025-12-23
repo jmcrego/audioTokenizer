@@ -228,30 +228,6 @@ class Trainer:
         logger.info(log_str)
 
     # -----------------------
-    # Evaluation
-    # -----------------------
-    @torch.no_grad()
-    def evaluate(self):
-        self.model.eval()
-        total_loss = 0.0
-        n_batches = 0
-        for batch in self.eval_loader:
-            batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
-
-            # Use autocast for mixed precision
-            with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
-                outputs = self.model(**batch)
-
-            total_loss += outputs["loss"].item()
-            n_batches += 1
-
-        avg_loss = total_loss / max(1, n_batches)
-        self.log_fn(avg_loss, is_eval=True)
-
-        self.model.train()
-        return avg_loss
-
-    # -----------------------
     # Training loop
     # -----------------------
     def train(self):
@@ -277,6 +253,14 @@ class Trainer:
                 # this with disables automatic mixed precision for everything inside that context.
                 with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                     outputs = self.model(**batch)
+
+                    # Compute norms
+                    proj_embs = outputs["audio_embeddings"]  # projector output
+                    text_embs = outputs["text_embeddings"]   # LLM embedding output (if available)
+                    audio_norm = batch_embedding_norm(proj_embs, mask=outputs.get("proj_mask", None))
+                    text_norm = batch_embedding_norm(text_embs)
+                    # end compute norms
+
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
                     accum_loss += raw_loss.detach()
@@ -304,6 +288,7 @@ class Trainer:
                     if self.step % self.log_every == 0:
                         avg_loss = accum_loss / self.accum_steps
                         self.log_fn(avg_loss.item())
+                        logger.info(f"Step {self.step}: audio norm={audio_norm.item():.2f}, text norm={text_norm.item():.2f}")
                     accum_loss = 0.0
 
                     # Evaluation + checkpoint
@@ -328,6 +313,30 @@ class Trainer:
                 break
 
         logger.info("End training")
+
+    # -----------------------
+    # Evaluation
+    # -----------------------
+    @torch.no_grad()
+    def evaluate(self):
+        self.model.eval()
+        total_loss = 0.0
+        n_batches = 0
+        for batch in self.eval_loader:
+            batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
+
+            # Use autocast for mixed precision
+            with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
+                outputs = self.model(**batch)
+
+            total_loss += outputs["loss"].item()
+            n_batches += 1
+
+        avg_loss = total_loss / max(1, n_batches)
+        self.log_fn(avg_loss, is_eval=True)
+
+        self.model.train()
+        return avg_loss
 
     # -----------------------
     # Logging helper
@@ -365,6 +374,18 @@ class Trainer:
         )
         logger.info(log_str)
 
+
+
+# x: [B, T, D] embeddings (B=batch size, T=time steps, D=embedding dim)
+def batch_embedding_norm(x, mask=None):
+    # Compute norm per vector along last dim
+    norm = torch.norm(x, dim=-1)  # [B, T]
+
+    if mask is not None:
+        norm = norm * mask.float()  # zero out masked positions
+
+    # Return average over batch and sequence
+    return norm.sum() / (mask.sum() if mask is not None else x.numel() / x.size(-1))
 
 def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
     if step is None:
