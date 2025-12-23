@@ -140,7 +140,7 @@ class Embedder(nn.Module):
         # 2. Feature extractor (handles padding + mask)
         # ====================================================
         if "whisper" in self.path.lower():
-            feat = self.feature_extractor(preprocessed, sampling_rate=None, return_tensors="pt")
+            feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt")
             inputs = feat.input_features.to(device, dtype=torch.float32) #[B, n_mels, T_frames]
             sample_mask = None # no masks needed
         else:
