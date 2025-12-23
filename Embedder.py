@@ -144,7 +144,7 @@ class Embedder(nn.Module):
                 preprocessed,
                 sampling_rate=self.sample_rate,
                 return_tensors="pt",
-                padding="max_length",
+#                padding="max_length",
                 max_length=3000,
                 truncation=True,
             )#.input_features.to(device)
@@ -154,7 +154,7 @@ class Embedder(nn.Module):
                 sampling_rate=self.sample_rate,
                 return_tensors="pt",
                 padding=True,
-#                return_attention_mask=True
+                return_attention_mask=True
             )
         # For HuBERT / wav2vec2:
         #   input_values: [B, T_samples]
