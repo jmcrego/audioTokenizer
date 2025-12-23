@@ -229,7 +229,7 @@ class Dataset(Dataset):
             
             if self.downsample_ratio == 160: #whisper
                 n_tokens = (WHISPER_FRAMES + self.stack_size - 1) // self.stack_size
-                return 30.0, n_tokens
+                return info.duration, n_tokens
 
             # total audio samples
             n_samples = int(info.duration * self.sample_rate)
