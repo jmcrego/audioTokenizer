@@ -237,13 +237,14 @@ class Trainer:
         n_batches = 0
         for batch in self.eval_loader:
             batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
-            if self.device.type == "cuda":
-                with torch.autocast(device_type="cuda", dtype=self.dtype):
-                    outputs = self.model(**batch)
-            else:
+
+            # Use autocast for mixed precision
+            with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                 outputs = self.model(**batch)
+
             total_loss += outputs["loss"].item()
             n_batches += 1
+
         avg_loss = total_loss / max(1, n_batches)
         self.log_fn(avg_loss, is_eval=True)
 
@@ -261,6 +262,8 @@ class Trainer:
         optimizer.zero_grad()
         accum_loss = 0.0
 
+        scaler = torch.amp.GradScaler()  # initialize GradScaler
+
         while self.max_steps and self.step < self.max_steps:
             self.epoch += 1
 
@@ -272,23 +275,26 @@ class Trainer:
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
-                with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
-#                with torch.amp.autocast(device_type="cuda", enabled=False):
+                with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                     outputs = self.model(**batch)
-                    # loss = outputs["loss"] / self.accum_steps  # normalize by accumulation steps
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
                     accum_loss += raw_loss.detach()
 
                 # Backward pass
-                loss.backward()
+                scaler.scale(loss).backward()
+
 
                 # Gradient accumulation
                 if self.batch % self.accum_steps == 0:
+                    # Unscale gradients before clipping
+                    scaler.unscale_(optimizer)
                     # Gradient clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                    # Optimizer step
-                    optimizer.step()
+
+                    # Optimizer step via scaler
+                    scaler.step(optimizer)
+                    scaler.update()
                     optimizer.zero_grad()
                     # Scheduler step
                     self.scheduler.step()
