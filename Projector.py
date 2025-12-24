@@ -45,7 +45,7 @@ class Projector(nn.Module):
         self.ln_pos = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_pos else nn.Identity()
 
         # --- Add a learnable scale to the projector ---
-        self.scale = nn.Parameter(torch.ones(1))
+        self.scale = nn.Parameter(torch.tensor(0.03))
 
         # --- Load projector if path is provided ---
         if path is not None:
