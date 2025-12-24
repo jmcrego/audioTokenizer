@@ -44,6 +44,9 @@ class Projector(nn.Module):
         # --- Post RMSNorm ---
         self.ln_pos = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_pos else nn.Identity()
 
+        # --- Add a learnable scale to the projector ---
+        self.scale = nn.Parameter(torch.ones(1))
+
         # --- Load projector if path is provided ---
         if path is not None:
             state_dict = torch.load(path, map_location="cpu")
@@ -91,6 +94,8 @@ class Projector(nn.Module):
         x = self.linear2(x)
         # --- Post RMSNorm ---
         x = self.ln_pos(x)
+        # --- Scale ---
+        x = self.scale * x
 
         return x, proj_mask
 
