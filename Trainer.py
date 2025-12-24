@@ -238,7 +238,7 @@ class Trainer:
         optimizer.zero_grad()
         accum_loss = 0.0
         accum_audio_norm = 0.0
-        accu_text_norm = 0.0
+        accum_text_norm = 0.0
 
         scaler = torch.amp.GradScaler()  # initialize GradScaler
 
