@@ -107,6 +107,12 @@ class AudioToLLM(torch.nn.Module):
             prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
             # logging.info(f"prompt_embs.shape = {prompt_embs.shape}")
 
+        # to compute norms for diagnostics
+        with torch.no_grad():
+            audio_norm = proj_embs.norm(dim=-1)[proj_mask].mean()
+            text_mask = (prompt_ids != self.tokenizer.pad_token_id)
+            text_norm = prompt_embs.norm(dim=-1)[text_mask].mean()
+
         # ----------------------------
         # 4) Target embeddings (frozen)
         # ----------------------------
@@ -175,6 +181,7 @@ class AudioToLLM(torch.nn.Module):
             attention_mask=attention_mask,
             position_ids=position_ids,
             labels=labels,
+            return_dict=True, # to compute norms for diagnostics
         )
 
         return {
@@ -182,6 +189,8 @@ class AudioToLLM(torch.nn.Module):
             "logits": outputs.logits,
             "labels": labels,
             "attention_mask": attention_mask,
+            "audio_norm": audio_norm,
+            "text_norm": text_norm,
         }
 
     # ========================================================

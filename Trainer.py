@@ -237,6 +237,8 @@ class Trainer:
         optimizer = self.optimizer
         optimizer.zero_grad()
         accum_loss = 0.0
+        accum_audio_norm = 0.0
+        accu_text_norm = 0.0
 
         scaler = torch.amp.GradScaler()  # initialize GradScaler
 
@@ -257,6 +259,11 @@ class Trainer:
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
                     accum_loss += raw_loss.detach()
+
+                    with torch.no_grad():
+                        accum_audio_norm += outputs["audio_norm"].detach()
+                        accum_text_norm += outputs["text_norm"].detach()
+
 
                 # Backward pass
                 scaler.scale(loss).backward()
@@ -279,8 +286,13 @@ class Trainer:
                     self.step += 1 
                     if self.step % self.log_every == 0:
                         avg_loss = accum_loss / self.accum_steps
-                        self.log_fn(avg_loss.item())
+                        avg_audio_norm = accum_audio_norm / self.accum_steps
+                        avg_text_norm = accum_text_norm / self.accum_steps
+                        self.log_fn(avg_loss.item(),audio_norm=avg_audio_norm.item(),text_norm=avg_text_norm.item())
+
                     accum_loss = 0.0
+                    accum_audio_norm = 0.0
+                    accum_text_norm = 0.0
 
                     # Evaluation + checkpoint
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
@@ -332,7 +344,7 @@ class Trainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, is_eval=False):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, is_eval=False):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -352,6 +364,8 @@ class Trainer:
             f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
             f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
         )
+        if audio_norm is not None and text_norm is not None:
+            log_str += f" | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
         print(log_str)
 
         log_str = (
@@ -363,6 +377,8 @@ class Trainer:
             f"lr_lora={lr_lora:.6e} | "
             f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         )
+        if audio_norm is not None and text_norm is not None:
+            log_str += f" | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
         logger.info(log_str)
 
 
