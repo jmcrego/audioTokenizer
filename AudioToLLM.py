@@ -234,7 +234,18 @@ class AudioToLLM(torch.nn.Module):
 
         # Get prompt embeddings for each batch element
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
-        prompt_embs = prompt_embs.unsqueeze(0).expand(B, -1, -1).contiguous()
+        if prompt_embs.dim() == 2:
+            # [T, D] -> [1, T, D]
+            prompt_embs = prompt_embs.unsqueeze(0)
+
+        elif prompt_embs.dim() == 4:
+            # [1, 1, T, D] -> [1, T, D]
+            prompt_embs = prompt_embs.squeeze(0)
+
+        assert prompt_embs.dim() == 3, f"prompt_embs must be [1, T, D], got {prompt_embs.shape}"
+
+        # Expand to batch
+        prompt_embs = prompt_embs.expand(B, -1, -1).contiguous()
 
         logger.debug(
             f"proj norm={proj_embs.norm(dim=-1).mean():.2f}, "
