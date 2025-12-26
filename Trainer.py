@@ -296,7 +296,12 @@ class Trainer:
 
                     # Evaluation + checkpoint
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
-                        self.evaluate()
+                        # self.evaluate()
+                        self.evaluate_with_generation(
+                            max_gen_samples=4,
+                            max_new_tokens=256,
+                            temperature=0.0,
+                        )
                         self.save_checkpoint(self.step)
 
                     if self.max_steps and self.step >= self.max_steps:
@@ -340,6 +345,100 @@ class Trainer:
 
         self.model.train()
         return avg_loss
+
+    @torch.no_grad()
+    def evaluate_with_generation(
+        self,
+        max_gen_samples=4,
+        max_new_tokens=256,
+        temperature=0.0,
+        top_p=1.0,
+    ):
+        """
+        Evaluation with:
+        1) standard forward loss
+        2) autoregressive generation for qualitative inspection
+        """
+        self.model.eval()
+
+        total_loss = 0.0
+        n_batches = 0
+
+        logged_samples = 0
+
+        for batch in self.eval_loader:
+            # ----------------------------
+            # Move tensors to device
+            # ----------------------------
+            batch = {
+                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                for k, v in batch.items()
+            }
+
+            # ----------------------------
+            # 1) Forward pass (loss)
+            # ----------------------------
+            with torch.amp.autocast(
+                device_type="cuda",
+                dtype=self.dtype,
+                enabled=(self.device.type == "cuda"),
+            ):
+                outputs = self.model(**batch)
+
+            loss = outputs["loss"].item()
+            total_loss += loss
+            n_batches += 1
+
+            # ----------------------------
+            # 2) Generation (limited samples)
+            # ----------------------------
+            if logged_samples < max_gen_samples:
+                audio_paths = batch["audio_paths"]
+
+                # Decode prompt text (for logging only)
+                prompt_texts = self.model.tokenizer.batch_decode(
+                    batch["prompt_ids"],
+                    skip_special_tokens=True,
+                )
+
+                # Decode targets (ground truth)
+                target_texts = self.model.tokenizer.batch_decode(
+                    batch["target_ids"],
+                    skip_special_tokens=True,
+                )
+
+                # Run generation
+                gen_texts = self.model.generate(
+                    audio_files=audio_paths,
+                    prompt=prompt_texts[0],  # prompt is shared across batch
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                )
+
+                B = len(audio_paths)
+                for i in range(B):
+                    if logged_samples >= max_gen_samples:
+                        break
+
+                    logger.info("=" * 80)
+                    logger.info(f"[EVAL SAMPLE {logged_samples}]")
+                    logger.info(f"AUDIO: {audio_paths[i]}")
+                    logger.info(f"PROMPT:\n{prompt_texts[i]}")
+                    logger.info(f"TARGET:\n{target_texts[i]}")
+                    logger.info(f"PRED:\n{gen_texts[i]}")
+                    logger.info("=" * 80)
+
+                    logged_samples += 1
+
+        avg_loss = total_loss / max(1, n_batches)
+
+        # Log summary
+        self.log_fn(avg_loss, is_eval=True)
+
+        self.model.train()
+        return avg_loss
+
 
     # -----------------------
     # Logging helper
