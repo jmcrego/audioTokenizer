@@ -159,7 +159,6 @@ if __name__ == "__main__":
             B = len(audio_paths)
             for i in range(B):
                 logger.info("=" * 80)
-                logger.info(f"[EVAL SAMPLE {logged_samples}]")
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"TARGET:\n{target_texts[i]}")
                 logger.info(f"PROMPT:\n{prompt_texts[i]}")
