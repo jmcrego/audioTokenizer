@@ -81,7 +81,7 @@ if __name__ == "__main__":
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
-        max_seq_len=args.max_seq_len
+        max_seq_len=1024#args.max_seq_len
     )
 
     test_sampler = BatchedLengthSampler(test_dataset, batch_size=args.batch_size)
