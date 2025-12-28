@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
     # Task params
     #parser.add_argument("--task", type=str, default="transcribe", help="Task to perform, either: transcribe, translate2lang OR transcribe_translate2lang")
-    parser.add_argument("--output", type=str, default=None, help="File to save outputs")
+    #parser.add_argument("--output", type=str, default=None, help="File to save outputs")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
