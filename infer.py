@@ -29,6 +29,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--test", type=str, required=True, help="Testing dataset file")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
+    parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     # Inference params
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
@@ -81,7 +83,7 @@ if __name__ == "__main__":
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
-        max_seq_len=1024#args.max_seq_len
+        max_seq_len=args.max_seq_len
     )
 
     test_sampler = BatchedLengthSampler(test_dataset, batch_size=args.batch_size)
