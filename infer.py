@@ -123,8 +123,10 @@ if __name__ == "__main__":
                 for k, v in batch.items()
             }
 
+            audio_paths = batch["audio_paths"]
+
             # ----------------------------
-            # 1) Forward pass (loss)
+            # 1) Embed audio
             # ----------------------------
             with torch.amp.autocast(
                 device_type="cuda",
@@ -133,7 +135,6 @@ if __name__ == "__main__":
             ):
                 outputs = model(**batch)
 
-            audio_paths = batch["audio_paths"]
 
             # Decode prompt text (for logging only)
             prompt_texts = model.tokenizer.batch_decode(
