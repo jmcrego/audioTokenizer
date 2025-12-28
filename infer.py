@@ -75,6 +75,19 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # Load dataset
     # --------------------------------------------------
+    def collate_fn(batch):
+        pad_token_id = model.tokenizer.pad_token_id
+        audio_paths = [x["audio_path"] for x in batch]
+        def ensure_tensor(x):
+            return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
+        prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        return {
+            "audio_paths": audio_paths,
+            "prompt_ids": prompt_ids,
+            "target_ids": target_ids
+        }
+
     test_dataset = Dataset(
         file_path=args.test,
         tokenizer=model.tokenizer,
@@ -87,25 +100,12 @@ if __name__ == "__main__":
     )
 
     test_sampler = BatchedLengthSampler(test_dataset, batch_size=args.batch_size)
-
-    def collate_fn(self, batch):
-        pad_token_id = model.tokenizer.pad_token_id
-        audio_paths = [x["audio_path"] for x in batch]
-        def ensure_tensor(x):
-            return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
-        prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-        target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-        return {
-            "audio_paths": audio_paths,
-            "prompt_ids": prompt_ids,
-            "target_ids": target_ids
-        }
-    
     test_loader = DataLoader(
         test_dataset,
         batch_sampler=test_sampler,
         collate_fn=collate_fn
     )
+    
     logger.info(f"Initialized Sampler and DataLoader for test with batch_size={args.batch_size} with {len(test_dataset)} samples")
 
     # --------------------------------------------------
