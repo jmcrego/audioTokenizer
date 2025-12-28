@@ -133,10 +133,6 @@ if __name__ == "__main__":
             ):
                 outputs = model(**batch)
 
-            loss = outputs["loss"].item()
-            total_loss += loss
-            n_batches += 1
-
             audio_paths = batch["audio_paths"]
 
             # Decode prompt text (for logging only)
@@ -165,8 +161,8 @@ if __name__ == "__main__":
                 logger.info("=" * 80)
                 logger.info(f"[EVAL SAMPLE {logged_samples}]")
                 logger.info(f"AUDIO: {audio_paths[i]}")
-                logger.info(f"PROMPT:\n{prompt_texts[i]}")
                 logger.info(f"TARGET:\n{target_texts[i]}")
+                logger.info(f"PROMPT:\n{prompt_texts[i]}")
                 logger.info(f"PRED:\n{gen_texts[i]}")
                 logger.info("=" * 80)
 
