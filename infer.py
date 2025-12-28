@@ -9,10 +9,14 @@ from contextlib import nullcontext
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
 
 from train import get_device_dtype
 from AudioToLLM import AudioToLLM
-from Dataset import build_prompt
+from Dataset import BatchedLengthSampler 
+from Dataset import Dataset
+
 
 logger = logging.getLogger("infer")
 
@@ -24,7 +28,7 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
-    parser.add_argument("--audio_files", type=str, required=True, help="Comma separated list of paths to audio files")
+    parser.add_argument("--test", type=str, required=True, help="Testing dataset file")
     # Inference params
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
@@ -55,13 +59,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
-
-    # --------------------------------------------------
-    # Task → prompt
-    # --------------------------------------------------
-    tgt_lang = args.task.split("2")[1] if "translate2" in args.task else ""
-    prompt = build_prompt("en", None)
-    logger.info(f"prompt: {prompt}")
+    logger.info(f"Config: {config}")
 
     # --------------------------------------------------
     # Load models
@@ -69,27 +67,105 @@ if __name__ == "__main__":
     t = time.time()
 
     model = AudioToLLM(config, device, dtype, is_infer=True)
-    logger.info(f"Loading took {time.time() - t:.2f} sec")
+    model.eval()
+    logger.info(f"Loading model took {time.time() - t:.2f} sec")
+
+    # --------------------------------------------------
+    # Load dataset
+    # --------------------------------------------------
+    test_dataset = Dataset(
+        file_path=args.test,
+        tokenizer=model.tokenizer,
+        asr_token=config["asr_token"],
+        stt_token=config["stt_token"],
+        sample_rate=model.audio_embedder.sample_rate,
+        downsample_ratio=model.audio_embedder.downsample_ratio,
+        stack_size=config["projector"]["stack_size"],
+        max_seq_len=args.max_seq_len
+    )
+
+    test_sampler = BatchedLengthSampler(test_dataset, batch_size=args.batch_size)
+
+    def collate_fn(self, batch):
+        pad_token_id = model.tokenizer.pad_token_id
+        audio_paths = [x["audio_path"] for x in batch]
+        def ensure_tensor(x):
+            return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
+        prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+        return {
+            "audio_paths": audio_paths,
+            "prompt_ids": prompt_ids,
+            "target_ids": target_ids
+        }
+    
+    test_loader = DataLoader(
+        test_dataset,
+        batch_sampler=test_sampler,
+        collate_fn=collate_fn
+    )
+    logger.info(f"Initialized Sampler and DataLoader for test with batch_size={args.batch_size} with {len(test_dataset)} samples")
 
     # --------------------------------------------------
     # Inference
     # --------------------------------------------------
     t = time.time()
 
-    with open(args.output, "w", encoding="utf-8") if args.output else nullcontext() as out_file:
-        for audio_file in args.audio_files.split(","):
-            outputs = model.generate(
-                [audio_file], 
-                prompt, 
-                max_new_tokens=args.max_new_tokens, 
-                temperature=args.temperature, 
-                top_p=args.top_p
-            )
-            text = outputs[0]
+    with torch.no_grad():
+        for batch in test_loader:
+            # ----------------------------
+            # Move tensors to device
+            # ----------------------------
+            batch = {
+                k: v.to(device) if isinstance(v, torch.Tensor) else v
+                for k, v in batch.items()
+            }
 
-            if out_file:
-                out_file.write(text + "\n")
-            else:
-                print(text)
+            # ----------------------------
+            # 1) Forward pass (loss)
+            # ----------------------------
+            with torch.amp.autocast(
+                device_type="cuda",
+                dtype=dtype,
+                enabled=(device.type == "cuda"),
+            ):
+                outputs = model(**batch)
+
+            loss = outputs["loss"].item()
+            total_loss += loss
+            n_batches += 1
+
+            audio_paths = batch["audio_paths"]
+
+            # Decode prompt text (for logging only)
+            prompt_texts = model.tokenizer.batch_decode(
+                batch["prompt_ids"],
+                skip_special_tokens=True,
+            )
+
+            # Decode targets (ground truth)
+            target_texts = model.tokenizer.batch_decode(
+                batch["target_ids"],
+                skip_special_tokens=True,
+            )
+
+            # Run generation
+            gen_texts = model.generate(
+                audio_files=audio_paths,
+                prompt=prompt_texts[0],  # prompt is shared across batch
+                max_new_tokens=args.max_new_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
+            )
+
+            B = len(audio_paths)
+            for i in range(B):
+                logger.info("=" * 80)
+                logger.info(f"[EVAL SAMPLE {logged_samples}]")
+                logger.info(f"AUDIO: {audio_paths[i]}")
+                logger.info(f"PROMPT:\n{prompt_texts[i]}")
+                logger.info(f"TARGET:\n{target_texts[i]}")
+                logger.info(f"PRED:\n{gen_texts[i]}")
+                logger.info("=" * 80)
 
     logger.info(f"Generation took {time.time() - t:.2f} sec")
