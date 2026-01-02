@@ -22,29 +22,8 @@ code2lang={
     "ru": "Russian",
 }
 
-def build_prompt_old(lang, tgt_lang, asr_token, stt_token):
-    if lang and tgt_lang:
-        return f"\nTranscribe then translate into {tgt_lang}.\n{asr_token} "
-    elif lang:
-        return f"\nTranscribe.\n{asr_token} "
-    elif tgt_lang:
-        return f"\nTranslate into {tgt_lang}.\n{stt_token} "
-    else:
-        raise ValueError("No lang or tgt_lang provided")
 
-
-def build_target_old(asr, stt, stt_token, eos_token):
-    if asr and stt:
-        return f"{asr} {stt_token} {stt}{eos_token}"
-    elif asr:
-        return f"{asr}{eos_token}"
-    elif stt:
-        return f"{stt}{eos_token}"
-    else:
-        raise ValueError("No ASR or STT text provided")
-
-
-def build_prompt(src_lang=None, tgt_lang=None):
+def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None):
     if src_lang is not None and src_lang not in code2lang:
         raise ValueError(f"Source language code '{src_lang}' not found.")        
     if tgt_lang is not None and tgt_lang not in code2lang:
@@ -53,7 +32,7 @@ def build_prompt(src_lang=None, tgt_lang=None):
     src_lang = code2lang.get(src_lang)
     tgt_lang = code2lang.get(tgt_lang)
 
-    prompt = "\nTask:\n"
+    prompt = f"{audio_token}\nTask:\n"
     
     if src_lang and tgt_lang:
         prompt += (
@@ -70,17 +49,17 @@ def build_prompt(src_lang=None, tgt_lang=None):
     prompt += "Answer:\n"
     return prompt
 
-def build_target(asr=None, stt=None, asr_token="[ASR]", stt_token="[STT]", eos_token="<eos>"):
+def build_target(asr=None, stt=None, asr_start_token="<asr>", asr_end_token="</asr>", stt_start_token="<stt>", stt_end_token="</stt>", eos_token="<eos>"):
     if (asr is None or asr == "") and (stt is None or stt == ""):
         raise ValueError("No ASR or STT text provided.")
 
     target = ""
 
     if asr is not None and asr != "":
-        target += f"{asr_token}\n{asr}\n"
+        target += f"{asr_start_token} {asr} {asr_end_token}\n"
 
     if stt is not None and stt != "":
-        target += f"{stt_token}\n{stt}\n"
+        target += f"{stt_start_token} {stt} {stt_end_token}\n"
 
     target += eos_token
     return target
@@ -136,8 +115,11 @@ class Dataset(Dataset):
         self,
         file_path: str,
         tokenizer,
-        asr_token="[ASR]",
-        stt_token="[STT]",
+        asr_start_token="<asr>",
+        asr_end_token="</asr>",
+        stt_start_token="<stt>",
+        stt_end_token="</stt>",
+        audio_token="<[audio]>",
         sample_rate=16000,
         downsample_ratio=320,
         stack_size=8,
@@ -145,8 +127,11 @@ class Dataset(Dataset):
         seed=42,
     ):
         self.tokenizer = tokenizer
-        self.asr_token = asr_token
-        self.stt_token = stt_token
+        self.asr_start_token = asr_start_token
+        self.asr_end_token = asr_end_token
+        self.stt_start_token = stt_start_token
+        self.stt_end_token = stt_end_token
+        self.audio_token = audio_token
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
@@ -171,7 +156,7 @@ class Dataset(Dataset):
                 src_lang = src_lang if src_lang else None
                 tgt_lang = tgt_lang if tgt_lang else None
 
-                prompt = build_prompt(src_lang, tgt_lang)
+                prompt = build_prompt(self.audio_token, src_lang, tgt_lang)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -180,7 +165,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, self.asr_token, self.stt_token, self.tokenizer.eos_token)
+                target = build_target(asr, stt, self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.tokenizer.eos_token)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",

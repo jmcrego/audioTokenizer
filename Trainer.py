@@ -192,40 +192,6 @@ class Trainer:
             "target_ids": target_ids
         }
 
-    # -----------------------
-    # Logging helper
-    # -----------------------
-    # def log_fn(self, loss, step, epoch, is_eval=False):
-    #     elapsed = (datetime.now() - self.start_time).total_seconds()
-    #     h = int(elapsed // 3600)
-    #     m = int((elapsed % 3600) // 60)
-    #     s = int(elapsed % 60)
-
-    #     lr_proj = self.optimizer.param_groups[0]["lr"]
-    #     lr_lora = self.optimizer.param_groups[1]["lr"]
-
-    #     w_step = len(str(self.max_steps))
-    #     w_epoch = len(str(self.max_epochs))
-
-    #     log_str = (
-    #         f"{'Eval' if is_eval else 'Train'} [Step {Color.CYAN}{step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-    #         f"Epoch {Color.CYAN}{self.sample/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
-    #         f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
-    #         f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
-    #         f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
-    #         f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
-    #     )
-    #     print(log_str)
-
-    #     log_str = (
-    #         f"{'Eval ' if is_eval else 'Train'} [Step {step:>{w_step}d}/{self.max_steps}, "
-    #         f"Epoch {self.sample/len(self.train_dataset):.3f}/{self.max_epochs}] "
-    #         f"loss={loss:.4f} | "
-    #         f"lr_proj={lr_proj:.6e}, "
-    #         f"lr_lora={lr_lora:.6e} | "
-    #         f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
-    #     )
-    #     logger.info(log_str)
 
     # -----------------------
     # Training loop
