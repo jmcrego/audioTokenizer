@@ -59,39 +59,23 @@ class Backbone(torch.nn.Module):
             "</asr>": 6,
             "<stt>": 7,
             "</stt>": 8,
-            "<[audio]>": 9
+            "<audio>": 9
         }
         """
-        vocab = self.tokenizer["model"]["vocab"]
-        token_map_ids = set(token_map.values())
+        # Add special tokens to tokenizer
+        new_tokens = list(token_map.keys())
+        self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
 
-        # (1) Remove old tokens that currently use token_map IDs (5, 6, 7, 8, 9)
-        old_tokens = [tok for tok, tid in vocab.items() if tid in token_map_ids]
-        for tok in old_tokens:
-            del vocab[tok]
+        # Resize LLM embeddings if necessary
+        self.llm_model.resize_token_embeddings(len(self.tokenizer))
 
-        # (2) Insert new tokens with fixed IDs
-        for tok, tid in token_map.items():
-            vocab[tok] = tid
+        # Store token IDs for later use
+        self.audio_token_id = self.tokenizer.convert_tokens_to_ids("<audio>")
+        self.asr_token_id   = self.tokenizer.convert_tokens_to_ids("<asr>")
+        self.end_asr_token_id = self.tokenizer.convert_tokens_to_ids("</asr>")
+        self.stt_token_id   = self.tokenizer.convert_tokens_to_ids("<stt>")
+        self.end_stt_token_id = self.tokenizer.convert_tokens_to_ids("</stt>")
 
-        # (3) Patch added_tokens (important for fast tokenizer)
-        if "added_tokens" in self.tokenizer:
-            for entry in self.tokenizer["added_tokens"]:
-                tid = entry.get("id")
-                if tid in token_map_ids:
-                    # find corresponding token string
-                    for tok, tok_id in token_map.items():
-                        if tok_id == tid:
-                            entry["content"] = tok
-                            entry["special"] = True
-                            break
+        logger.info(f"Tokenizer patched with tokens {new_tokens}")
 
-        # assert no duplicate tokens
-        ids = list(vocab.values())
-        assert len(ids) == len(set(ids)), "Duplicate token IDs detected after patch_vocab"
 
-        # assert token_map tokens correctly mapped
-        for tok, tid in token_map.items():
-            assert vocab.get(tok) == tid, f"Token {tok} not mapped to ID {tid}"
-
-        logger.info(f"Vocabulary patched token_map = {token_map}")
