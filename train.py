@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
-    parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use around 5%)")
+    parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use ~5%)")
     # train pars
     parser.add_argument("--batch_size", type=int, default=8, help="Numer of sampels in a batch")
     parser.add_argument("--accum_steps", type=int, default=8, help="Accumulate this many batchs before optimizing")
@@ -103,8 +103,11 @@ if __name__ == "__main__":
     train_dataset = Dataset(
         file_path=args.train,
         tokenizer=model.tokenizer,
-        asr_token=config["asr_token"],
-        stt_token=config["stt_token"],
+        asr_start_token=config["asr_start_token"],
+        asr_end_token=config["asr_end_token"],
+        stt_start_token=config["stt_start_token"],
+        stt_end_token=config["stt_end_token"],
+        audio_token=config["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
@@ -114,8 +117,11 @@ if __name__ == "__main__":
     eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
-        asr_token=config["asr_token"],
-        stt_token=config["stt_token"],
+        asr_start_token=config["asr_start_token"],
+        asr_end_token=config["asr_end_token"],
+        stt_start_token=config["stt_start_token"],
+        stt_end_token=config["stt_end_token"],
+        audio_token=config["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],

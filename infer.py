@@ -91,8 +91,11 @@ if __name__ == "__main__":
     test_dataset = Dataset(
         file_path=args.test,
         tokenizer=model.tokenizer,
-        asr_token=config["asr_token"],
-        stt_token=config["stt_token"],
+        asr_start_token=config["asr_start_token"],
+        asr_end_token=config["asr_end_token"],
+        stt_start_token=config["stt_start_token"],
+        stt_end_token=config["stt_end_token"],
+        audio_token=config["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
