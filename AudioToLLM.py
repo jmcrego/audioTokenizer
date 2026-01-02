@@ -262,11 +262,11 @@ class AudioToLLM(torch.nn.Module):
         B = len(audio_files)
 
         # ----------------------------
-        # 1) Audio → Projector → embeddings
+        # 1) Audio embeddings
         # ----------------------------
         audio_embs, audio_mask = self.audio_embedder(audio_files)
         audio_embs = audio_embs.to(device=device, dtype=dtype)
-        audio_mask = audio_mask.to(device=device).bool()
+        audio_mask = audio_mask.bool().to(device)
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_embs = proj_embs.to(device=device, dtype=dtype)
@@ -276,7 +276,7 @@ class AudioToLLM(torch.nn.Module):
         D = proj_embs.size(-1)
 
         # ----------------------------
-        # 2) Prompt → embeddings
+        # 2) Tokenize prompt
         # ----------------------------
         prompt_ids = self.tokenizer(
             prompt,
@@ -285,79 +285,75 @@ class AudioToLLM(torch.nn.Module):
             truncation=False,
             add_special_tokens=False
         ).input_ids.to(device)
+
+        if prompt_ids.dim() == 1:
+            prompt_ids = prompt_ids.unsqueeze(0)  # [1, T]
         T_prompt = prompt_ids.size(1)
 
-        # Expand prompt embeddings to batch
-        prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)
-        if prompt_embs.dim() == 2:
-            prompt_embs = prompt_embs.unsqueeze(0)  # [1, T, D]
-        prompt_embs = prompt_embs.expand(B, -1, -1).contiguous()  # [B, T, D]
+        # Prompt embeddings
+        prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)  # [B?, T, D]
+        if prompt_embs.size(0) == 1 and B > 1:
+            prompt_embs = prompt_embs.expand(B, -1, -1).contiguous()  # [B, T, D]
 
         # ----------------------------
-        # 3) Find <[audio]> token positions
+        # 3) Locate <[audio]> token
         # ----------------------------
-        # ensure batch dimension
-        if prompt_ids.dim() == 1:
-            prompt_ids = prompt_ids.unsqueeze(0)
-
-        audio_token_mask = (prompt_ids == self.audio_token_id)  # [B, T]
+        audio_token_mask = (prompt_ids == self.audio_token_id)
+        audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
         assert (audio_token_mask.sum(dim=1) == 1).all(), "Each prompt must have exactly one <[audio]> token"
 
         # ----------------------------
-        # 4) Compute total length and allocate tensors
+        # 4) Total sequence length
         # ----------------------------
-        total_lens = T_prompt + audio_lens  # [B]
+        total_lens = T_prompt + audio_lens
         max_len = total_lens.max().item()
 
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
 
-        # ----------------------------
-        # 5) Compute indices for vectorized insertion
-        # ----------------------------
         batch_idx = torch.arange(B, device=device)
 
-        # 5a) Audio token insertion positions
-        audio_pos = audio_token_mask.float().argmax(dim=1)  # [B] position of <[audio]> token
-
-        # 5b) Broadcast positions for audio embeddings
-        audio_range = torch.arange(audio_lens.max(), device=device).unsqueeze(0)  # [1, max_audio_len]
-        audio_valid = audio_range < audio_lens.unsqueeze(1)  # [B, max_audio_len]
-        dest_audio_pos = audio_pos.unsqueeze(1) + audio_range  # [B, max_audio_len]
+        # ----------------------------
+        # 5) Insert audio embeddings
+        # ----------------------------
+        max_audio_len = audio_lens.max()
+        audio_range = torch.arange(max_audio_len, device=device).unsqueeze(0)  # [1, max_audio_len]
+        audio_valid = audio_range < audio_lens.unsqueeze(1)                       # [B, max_audio_len]
+        dest_audio_pos = audio_pos.unsqueeze(1) + audio_range                     # [B, max_audio_len]
 
         # Flatten indices
         batch_audio_idx = batch_idx.unsqueeze(1).expand_as(dest_audio_pos)[audio_valid]
         audio_dest_idx = dest_audio_pos[audio_valid]
 
-        # Insert audio embeddings
         inputs_embeds[batch_audio_idx, audio_dest_idx] = proj_embs[audio_valid]
         attention_mask[batch_audio_idx, audio_dest_idx] = 1
 
-        # 5c) Prompt embeddings before and after <[audio]>
+        # ----------------------------
+        # 6) Insert prompt embeddings (before and after <[audio]>)
+        # ----------------------------
         prompt_range = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, -1)
+
+        # Before audio
         mask_before = prompt_range < audio_pos.unsqueeze(1)
-        mask_after  = prompt_range > audio_pos.unsqueeze(1)
-
-        # Before <[audio]>
         batch_before_idx = batch_idx.unsqueeze(1).expand_as(prompt_range)[mask_before]
-        prompt_before_idx = prompt_range[mask_before]
-        inputs_embeds[batch_before_idx, prompt_before_idx] = prompt_embs[mask_before]
-        attention_mask[batch_before_idx, prompt_before_idx] = 1
+        pos_before = prompt_range[mask_before]
+        inputs_embeds[batch_before_idx, pos_before] = prompt_embs[mask_before]
+        attention_mask[batch_before_idx, pos_before] = 1
 
-        # After <[audio]>
+        # After audio
+        mask_after = prompt_range > audio_pos.unsqueeze(1)
         batch_after_idx = batch_idx.unsqueeze(1).expand_as(prompt_range)[mask_after]
-        prompt_after_idx = prompt_range[mask_after] + audio_lens.repeat_interleave(mask_after.sum(dim=1))
-
-        inputs_embeds[batch_after_idx, prompt_after_idx] = prompt_embs[mask_after]
-        attention_mask[batch_after_idx, prompt_after_idx] = 1
+        pos_after = prompt_range[mask_after] + audio_lens.unsqueeze(1).expand_as(prompt_range)[mask_after]
+        inputs_embeds[batch_after_idx, pos_after] = prompt_embs[mask_after]
+        attention_mask[batch_after_idx, pos_after] = 1
 
         # ----------------------------
-        # 6) Positional IDs
+        # 7) Positional IDs
         # ----------------------------
         position_ids = torch.arange(max_len, device=device).unsqueeze(0).expand(B, -1)
 
         # ----------------------------
-        # 7) Generate
+        # 8) Generate
         # ----------------------------
         outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
@@ -373,9 +369,10 @@ class AudioToLLM(torch.nn.Module):
         )
 
         # ----------------------------
-        # 8) Decode
+        # 9) Decode
         # ----------------------------
         texts = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         logger.info(f"Generated text: {texts[0] if len(texts) > 0 else ''}")
         return texts
+
 
