@@ -54,51 +54,51 @@ class Backbone(torch.nn.Module):
         assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
 
 
-        def add_new_tokens(self, new_tokens): 
-            """
-            Add new special tokens to the tokenizer
-            Note: HF will assign new IDs at the end of the vocab.
-            """
-            self.asr_start_token=new_tokens["asr_start_token"], 
-            self.asr_end_token=new_tokens["asr_end_token"], 
-            self.stt_start_token=new_tokens["stt_start_token"], 
-            self.stt_end_token=new_tokens["stt_end_token"], 
-            self.audio_token=new_tokens["audio_token"], 
-            path=new_tokens["path"]
+    def add_new_tokens(self, new_tokens): 
+        """
+        Add new special tokens to the tokenizer
+        Note: HF will assign new IDs at the end of the vocab.
+        """
+        self.asr_start_token=new_tokens["asr_start_token"], 
+        self.asr_end_token=new_tokens["asr_end_token"], 
+        self.stt_start_token=new_tokens["stt_start_token"], 
+        self.stt_end_token=new_tokens["stt_end_token"], 
+        self.audio_token=new_tokens["audio_token"], 
+        path=new_tokens["path"]
 
-            # Extract new tokens
-            new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
-            added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
-            if added > 0:
-                # Resize model embeddings to accommodate new tokens
-                self.llm_model.resize_token_embeddings(len(self.tokenizer))
+        # Extract new tokens
+        new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
+        added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
+        if added > 0:
+            # Resize model embeddings to accommodate new tokens
+            self.llm_model.resize_token_embeddings(len(self.tokenizer))
 
-            # Store new token IDs for later convenience
-            self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
-            self.asr_start_token_id = self.special_token_ids.get("<asr>", None)
-            self.asr_end_token_id = self.special_token_ids.get("</asr>", None)
-            self.stt_start_token_id = self.special_token_ids.get("<stt>", None)
-            self.stt_end_token_id = self.special_token_ids.get("</stt>", None)
-            self.audio_token_id = self.special_token_ids.get("<audio>", None)
+        # Store new token IDs for later convenience
+        self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
+        self.asr_start_token_id = self.special_token_ids.get("<asr>", None)
+        self.asr_end_token_id = self.special_token_ids.get("</asr>", None)
+        self.stt_start_token_id = self.special_token_ids.get("<stt>", None)
+        self.stt_end_token_id = self.special_token_ids.get("</stt>", None)
+        self.audio_token_id = self.special_token_ids.get("<audio>", None)
 
-            logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
+        logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
 
-            if path is None:
-                logger.info(f"Special token embeddings initialized from scratch")
-                return
-            
-            # Load embeddings for previously added special tokens.
-            payload = torch.load(path, map_location="cpu")
-            saved_ids = payload["token_ids"]
-            saved_embeddings = payload["embeddings"]
-            emb_layer = self.llm_model.get_input_embeddings()
+        if path is None:
+            logger.info(f"Special token embeddings initialized from scratch")
+            return
+        
+        # Load embeddings for previously added special tokens.
+        payload = torch.load(path, map_location="cpu")
+        saved_ids = payload["token_ids"]
+        saved_embeddings = payload["embeddings"]
+        emb_layer = self.llm_model.get_input_embeddings()
 
-            # Safety checks
-            assert len(saved_ids) == saved_embeddings.size(0)
-            assert saved_embeddings.size(1) == emb_layer.weight.size(1)
+        # Safety checks
+        assert len(saved_ids) == saved_embeddings.size(0)
+        assert saved_embeddings.size(1) == emb_layer.weight.size(1)
 
-            for i, tid in enumerate(saved_ids):
-                emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
+        for i, tid in enumerate(saved_ids):
+            emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
 
-            logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
+        logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
 
