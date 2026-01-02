@@ -203,7 +203,6 @@ class Trainer:
     def collate_fn(self, batch):
         pad_token_id = self.model.tokenizer.pad_token_id
         audio_paths = [x["audio_path"] for x in batch]
-
         def ensure_1d_long_tensor(x):
             if isinstance(x, torch.Tensor):
                 x = x.detach().clone().long()
