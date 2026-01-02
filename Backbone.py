@@ -31,6 +31,9 @@ class Backbone(torch.nn.Module):
         ###### new tokens/embeddings (trainable) ##########################
         self.add_new_tokens(config['add_tokens'])
 
+        assert self.audio_token_id is not None, "audio_token_id is None"
+        assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
+
         # LoRA adapters
         if config_lora is not None:
             lora_path = config_lora["path"]
@@ -75,11 +78,11 @@ class Backbone(torch.nn.Module):
 
         # Store new token IDs for later convenience
         self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
-        self.asr_start_token_id = self.special_token_ids.get("<asr>", None)
-        self.asr_end_token_id = self.special_token_ids.get("</asr>", None)
-        self.stt_start_token_id = self.special_token_ids.get("<stt>", None)
-        self.stt_end_token_id = self.special_token_ids.get("</stt>", None)
-        self.audio_token_id = self.special_token_ids.get("<audio>", None)
+        self.asr_start_token_id = self.special_token_ids.get(self.asr_start_token, None)
+        self.asr_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
+        self.stt_start_token_id = self.special_token_ids.get(self.stt_start_token, None)
+        self.stt_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
+        self.audio_token_id = self.special_token_ids.get(self.audio_token, None)
 
         logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
 

@@ -78,10 +78,15 @@ class AudioToLLM(torch.nn.Module):
         Fully vectorized forward pass:
         audio_paths + prompt_ids (with <[audio]> token) + target_ids -> LLM
         """
+        assert prompt_ids.dtype == torch.long
+        assert prompt_ids.dim() == 2
+        assert target_ids.dtype == torch.long
+        assert target_ids.dim() == 2
+
         device = self.llm_model.device
         llm_dtype = next(self.llm_model.parameters()).dtype
         B = len(audio_paths)
-
+        
         # ----------------------------
         # 1) Audio embeddings (frozen) + projection
         # ----------------------------
