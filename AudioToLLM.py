@@ -208,7 +208,11 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 10) Compute norms
         # ----------------------------
-        audio_norm = (proj_embs * mask_S.unsqueeze(-1)).norm(dim=-1)[mask_S].mean()
+        # audio_norm = (proj_embs * mask_S.unsqueeze(-1)).norm(dim=-1)[mask_S].mean()
+        # text_norm = prompt_embs.norm(dim=-1)[prompt_mask].mean()
+        proj_embs = proj_embs.cpu()
+        mask_S = mask_S.cpu()
+        audio_norm = proj_embs.norm(dim=-1)[mask_S].mean()
         text_norm = prompt_embs.norm(dim=-1)[prompt_mask].mean()
 
         # ----------------------------
