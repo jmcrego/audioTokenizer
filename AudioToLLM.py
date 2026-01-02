@@ -190,7 +190,6 @@ class AudioToLLM(torch.nn.Module):
         range_target = torch.arange(L_target, device=device).unsqueeze(0)
         batch_idx_t = torch.arange(B, device=device).unsqueeze(1).expand(B, L_target)
         target_dest_pos = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + range_target
-        attention_mask[target_mask] = 1
         attention_mask[batch_idx_t, target_dest_pos] = target_mask.long()
 
         # Inputs Embeds (B × L)
