@@ -100,14 +100,16 @@ if __name__ == "__main__":
     # Datasets 
     # -----------------------------
 
+    add_tokens = config['llm']['add_tokens']
+
     train_dataset = Dataset(
         file_path=args.train,
         tokenizer=model.tokenizer,
-        asr_start_token=config["asr_start_token"],
-        asr_end_token=config["asr_end_token"],
-        stt_start_token=config["stt_start_token"],
-        stt_end_token=config["stt_end_token"],
-        audio_token=config["audio_token"],
+        asr_start_token=add_tokens["asr_start_token"],
+        asr_end_token=add_tokens["asr_end_token"],
+        stt_start_token=add_tokens["stt_start_token"],
+        stt_end_token=add_tokens["stt_end_token"],
+        audio_token=add_tokens["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
@@ -117,11 +119,11 @@ if __name__ == "__main__":
     eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
-        asr_start_token=config["asr_start_token"],
-        asr_end_token=config["asr_end_token"],
-        stt_start_token=config["stt_start_token"],
-        stt_end_token=config["stt_end_token"],
-        audio_token=config["audio_token"],
+        asr_start_token=add_tokens["asr_start_token"],
+        asr_end_token=add_tokens["asr_end_token"],
+        stt_start_token=add_tokens["stt_start_token"],
+        stt_end_token=add_tokens["stt_end_token"],
+        audio_token=add_tokens["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],

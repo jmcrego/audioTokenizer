@@ -25,7 +25,7 @@ class AudioToLLM(torch.nn.Module):
         self.tokenizer = self.backbone.tokenizer
 
         self.audio_token = config['audio_token']
-        self.audio_token_id = config['llm']['token_map'][self.audio_token] #or: self.tokenizer.convert_tokens_to_ids(self.audio_token)
+        self.audio_token_id = self.tokenizer.convert_tokens_to_ids(self.audio_token)
 
         self.projector = Projector(
             config['projector'], 
