@@ -114,7 +114,7 @@ if __name__ == "__main__":
     t = time.time()
 
     with torch.no_grad():
-        for batch in test_loader:
+        for n_batch, batch in enumerate(test_loader):
             # ----------------------------
             # Move tensors to device
             # ----------------------------
@@ -148,7 +148,9 @@ if __name__ == "__main__":
                 skip_special_tokens=True,
             )
 
-            # Run generation
+            # ----------------------------
+            # 2) Run generation
+            # ----------------------------
             gen_texts = model.generate(
                 audio_files=audio_paths,
                 prompt=prompt_texts[0],  # prompt is shared across batch
@@ -160,6 +162,7 @@ if __name__ == "__main__":
             B = len(audio_paths)
             for i in range(B):
                 logger.info("=" * 80)
+                logger.info(f"nBatch: {n_batch} nSample: {i}")
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"TARGET:\n{target_texts[i]}")
                 logger.info(f"PROMPT:\n{prompt_texts[i]}")

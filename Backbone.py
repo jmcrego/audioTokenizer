@@ -24,6 +24,8 @@ class Backbone(torch.nn.Module):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
+        self.patch_vocab(config['token_map'])
+
         ###### LLM (frozen) + LoRa (trainable) ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
         logger.info(f"Loaded LLM model from {llm_path}")
@@ -49,3 +51,47 @@ class Backbone(torch.nn.Module):
                 logger.info(f"Initialized LoRa adapters {lora_cfg}")
 
         assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
+
+    def patch_vocab(self, token_map):
+        """
+        token_map = {
+            "<asr>": 5,
+            "</asr>": 6,
+            "<stt>": 7,
+            "</stt>": 8,
+            "<audio>": 9
+        }
+        """
+        vocab = self.tokenizer["model"]["vocab"]
+        target_ids = set(token_map.values())
+
+        # (1) Remove old tokens that currently use token_map IDs (5, 6, 7, 8, 9)
+        old_tokens = [tok for tok, tid in vocab.items() if tid in target_ids]
+        for tok in old_tokens:
+            del vocab[tok]
+
+        # (2) Insert new tokens with fixed IDs
+        for tok, tid in token_map.items():
+            vocab[tok] = tid
+
+        # (3) Patch added_tokens (important for fast tokenizer)
+        if "added_tokens" in self.tokenizer:
+            for entry in self.tokenizer["added_tokens"]:
+                tid = entry.get("id")
+                if tid in target_ids:
+                    # find corresponding token string
+                    for tok, tok_id in token_map.items():
+                        if tok_id == tid:
+                            entry["content"] = tok
+                            entry["special"] = True
+                            break
+
+        # assert no duplicate tokens
+        ids = list(vocab.values())
+        assert len(ids) == len(set(ids)), "Duplicate token IDs detected after patch_vocab"
+
+        # assert token_map tokens correctly mapped
+        for tok, tid in token_map.items():
+            assert vocab.get(tok) == tid, f"Token {tok} not mapped to ID {tid}"
+
+        logger.info(f"Vocabulary patched token_map = {token_map}")
