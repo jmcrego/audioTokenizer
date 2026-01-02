@@ -145,52 +145,25 @@ class AudioToLLM(torch.nn.Module):
         inputs_embeds[:, :T_prompt] = prompt_embs
 
         # ----------------------------
-        # 7) Vectorized audio insertion
+        # 7) Safe vectorized audio insertion
         # ----------------------------
-        S_max = proj_embs.size(1)
-        range_S = torch.arange(S_max, device=device).unsqueeze(0)  # [1, S]
-        mask_S = range_S < audio_lens.unsqueeze(1)                 # [B, S]
-        dest_pos = audio_pos.unsqueeze(1) + range_S                # [B, S]
-        dest_pos = dest_pos.masked_fill(~mask_S, 0)
-        batch_idx_audio = torch.arange(B, device=device).unsqueeze(1).expand(B, S)
-        inputs_embeds[batch_idx_audio, dest_pos] = proj_embs * mask_S.unsqueeze(-1)
+        B, S_max, D = proj_embs.shape
+        batch_idx = torch.arange(B, device=device).unsqueeze(1).expand(B, S_max)  # [B, S_max]
+        range_S = torch.arange(S_max, device=device).unsqueeze(0).expand(B, S_max)
 
-        # ----------------------------
-        # 8) Vectorized target insertion
-        # ----------------------------
-        L_target = target_ids.size(1)
-        range_L = torch.arange(L_target, device=device).unsqueeze(0)
-        mask_L = range_L < target_lens.unsqueeze(1)  # [B, L]
-        dest_target_pos = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + range_L  # [B, L]
-        dest_target_pos = dest_target_pos.masked_fill(~mask_L, 0)
-        batch_idx_target = torch.arange(B, device=device).unsqueeze(1).expand(B, L_target)
-        inputs_embeds[batch_idx_target, dest_target_pos] = target_embs * mask_L.unsqueeze(-1)
-        labels[batch_idx_target, dest_target_pos] = target_ids * mask_L.long()
+        # Only keep valid audio positions
+        valid_audio = range_S < audio_lens.unsqueeze(1)          # [B, S_max]
+        dest_pos_audio = audio_pos.unsqueeze(1) + range_S        # [B, S_max]
 
-        # ----------------------------
-        # 9) Fully vectorized attention mask
-        # ----------------------------
-        # Audio mask
-        audio_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
-        audio_range = torch.arange(S_max, device=device).unsqueeze(0)
-        audio_valid = audio_range < audio_lens.unsqueeze(1)
-        audio_dest_pos = audio_pos.unsqueeze(1) + audio_range
-        audio_dest_pos = audio_dest_pos.masked_fill(~audio_valid, 0)
-        audio_mask[batch_idx_audio, audio_dest_pos] = audio_valid.long()
+        # Clip to max_len (safe)
+        dest_pos_audio = torch.clamp(dest_pos_audio, max=max_len-1)
 
-        # Prompt mask excluding <[audio]>
-        prompt_no_audio = prompt_mask & ~audio_token_mask
-        range_prompt = torch.arange(T_prompt, device=device).unsqueeze(0)
-        batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(B, T_prompt)
-        prompt_dest_pos = range_prompt
-        attention_mask = audio_mask.clone()
-        attention_mask[batch_idx_prompt, prompt_dest_pos] = prompt_no_audio.long()
+        # Flatten for advanced indexing
+        flat_batch = batch_idx[valid_audio]
+        flat_pos   = dest_pos_audio[valid_audio]
+        flat_embs  = proj_embs[valid_audio]
 
-        # Target mask
-        range_target = torch.arange(L_target, device=device).unsqueeze(0)
-        batch_idx_t = torch.arange(B, device=device).unsqueeze(1).expand(B, L_target)
-        target_dest_pos = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + range_target
-        attention_mask[batch_idx_t, target_dest_pos] = target_mask.long()
+        inputs_embeds[flat_batch, flat_pos] = flat_embs
 
         # Inputs Embeds (B × L)
         # Batch 0: [ P, A, A, A, P, P, P, P, T, T, T, 0, 0, 0 ]
@@ -206,14 +179,51 @@ class AudioToLLM(torch.nn.Module):
         # - = label ignore (-100)
 
         # ----------------------------
-        # 10) Compute norms
+        # 8) Safe vectorized target insertion
         # ----------------------------
-        # audio_norm = (proj_embs * mask_S.unsqueeze(-1)).norm(dim=-1)[mask_S].mean()
-        # text_norm = prompt_embs.norm(dim=-1)[prompt_mask].mean()
-        proj_embs = proj_embs.cpu()
-        mask_S = mask_S.cpu()
-        audio_norm = proj_embs.norm(dim=-1)[mask_S].mean()
-        text_norm = prompt_embs.norm(dim=-1)[prompt_mask].mean()
+        B, L_target, D = target_embs.shape
+        batch_idx_t = torch.arange(B, device=device).unsqueeze(1).expand(B, L_target)
+        range_L = torch.arange(L_target, device=device).unsqueeze(0).expand(B, L_target)
+
+        valid_target = range_L < target_lens.unsqueeze(1)
+        dest_pos_target = audio_lens.unsqueeze(1) + prompt_lens.unsqueeze(1) + range_L
+        dest_pos_target = torch.clamp(dest_pos_target, max=max_len-1)
+
+        flat_batch_t = batch_idx_t[valid_target]
+        flat_pos_t   = dest_pos_target[valid_target]
+        flat_embs_t  = target_embs[valid_target]
+        flat_ids_t   = target_ids[valid_target]
+
+        inputs_embeds[flat_batch_t, flat_pos_t] = flat_embs_t
+        labels[flat_batch_t, flat_pos_t] = flat_ids_t
+
+        # ----------------------------
+        # 9) Safe attention mask
+        # ----------------------------
+        attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
+
+        # Audio
+        attention_mask[flat_batch, flat_pos] = 1
+
+        # Prompt (excluding <[audio]>)
+        prompt_no_audio = prompt_mask & ~audio_token_mask
+        batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(B, T_prompt)
+        range_prompt = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, T_prompt)
+        valid_prompt = prompt_no_audio
+        flat_batch_p = batch_idx_prompt[valid_prompt]
+        flat_pos_p   = range_prompt[valid_prompt]
+        attention_mask[flat_batch_p, flat_pos_p] = 1
+
+        # Target
+        flat_batch_t = batch_idx_t[valid_target]
+        flat_pos_t   = dest_pos_target[valid_target]
+        attention_mask[flat_batch_t, flat_pos_t] = 1
+
+        # ----------------------------
+        # 10) Compute norms safely
+        # ----------------------------
+        audio_norm = flat_embs.norm(dim=-1).mean()
+        text_norm  = prompt_embs[prompt_mask].norm(dim=-1).mean()
 
         # ----------------------------
         # 11) LLM forward
