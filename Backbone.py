@@ -52,23 +52,69 @@ class Backbone(torch.nn.Module):
 
         assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
 
-    def patch_vocab(self, token_map):
-        """
-        token_map = {
-            "<asr>": 5,
-            "</asr>": 6,
-            "<stt>": 7,
-            "</stt>": 8,
-            "<[audio]>": 9
-        }
-        """
-        # Add special tokens to tokenizer
-        new_tokens = list(token_map.keys())
-        self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
 
-        # Resize LLM embeddings if necessary
-        self.llm_model.resize_token_embeddings(len(self.tokenizer))
+        def add_new_tokens(self, asr_start_token="<[asr]>", asr_end_token="<[/asr]>", stt_start_token="<[stt]>", stt_end_token="<[/stt]>", audio_token="<[audio]>", path=None):
+            """
+            Add new special tokens to the tokenizer
+            Note: HF will assign new IDs at the end of the vocab.
+            """
+            # Extract new tokens
+            new_tokens = [asr_start_token, asr_end_token, stt_start_token, stt_end_token, audio_token]
+            added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
+            if added > 0:
+                # Resize model embeddings to accommodate new tokens
+                self.llm_model.resize_token_embeddings(len(self.tokenizer))
 
-        logger.info(f"Tokenizer patched with tokens {new_tokens}")
+            # Store new token IDs for later convenience
+            self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
+            self.audio_token_id = self.special_token_ids.get("<audio>", None)
+            self.asr_token_id = self.special_token_ids.get("<asr>", None)
+            self.end_asr_token_id = self.special_token_ids.get("</asr>", None)
+            self.stt_token_id = self.special_token_ids.get("<stt>", None)
+            self.end_stt_token_id = self.special_token_ids.get("</stt>", None)
 
+            logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
+
+            if path is None:
+                logger.info(f"Special token embeddings initialized from scratch")
+                return
+            
+            # Load embeddings for previously added special tokens.
+            payload = torch.load(path, map_location="cpu")
+            saved_ids = payload["token_ids"]
+            saved_embeddings = payload["embeddings"]
+            emb_layer = self.llm_model.get_input_embeddings()
+
+            # Safety checks
+            assert len(saved_ids) == saved_embeddings.size(0)
+            assert saved_embeddings.size(1) == emb_layer.weight.size(1)
+
+            for i, tid in enumerate(saved_ids):
+                emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
+
+            logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
+
+
+        def save_new_tokens(self, save_path):
+            """
+            Save only the embeddings of the new special tokens.
+            Useful for LoRA / fine-tuning setups where the rest of the model is frozen.
+            """
+            if not hasattr(self, "special_token_ids"):
+                raise ValueError("You must call patch_vocab() before save_new_tokens()")
+
+            # Get input embeddings
+            embeddings = self.llm_model.get_input_embeddings().weight.data
+
+            # Collect embeddings for new tokens
+            new_ids = list(self.special_token_ids.values())
+            new_embeddings = embeddings[new_ids].cpu()
+
+            # Save as a .pt file
+            torch.save({
+                "token_ids": new_ids,
+                "embeddings": new_embeddings
+            }, save_path)
+
+            logger.info(f"Saved {len(new_ids)} new token embeddings to {save_path}")
 

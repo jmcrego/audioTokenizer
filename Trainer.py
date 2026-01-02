@@ -161,6 +161,13 @@ class Trainer:
         self.model.llm_model.save_pretrained(ckpt_path + ".lora")
         logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
 
+        # Save special token embeddings
+        embeddings = self.model.llm_model.get_input_embeddings().weight.data
+        new_ids = list(self.model.llm_model.special_token_ids.values())
+        new_embeddings = embeddings[new_ids].cpu()
+        torch.save({"token_ids": new_ids, "embeddings": new_embeddings}, ckpt_path + ".embs.pt")
+        logger.info(f"Saved {len(new_ids)} new token embeddings to {ckpt_path}.embs.pt")
+
         # save optimizer state (ckpt_path.optim.pt)
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
         torch.save(state, f"{ckpt_path}.optim.pt")
