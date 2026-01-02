@@ -71,6 +71,7 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
         logger.info(f"LLM: {next(self.llm_model.parameters()).dtype} on {next(self.llm_model.parameters()).device}")
 
+
     # ========================================================
     # Forward (training)
     # ========================================================
