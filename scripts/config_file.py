@@ -19,7 +19,7 @@ config = {
             "</asr>": 6,
             "<stt>": 7,
             "</stt>": 8,
-            "<[audio]>": 9
+            "<[audio]>": 9,
         },
     },
     "lora": {
@@ -29,13 +29,13 @@ config = {
         "target_modules":  ["q_proj", "k_proj", "v_proj", "o_proj"],
         "lora_dropout": 0.05,
         "bias": "none",
-        "task_type": "CAUSAL_LM"
+        "task_type": "CAUSAL_LM",
     },
     "asr_start_token": "<asr>",
     "asr_end_token": "</asr>",
-    "stt_start_token": "<stt>"
-    "stt_end_token": "</stt>"
-    "audio_token": "<[audio]>"
+    "stt_start_token": "<stt>",
+    "stt_end_token": "</stt>",
+    "audio_token": "<[audio]>",
 }
 
 with open(f"config.json", "w", encoding="utf-8") as file:
