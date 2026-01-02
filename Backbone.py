@@ -59,7 +59,7 @@ class Backbone(torch.nn.Module):
             "</asr>": 6,
             "<stt>": 7,
             "</stt>": 8,
-            "<audio>": 9
+            "<[audio]>": 9
         }
         """
         # Add special tokens to tokenizer
@@ -68,13 +68,6 @@ class Backbone(torch.nn.Module):
 
         # Resize LLM embeddings if necessary
         self.llm_model.resize_token_embeddings(len(self.tokenizer))
-
-        # Store token IDs for later use
-        self.audio_token_id = self.tokenizer.convert_tokens_to_ids("<audio>")
-        self.asr_token_id   = self.tokenizer.convert_tokens_to_ids("<asr>")
-        self.end_asr_token_id = self.tokenizer.convert_tokens_to_ids("</asr>")
-        self.stt_token_id   = self.tokenizer.convert_tokens_to_ids("<stt>")
-        self.end_stt_token_id = self.tokenizer.convert_tokens_to_ids("</stt>")
 
         logger.info(f"Tokenizer patched with tokens {new_tokens}")
 
