@@ -59,12 +59,12 @@ class Backbone(torch.nn.Module):
         Add new special tokens to the tokenizer
         Note: HF will assign new IDs at the end of the vocab.
         """
-        self.asr_start_token=new_tokens["asr_start_token"]
-        self.asr_end_token=new_tokens["asr_end_token"]
-        self.stt_start_token=new_tokens["stt_start_token"]
-        self.stt_end_token=new_tokens["stt_end_token"]
-        self.audio_token=new_tokens["audio_token"]
-        path=new_tokens["path"]
+        self.asr_start_token = new_tokens["asr_start_token"]
+        self.asr_end_token   = new_tokens["asr_end_token"]
+        self.stt_start_token = new_tokens["stt_start_token"]
+        self.stt_end_token   = new_tokens["stt_end_token"]
+        self.audio_token     = new_tokens["audio_token"]
+        path                 = new_tokens["path"]
 
         # Extract new tokens
         new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
