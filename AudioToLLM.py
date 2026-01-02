@@ -296,7 +296,11 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 3) Find <[audio]> token positions
         # ----------------------------
-        audio_token_mask = (prompt_ids == self.audio_token_id).unsqueeze(0).expand(B, -1)  # [B, T]
+        # ensure batch dimension
+        if prompt_ids.dim() == 1:
+            prompt_ids = prompt_ids.unsqueeze(0)
+
+        audio_token_mask = (prompt_ids == self.audio_token_id)  # [B, T]
         assert (audio_token_mask.sum(dim=1) == 1).all(), "Each prompt must have exactly one <[audio]> token"
 
         # ----------------------------
@@ -342,7 +346,8 @@ class AudioToLLM(torch.nn.Module):
 
         # After <[audio]>
         batch_after_idx = batch_idx.unsqueeze(1).expand_as(prompt_range)[mask_after]
-        prompt_after_idx = prompt_range[mask_after] + audio_lens.unsqueeze(1).expand_as(prompt_range)[mask_after]
+        prompt_after_idx = prompt_range[mask_after] + audio_lens.repeat_interleave(mask_after.sum(dim=1))
+
         inputs_embeds[batch_after_idx, prompt_after_idx] = prompt_embs[mask_after]
         attention_mask[batch_after_idx, prompt_after_idx] = 1
 
