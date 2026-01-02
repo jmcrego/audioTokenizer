@@ -24,11 +24,11 @@ class Backbone(torch.nn.Module):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.patch_vocab(config['token_map'])
-
         ###### LLM (frozen) + LoRa (trainable) ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
         logger.info(f"Loaded LLM model from {llm_path}")
+
+        self.patch_vocab(config['token_map'])
 
         # LoRA adapters
         if config_lora is not None:
