@@ -403,7 +403,7 @@ class Trainer:
                 # Run generation
                 gen_texts = self.model.generate(
                     audio_files=audio_paths,
-                    prompt=prompt_texts[0],  # prompt is shared across batch
+                    prompts=prompt_texts,  
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     top_p=top_p,
