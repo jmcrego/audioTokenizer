@@ -304,7 +304,7 @@ class AudioToLLM(torch.nn.Module):
         # 3) Locate <[audio]> token
         # ----------------------------
         audio_token_mask = (prompt_ids == self.audio_token_id)
-        assert (audio_token_mask.sum(dim=1) == 1).all(), "Each prompt must contain exactly one <[audio]> token"
+        assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <[audio]> token: prompts = {'\n'.join(prompts)}"
 
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
 
