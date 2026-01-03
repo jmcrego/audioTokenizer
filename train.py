@@ -14,7 +14,6 @@ from Trainer import Trainer
 from Dataset import Dataset
 
 logger = logging.getLogger("train")
-
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def get_device_dtype():
