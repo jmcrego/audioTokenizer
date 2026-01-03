@@ -21,6 +21,7 @@ class Projector(nn.Module):
         rmsnorm_pre = config.get('rmsnorm_pre', True)
         rmsnorm_mid = config.get('rmsnorm_mid', False)
         rmsnorm_pos = config.get('rmsnorm_pos', True)
+        scale = config.get('scale', 1.0)
         middle_dim = config.get('middle_dim', llm_embedding_dim)
 
         self.stack_size = config.get('stack_size', 8)
@@ -45,7 +46,7 @@ class Projector(nn.Module):
         self.ln_pos = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_pos else nn.Identity()
 
         # --- Add a learnable scale to the projector ---
-        self.scale = nn.Parameter(torch.tensor(0.03))
+        self.scale = scale #nn.Parameter(torch.tensor(0.03))
 
         # --- Load projector if path is provided ---
         if path is not None:
@@ -94,6 +95,8 @@ class Projector(nn.Module):
         x = self.linear2(x)
         # --- Post RMSNorm ---
         x = self.ln_pos(x)
+        # --- HARD norm constraint ---
+        x = F.normalize(x, dim=-1)
         # --- Scale ---
         x = self.scale * x
 

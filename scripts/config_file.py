@@ -10,7 +10,8 @@ config = {
         "middle_dim": 2048,
         "rmsnorm_pre": True,
         "rmsnorm_mid": False,
-        "rmsnorm_pos": True,
+        "rmsnorm_pos": False,
+        "scale": 0.03,
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
