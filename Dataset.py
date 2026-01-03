@@ -56,10 +56,10 @@ def build_target(asr=None, stt=None, asr_start_token="<asr>", asr_end_token="</a
     target = ""
 
     if asr is not None and asr != "":
-        target += f"{asr_start_token} {asr} {asr_end_token}\n"
+        target += f"{asr_start_token}{asr}{asr_end_token}\n"
 
     if stt is not None and stt != "":
-        target += f"{stt_start_token} {stt} {stt_end_token}\n"
+        target += f"{stt_start_token}{stt}{stt_end_token}\n"
 
     return target+eos_token
  
