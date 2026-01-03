@@ -262,8 +262,8 @@ class Trainer:
                         return torch.sqrt(sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None))
 
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
-                    lora_grad_norm = compute_grad_norm(self.model.lora_parameters())
-                    embs_grad_norm  = compute_grad_norm(self.model.embedding_patameters())
+                    lora_grad_norm = compute_grad_norm(self.model.backbone.lora_parameters())
+                    embs_grad_norm  = compute_grad_norm(self.model.backbone.embedding_patameters())
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
                         scale_val = scale_val.item()
