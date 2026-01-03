@@ -7,6 +7,7 @@ import torch
 import logging
 import argparse
 import numpy as np
+from datetime import datetime
 
 from AudioToLLM import AudioToLLM
 from Trainer import Trainer
@@ -148,9 +149,13 @@ if __name__ == "__main__":
     # Start training
     # -----------------------------
 
+    slurm_id = os.environ.get("SLURM_JOB_ID", "noslurm")
+    now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+
     wandb.init(
         project="AudioToLLM-FT",
-        name="run_ft",
+        dir="./wandb",
+        name=f"run_{now}_{slurm_id}",
         config={
             "lr_proj": args.lr_proj,
             "lr_lora": args.lr_lora,
