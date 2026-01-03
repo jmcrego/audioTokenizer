@@ -387,27 +387,22 @@ class Trainer:
             # ----------------------------
             if logged_samples < max_gen_samples:
                 audio_paths = batch["audio_paths"]
-
-                # Decode prompt text (for logging only)
-                prompt_texts = self.model.tokenizer.batch_decode(
-                    batch["prompt_ids"],
-                    skip_special_tokens=False,
-                )
-
-                # Decode targets (ground truth)
-                target_texts = self.model.tokenizer.batch_decode(
-                    batch["target_ids"],
-                    skip_special_tokens=False,
-                )
+                prompt_ids = batch["prompt_ids"]
+                target_ids = batch["target_ids"]
 
                 # Run generation
                 gen_texts = self.model.generate(
                     audio_files=audio_paths,
-                    prompts=prompt_texts,  
+                    prompt_ids=prompt_ids,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     top_p=top_p,
                 )
+
+                # Decode prompt text (for logging only)
+                prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=False)
+                # Decode targets (ground truth)
+                target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=False)
 
                 B = len(audio_paths)
                 for i in range(B):

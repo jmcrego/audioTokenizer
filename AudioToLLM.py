@@ -253,7 +253,7 @@ class AudioToLLM(torch.nn.Module):
     def generate(
         self,
         audio_files: list[str],
-        prompts: list[str],
+        prompt_ids: list[str], #(B, T_prompt_max) torch.long   Ex: [BOS]  t₁  t₂  ...  <[audio]>  ...  tₙ  [PAD] [PAD]
         max_new_tokens: int = 256,
         temperature: float = 0.7,
         top_p: float = 0.95,
@@ -264,8 +264,7 @@ class AudioToLLM(torch.nn.Module):
         device = self.llm_model.device
         dtype = next(self.projector.parameters()).dtype
         B = len(audio_files)
-
-        assert len(prompts) == B, "audio_files and prompts must have same length"
+        assert len(prompt_ids) == B, "audio_files and prompts must have same length"
 
         # ----------------------------
         # 1) Audio → Embedding → Projector
@@ -285,15 +284,15 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 2) Tokenize prompts (batched)
         # ----------------------------
-        tok = self.tokenizer(
-            prompts,
-            return_tensors="pt",
-            padding=True,
-            truncation=False,
-            add_special_tokens=False,
-        )
+        # tok = self.tokenizer(
+        #     prompts,
+        #     return_tensors="pt",
+        #     padding=True,
+        #     truncation=False,
+        #     add_special_tokens=False,
+        # )
 
-        prompt_ids = tok.input_ids.to(device)      # [B, T]
+        prompt_ids = prompt_ids.to(device)      # [B, T]
         prompt_mask = prompt_ids != self.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)        # [B]
         T_prompt = prompt_ids.size(1)
@@ -304,7 +303,7 @@ class AudioToLLM(torch.nn.Module):
         # 3) Locate <[audio]> token
         # ----------------------------
         audio_token_mask = (prompt_ids == self.audio_token_id)
-        assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <[audio]> token: prompts = {'\n'.join(prompts)}"
+        assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <[audio]> token"
 
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
 
