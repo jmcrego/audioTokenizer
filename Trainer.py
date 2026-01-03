@@ -4,7 +4,7 @@ import os
 import re
 import glob
 import json
-import wandb
+#import wandb
 import torch
 import shutil
 import random
@@ -491,7 +491,7 @@ class Trainer:
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
         logger.info(log_str)
-        wandb.log(log_dict)
+        #wandb.log(log_dict)
 
 
 

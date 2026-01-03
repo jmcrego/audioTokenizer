@@ -2,7 +2,7 @@
 
 import os
 import json
-import wandb
+#import wandb
 import torch
 import logging
 import argparse
@@ -148,26 +148,26 @@ if __name__ == "__main__":
     # Start training
     # -----------------------------
 
-    slurm_id = os.environ.get("SLURM_JOB_ID", "noslurm")
-    now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+    # slurm_id = os.environ.get("SLURM_JOB_ID", "noslurm")
+    # now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
 
-    wandb.init(
-        project="AudioToLLM-FT",
-        dir="./wandb",
-        name=f"run_{now}_{slurm_id}",
-        config={
-            "lr_proj": args.lr_proj,
-            "lr_lora": args.lr_lora,
-            "batch_size": args.batch_size,
-            "accum_steps": args.accum_steps,
-            "max_seq_len": args.max_seq_len,
-            "train": args.train,
-            "eval": args.eval,
-            "config": args.config,
-            "output_dir": args.output_dir,
-            # add any other config params you want
-        }
-    )
+    # wandb.init(
+    #     project="AudioToLLM-FT",
+    #     dir="./wandb",
+    #     name=f"run_{now}_{slurm_id}",
+    #     config={
+    #         "lr_proj": args.lr_proj,
+    #         "lr_lora": args.lr_lora,
+    #         "batch_size": args.batch_size,
+    #         "accum_steps": args.accum_steps,
+    #         "max_seq_len": args.max_seq_len,
+    #         "train": args.train,
+    #         "eval": args.eval,
+    #         "config": args.config,
+    #         "output_dir": args.output_dir,
+    #         # add any other config params you want
+    #     }
+    # )
 
     trainer.train()
 
