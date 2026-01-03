@@ -439,7 +439,7 @@ class Trainer:
 
         lr_proj = self.optimizer.param_groups[0]["lr"]
         lr_lora = self.optimizer.param_groups[1]["lr"]
-        scale_val = self.model.projector.scale.float().item()
+        #scale_val = self.model.projector.scale.float().item()
 
         w_step = len(str(self.max_steps))
 
@@ -453,7 +453,8 @@ class Trainer:
             f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
         )
         if audio_norm is not None and text_norm is not None:
-            log_str += f" | scale={scale_val:.2f} | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
+            # log_str += f" | scale={scale_val:.2f} | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
+            log_str += f" | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
         print(log_str)
 
         log_str = (
@@ -466,7 +467,8 @@ class Trainer:
             f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         )
         if audio_norm is not None and text_norm is not None:
-            log_str += f" | scale={scale_val:.2f} | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
+            # log_str += f" | scale={scale_val:.2f} | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
+            log_str += f" | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
         logger.info(log_str)
 
 
