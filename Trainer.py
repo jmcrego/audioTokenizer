@@ -4,6 +4,7 @@ import os
 import re
 import glob
 import json
+import wandb
 import torch
 import shutil
 import random
@@ -21,7 +22,6 @@ from transformers import get_linear_schedule_with_warmup
 from Dataset import BatchedLengthSampler 
 
 logger = logging.getLogger("Trainer")
-
 
 class Trainer:
     def __init__(
@@ -249,7 +249,6 @@ class Trainer:
                         accum_audio_norm += outputs["audio_norm"].detach()
                         accum_text_norm += outputs["text_norm"].detach()
 
-
                 # Backward pass
                 scaler.scale(loss).backward()
 
@@ -257,6 +256,18 @@ class Trainer:
                 if self.batch % self.accum_steps == 0:
                     # Unscale gradients before clipping
                     scaler.unscale_(optimizer)
+
+                    # --- Compute grad norms ---
+                    def compute_grad_norm(params):
+                        return torch.sqrt(sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None))
+
+                    proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
+                    lora_grad_norm = compute_grad_norm(self.model.lora_parameters())
+                    embs_grad_norm  = compute_grad_norm(self.model.embedding_patameters())
+                    scale_val = getattr(self.model.projector, "scale", None)
+                    if scale_val is not None and isinstance(scale_val, torch.Tensor):
+                        scale_val = scale_val.item()
+
                     # Gradient clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
@@ -273,7 +284,15 @@ class Trainer:
                         avg_loss = accum_loss / self.accum_steps
                         avg_audio_norm = accum_audio_norm / self.accum_steps
                         avg_text_norm = accum_text_norm / self.accum_steps
-                        self.log_fn(avg_loss.item(),audio_norm=avg_audio_norm.item(),text_norm=avg_text_norm.item())
+                        self.esnf(
+                            avg_loss.item(),
+                            audio_norm=avg_audio_norm.item(),
+                            text_norm=avg_text_norm.item(),
+                            scale_val=scale_val,
+                            proj_grad_norm=proj_grad_norm.item(),
+                            lora_grad_norm=lora_grad_norm.item(),
+                            embs_grad_norm=embs_grad_norm.item(),
+                        )
 
                     accum_loss = 0.0
                     accum_audio_norm = 0.0
@@ -423,26 +442,51 @@ class Trainer:
     # -----------------------
     # Logging helper
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, is_eval=False):
+
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, embs_grad_norm=None, is_eval=False):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
+        tag = "eval_" if is_eval else "train_"
+
+        log_dict = {
+            "step": self.step,
+            f"{tag}loss": loss,
+            f"{tag}lr_proj": self.optimizer.param_groups[0]["lr"],
+            f"{tag}lr_lora": self.optimizer.param_groups[1]["lr"],
+        }
+
         log_str =  f"{'Eval ' if is_eval else 'Train'} | "
-        log_str += f"step={self.step:>6d}/{self.max_steps} | "
+        log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.4f} | "
-        log_str += f"lr_proj={self.optimizer.param_groups[0]["lr"]:.6e} | "
-        log_str += f"lr_lora={self.optimizer.param_groups[1]["lr"]:.6e} | "
-        if isinstance(self.model.projector.scale, nn.Parameter) and self.model.projector.scale.requires_grad:
-            log_str += f"scale={self.model.projector.scale.float().item():.2f} | "
-        if audio_norm is not None and text_norm is not None:
+        log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.6e} | "
+        log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.6e} | "
+
+        if proj_grad_norm is not None:
+            log_str += f"proj_grad_norm={proj_grad_norm:.2f} | "
+            log_dict[f"{tag}proj_grad_norm"] = proj_grad_norm
+        if lora_grad_norm is not None:
+            log_str += f"lora_grad_norm={lora_grad_norm:.2f} | "
+            log_dict[f"{tag}lora_grad_norm"] = lora_grad_norm
+        if embs_grad_norm is not None:
+            log_str += f"embs_grad_norm={embs_grad_norm:.2f} | "
+            log_dict[f"{tag}embs_grad_norm"] = embs_grad_norm
+        if scale_val is not None:
+            log_str += f"scale={scale_val:.2f} | "
+            log_dict[f"{tag}scale"] = scale_val
+        if audio_norm is not None:
             log_str += f"audio_norm={audio_norm:.2f} | "
+            log_dict[f"{tag}audio_norm"] = audio_norm
+        if text_norm is not None:
             log_str += f"text_norm={text_norm:.2f} | "
+            log_dict[f"{tag}text_norm"] = text_norm
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
         logger.info(log_str)
+        wandb.log(log_dict)
 
 
 

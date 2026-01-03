@@ -56,6 +56,11 @@ class Backbone(torch.nn.Module):
 
         assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
 
+    def lora_parameters(self):
+        return [p for n, p in self.llm_model.named_parameters() if "lora" in n and p.requires_grad]
+
+    def embedding_parameters(self):
+        return self.llm_model.get_input_embeddings().parameters()
 
     def add_new_tokens(self, new_tokens): 
         """

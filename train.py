@@ -2,6 +2,7 @@
 
 import os
 import json
+import wandb
 import torch
 import logging
 import argparse
@@ -146,6 +147,23 @@ if __name__ == "__main__":
     # -----------------------------
     # Start training
     # -----------------------------
+
+    wandb.init(
+        project="AudioToLLM-FT",
+        name="run_ft",
+        config={
+            "lr_proj": args.lr_proj,
+            "lr_lora": args.lr_lora,
+            "batch_size": args.batch_size,
+            "accum_steps": args.accum_steps,
+            "stack_size": args.stack_size,
+            "train": args.train,
+            "eval": args.eval,
+            "config": args.config,
+            "output_dir": args.output_dir,
+            # add any other config params you want
+        }
+    )
 
     trainer.train()
 
