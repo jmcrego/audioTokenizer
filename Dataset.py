@@ -115,11 +115,7 @@ class Dataset(Dataset):
         self,
         file_path: str,
         tokenizer,
-        asr_start_token="<asr>",
-        asr_end_token="</asr>",
-        stt_start_token="<stt>",
-        stt_end_token="</stt>",
-        audio_token="<[audio]>",
+        add_tokens={},
         sample_rate=16000,
         downsample_ratio=320,
         stack_size=8,
@@ -127,11 +123,11 @@ class Dataset(Dataset):
         seed=42,
     ):
         self.tokenizer = tokenizer
-        self.asr_start_token = asr_start_token
-        self.asr_end_token = asr_end_token
-        self.stt_start_token = stt_start_token
-        self.stt_end_token = stt_end_token
-        self.audio_token = audio_token
+        self.asr_start_token = add_tokens['asr_start_token']
+        self.asr_end_token = add_tokens['asr_end_token']
+        self.stt_start_token = add_tokens['stt_start_token']
+        self.stt_end_token = add_tokens['stt_end_token']
+        self.audio_token = add_tokens['audio_token']
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
@@ -175,7 +171,7 @@ class Dataset(Dataset):
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 if i % 10000 == 0:
-                    logger.info(f"sample={i}\n### prompt ###\n{prompt}\n### target ###\n{target}\n##############")
+                    logger.info(f"sample={i}\n### prompt ###\n{prompt}\n### target ###\n{target}\n### prompt_ids ###\n{prompt_ids}\n##############")
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)

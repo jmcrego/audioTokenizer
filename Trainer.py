@@ -391,13 +391,13 @@ class Trainer:
                 # Decode prompt text (for logging only)
                 prompt_texts = self.model.tokenizer.batch_decode(
                     batch["prompt_ids"],
-                    skip_special_tokens=True,
+                    skip_special_tokens=False,
                 )
 
                 # Decode targets (ground truth)
                 target_texts = self.model.tokenizer.batch_decode(
                     batch["target_ids"],
-                    skip_special_tokens=True,
+                    skip_special_tokens=False,
                 )
 
                 # Run generation
