@@ -11,6 +11,7 @@ import logging
 import numpy as np
 from datetime import datetime
 
+import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
@@ -20,15 +21,6 @@ from transformers import get_linear_schedule_with_warmup
 from Dataset import BatchedLengthSampler 
 
 logger = logging.getLogger("Trainer")
-
-class Color: #for logging
-    RESET = "\033[0m"
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    BLUE = "\033[34m"
-    MAGENTA = "\033[35m"
-    CYAN = "\033[36m"
 
 
 class Trainer:
@@ -439,36 +431,20 @@ class Trainer:
 
         lr_proj = self.optimizer.param_groups[0]["lr"]
         lr_lora = self.optimizer.param_groups[1]["lr"]
-        #scale_val = self.model.projector.scale.float().item()
 
-        w_step = len(str(self.max_steps))
-
-        log_str = (
-            f"{'Eval' if is_eval else 'Train'} "
-            f"[Step {Color.CYAN}{self.step:>{w_step}d}{Color.RESET}/{self.max_steps}, "
-            f"Epoch {Color.CYAN}{self.sample/len(self.train_dataset):.3f}{Color.RESET}/{self.max_epochs}] "
-            f"loss={Color.RED}{loss:.4f}{Color.RESET} | "
-            f"lr_proj={Color.GREEN}{lr_proj:.6e}{Color.RESET}, "
-            f"lr_lora={Color.GREEN}{lr_lora:.6e}{Color.RESET} | "
-            f"elapsed={Color.MAGENTA}{h:02d}h:{m:02d}m:{s:02d}s{Color.RESET}"
-        )
+        log_str =  f"{'Eval ' if is_eval else 'Train'} "
+        log_str += f"Step={self.step:>6d}/{self.max_steps} | "
+        log_str += f"Epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
+        log_str += f"loss={loss:.4f} | "
+        log_str += f"lr_proj={lr_proj:.6e} | "
+        log_str += f"lr_lora={lr_lora:.6e} | "
+        if isinstance(self.model.projector.scale, nn.Parameter) and self.model.projector.scale.requires_grad:
+            log_str += f"scale={self.model.projector.scale.float().item():.2f} | "
         if audio_norm is not None and text_norm is not None:
-            # log_str += f" | scale={scale_val:.2f} | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
-            log_str += f" | audio_norm={Color.YELLOW}{audio_norm:.2f}{Color.RESET}, text_norm={Color.YELLOW}{text_norm:.2f}{Color.RESET}"
-        print(log_str)
+            log_str += f"audio_norm={audio_norm:.2f} | "
+            log_str += f"text_norm={text_norm:.2f} | "
+        log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
-        log_str = (
-            f"{'Eval ' if is_eval else 'Train'} "
-            f"[Step {self.step:>{w_step}d}/{self.max_steps}, "
-            f"Epoch {self.sample/len(self.train_dataset):.3f}/{self.max_epochs}] "
-            f"loss={loss:.4f} | "
-            f"lr_proj={lr_proj:.6e}, "
-            f"lr_lora={lr_lora:.6e} | "
-            f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
-        )
-        if audio_norm is not None and text_norm is not None:
-            # log_str += f" | scale={scale_val:.2f} | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
-            log_str += f" | audio_norm={audio_norm:.2f}, text_norm={text_norm:.2f}"
         logger.info(log_str)
 
 
