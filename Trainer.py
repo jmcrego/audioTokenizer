@@ -163,7 +163,7 @@ class Trainer:
 
         # Save special token embeddings
         embeddings = self.model.llm_model.get_input_embeddings().weight.data
-        new_ids = list(self.model.llm_model.special_token_ids.values())
+        new_ids = list(self.model.special_token_ids.values()) #Dict tok -> ids
         new_embeddings = embeddings[new_ids].cpu()
         torch.save({"token_ids": new_ids, "embeddings": new_embeddings}, ckpt_path + ".embs.pt")
         logger.info(f"Saved {len(new_ids)} new token embeddings to {ckpt_path}.embs.pt")
