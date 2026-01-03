@@ -260,23 +260,16 @@ class Trainer:
                     # --- Compute grad norms ---
                     def compute_grad_norm(params, eps=1e-6):
                         """
-                        Compute the total gradient norm of a list of parameters.
+                        Compute total gradient norm of a list of parameters.
                         Skips parameters with no gradient. Returns a tensor on the same device as the first param.
-
-                        Args:
-                            params (iterable): list or generator of torch.nn.Parameter
-                            eps (float): small value to avoid sqrt(0)
-
-                        Returns:
-                            torch.Tensor: total gradient norm
                         """
                         grads = [p.grad.detach() for p in params if p.grad is not None]
                         if len(grads) == 0:
-                            # fallback tensor on CPU if no params provided
                             return torch.tensor(0.0)
-                        
-                        device = grads[0].device
-                        total_norm = torch.sqrt(torch.sum(torch.stack([g.pow(2).sum() for g in grads], device=device)) + eps)
+
+                        # stack grads and compute total norm
+                        stacked = torch.stack([g.pow(2).sum() for g in grads])
+                        total_norm = torch.sqrt(stacked.sum() + eps)
                         return total_norm
 
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
