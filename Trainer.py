@@ -274,6 +274,11 @@ class Trainer:
                     # Optimizer step via scaler
                     scaler.step(optimizer)
                     scaler.update()
+
+                    # with torch.no_grad():
+                    #     if hasattr(self.model.projector, "scale") and self.model.projector.scale.requires_grad:
+                    #         self.model.projector.scale.clamp_(0.01, 0.1)
+
                     optimizer.zero_grad()
                     # Scheduler step
                     self.scheduler.step()

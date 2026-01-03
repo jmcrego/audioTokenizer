@@ -96,9 +96,9 @@ class Projector(nn.Module):
         # --- Post RMSNorm ---
         x = self.ln_pos(x)
         # --- HARD norm constraint ---
-        x = F.normalize(x, dim=-1)
+        # x = F.normalize(x, dim=-1)
         # --- Scale (scale cannot grow more than 1.0) ---
-        x = torch.clamp(self.scale, max=1.0) * x
+        x = self.scale * x #torch.clamp(self.scale, max=1.0) * x
 
         return x, proj_mask
 
