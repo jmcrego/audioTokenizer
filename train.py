@@ -161,7 +161,7 @@ if __name__ == "__main__":
             "lr_lora": args.lr_lora,
             "batch_size": args.batch_size,
             "accum_steps": args.accum_steps,
-            "stack_size": args.stack_size,
+            "max_seq_len": args.max_seq_len,
             "train": args.train,
             "eval": args.eval,
             "config": args.config,
