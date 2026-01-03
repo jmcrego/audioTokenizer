@@ -23,7 +23,7 @@ code2lang={
 }
 
 
-def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None):
+def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None, bos_token="<bos>"):
     if src_lang is not None and src_lang not in code2lang:
         raise ValueError(f"Source language code '{src_lang}' not found.")        
     if tgt_lang is not None and tgt_lang not in code2lang:
@@ -47,7 +47,7 @@ def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None):
         raise ValueError("No src_lang or tgt_lang provided")
     
     prompt += "Answer:\n"
-    return prompt
+    return bos_token+prompt
 
 def build_target(asr=None, stt=None, asr_start_token="<asr>", asr_end_token="</asr>", stt_start_token="<stt>", stt_end_token="</stt>", eos_token="<eos>"):
     if (asr is None or asr == "") and (stt is None or stt == ""):
@@ -61,8 +61,7 @@ def build_target(asr=None, stt=None, asr_start_token="<asr>", asr_end_token="</a
     if stt is not None and stt != "":
         target += f"{stt_start_token} {stt} {stt_end_token}\n"
 
-    target += eos_token
-    return target
+    return target+eos_token
  
 
 class BatchedLengthSampler(Sampler):
@@ -152,7 +151,7 @@ class Dataset(Dataset):
                 src_lang = src_lang if src_lang else None
                 tgt_lang = tgt_lang if tgt_lang else None
 
-                prompt = build_prompt(self.audio_token, src_lang, tgt_lang)
+                prompt = build_prompt(self.audio_token, src_lang, tgt_lang, self.tokenizer.bos_token)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -171,7 +170,7 @@ class Dataset(Dataset):
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 if i % 10000 == 0:
-                    logger.info(f"sample={i}\n### prompt ###\n{prompt}\n### target ###\n{target}\n### prompt_ids ###\n{prompt_ids}\n##############")
+                    logger.info(f"sample={i}\n### prompt ###\n{prompt}\n### target ###\n{target}\n### prompt_ids ###\n{prompt_ids}\n### target_ids ###\n{target_ids}\n##############")
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
