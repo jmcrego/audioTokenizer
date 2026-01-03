@@ -429,15 +429,12 @@ class Trainer:
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
-        lr_proj = self.optimizer.param_groups[0]["lr"]
-        lr_lora = self.optimizer.param_groups[1]["lr"]
-
-        log_str =  f"{'Eval ' if is_eval else 'Train'} "
-        log_str += f"Step={self.step:>6d}/{self.max_steps} | "
-        log_str += f"Epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
+        log_str =  f"{'Eval ' if is_eval else 'Train'} | "
+        log_str += f"step={self.step:>6d}/{self.max_steps} | "
+        log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.4f} | "
-        log_str += f"lr_proj={lr_proj:.6e} | "
-        log_str += f"lr_lora={lr_lora:.6e} | "
+        log_str += f"lr_proj={self.optimizer.param_groups[0]["lr"]:.6e} | "
+        log_str += f"lr_lora={self.optimizer.param_groups[1]["lr"]:.6e} | "
         if isinstance(self.model.projector.scale, nn.Parameter) and self.model.projector.scale.requires_grad:
             log_str += f"scale={self.model.projector.scale.float().item():.2f} | "
         if audio_norm is not None and text_norm is not None:
