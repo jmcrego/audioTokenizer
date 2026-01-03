@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
+    args.eval_every = args.log_every
 
     # Create output directory if needed
     os.makedirs(args.output_dir, exist_ok=True)
