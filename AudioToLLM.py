@@ -107,20 +107,20 @@ class AudioToLLM(torch.nn.Module):
         trainable = embedder_trainable + projector_trainable + llm_trainable
         frozen = total - trainable
         
-        logger.info("=" * 80)
+        logger.info("=" * 100)
         logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
-        logger.info("=" * 80)
+        logger.info("=" * 100)
         logger.info(f"Audio Embedder : {embedder_total:>15,} total | {embedder_trainable:>15,} trainable | {embedder_total - embedder_trainable:>15,} frozen")
         logger.info(f"Projector      : {projector_total:>15,} total | {projector_trainable:>15,} trainable | {projector_total - projector_trainable:>15,} frozen")
         logger.info(f"LLM (+ LoRA)   : {llm_total:>15,} total | {llm_trainable:>15,} trainable | {llm_total - llm_trainable:>15,} frozen")
-        logger.info("-" * 80)
+        logger.info("-" * 100)
         logger.info(f"TOTAL          : {total:>15,} total | {trainable:>15,} trainable | {frozen:>15,} frozen")
         logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
-        logger.info("=" * 80)
+        logger.info("=" * 100)
         
         # Show trainable parameter names for each component
         logger.info("TRAINABLE PARAMETERS:")
-        logger.info("-" * 80)
+        logger.info("-" * 100)
         
         # Audio Embedder
         if embedder_trainable_names:
