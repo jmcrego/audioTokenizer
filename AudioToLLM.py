@@ -23,7 +23,11 @@ class AudioToLLM(torch.nn.Module):
         self.backbone = Backbone(config['llm'], config['lora'])
         self.llm_model = self.backbone.llm_model
         self.tokenizer = self.backbone.tokenizer
-        self.audio_token_id = self.backbone.audio_token_id
+
+        self.audio_token = config["llm"]["audio_token"]
+        assert self.audio_token_id is not None, "audio_token_id is None"
+        self.audio_token_id = self.tokenizer.convert_tokens_to_ids(self.audio_token)
+        assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
 
         self.projector = Projector(
             config['projector'], 
@@ -69,14 +73,13 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
         logger.info(f"LLM: {next(self.llm_model.parameters()).dtype} on {next(self.llm_model.parameters()).device}")
 
-
     # ========================================================
     # Forward (training)
     # ========================================================
     def forward(self, audio_paths, prompt_ids, target_ids):
         """
         Fully vectorized forward pass:
-        audio_paths + prompt_ids (with <[audio]> token) + target_ids -> LLM
+        audio_paths + prompt_ids (with <extra_id_0> token) + target_ids -> LLM
         """
         assert prompt_ids.dtype == torch.long
         assert prompt_ids.dim() == 2
@@ -108,7 +111,7 @@ class AudioToLLM(torch.nn.Module):
             prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
 
         audio_token_mask = (prompt_ids == self.audio_token_id)
-        assert (audio_token_mask.sum(dim=1) == 1).all(), "Each prompt must have exactly one <[audio]> token"
+        assert (audio_token_mask.sum(dim=1) == 1).all(), "Each prompt must have exactly one <extra_id_0> token"
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
 
         prompt_mask = (prompt_ids != self.tokenizer.pad_token_id)
@@ -205,7 +208,7 @@ class AudioToLLM(torch.nn.Module):
         # Audio
         attention_mask[flat_batch, flat_pos] = 1
 
-        # Prompt (excluding <[audio]>)
+        # Prompt (excluding <extra_id_0>)
         prompt_no_audio = prompt_mask & ~audio_token_mask
         batch_idx_prompt = torch.arange(B, device=device).unsqueeze(1).expand(B, T_prompt)
         range_prompt = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, T_prompt)
@@ -253,13 +256,13 @@ class AudioToLLM(torch.nn.Module):
     def generate(
         self,
         audio_files: list[str],
-        prompt_ids: list[str], #(B, T_prompt_max) torch.long   Ex: [BOS]  t₁  t₂  ...  <[audio]>  ...  tₙ  [PAD] [PAD]
+        prompt_ids: list[str], #(B, T_prompt_max) torch.long   Ex: [BOS]  t₁  t₂  ...  <extra_id_0>  ...  tₙ  [PAD] [PAD]
         max_new_tokens: int = 256,
         temperature: float = 0.7,
         top_p: float = 0.95,
     ):
         """
-        Batched generation with per-sample prompts containing exactly one <[audio]> token.
+        Batched generation with per-sample prompts containing exactly one <extra_id_0> token.
         """
         device = self.llm_model.device
         dtype = next(self.projector.parameters()).dtype
@@ -282,15 +285,8 @@ class AudioToLLM(torch.nn.Module):
         D = proj_embs.size(-1)
 
         # ----------------------------
-        # 2) Tokenize prompts (batched)
+        # 2) Prompt → Embedding
         # ----------------------------
-        # tok = self.tokenizer(
-        #     prompts,
-        #     return_tensors="pt",
-        #     padding=True,
-        #     truncation=False,
-        #     add_special_tokens=False,
-        # )
 
         prompt_ids = prompt_ids.to(device)      # [B, T]
         prompt_mask = prompt_ids != self.tokenizer.pad_token_id
@@ -300,10 +296,10 @@ class AudioToLLM(torch.nn.Module):
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)  # [B, T, D]
 
         # ----------------------------
-        # 3) Locate <[audio]> token
+        # 3) Locate <extra_id_0> token
         # ----------------------------
         audio_token_mask = (prompt_ids == self.audio_token_id)
-        assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <[audio]> token"
+        assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <extra_id_0> token"
 
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
 
@@ -336,7 +332,7 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         prompt_range = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, -1)
 
-        # a) before <[audio]>
+        # a) before <extra_id_0>
         before = prompt_range < audio_pos.unsqueeze(1)
         b_before = batch_idx.unsqueeze(1).expand_as(prompt_range)[before]
         p_before = prompt_range[before]
@@ -344,7 +340,7 @@ class AudioToLLM(torch.nn.Module):
         inputs_embeds[b_before, p_before] = prompt_embs[before]
         attention_mask[b_before, p_before] = 1
 
-        # b) after <[audio]>
+        # b) after <extra_id_0>
         after = prompt_range > audio_pos.unsqueeze(1)
         b_after = batch_idx.unsqueeze(1).expand_as(prompt_range)[after]
 

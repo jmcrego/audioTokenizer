@@ -28,12 +28,6 @@ class Backbone(torch.nn.Module):
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
         logger.info(f"Loaded LLM model from {llm_path}")
 
-        ###### new tokens/embeddings (trainable) ##########################
-        self.add_new_tokens(config['add_tokens'])
-
-        assert self.audio_token_id is not None, "audio_token_id is None"
-        assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
-
         # LoRA adapters
         if config_lora is not None:
             lora_path = config_lora["path"]
@@ -59,54 +53,54 @@ class Backbone(torch.nn.Module):
     def lora_parameters(self):
         return [p for n, p in self.llm_model.named_parameters() if "lora" in n and p.requires_grad]
 
-    def embedding_parameters(self):
-        return self.llm_model.get_input_embeddings().parameters()
+    # def embedding_parameters(self):
+    #     return self.llm_model.get_input_embeddings().parameters()
 
-    def add_new_tokens(self, new_tokens): 
-        """
-        Add new special tokens to the tokenizer
-        Note: HF will assign new IDs at the end of the vocab.
-        """
-        self.asr_start_token = new_tokens["asr_start_token"]
-        self.asr_end_token   = new_tokens["asr_end_token"]
-        self.stt_start_token = new_tokens["stt_start_token"]
-        self.stt_end_token   = new_tokens["stt_end_token"]
-        self.audio_token     = new_tokens["audio_token"]
-        path                 = new_tokens["path"]
+    # def add_new_tokens(self, new_tokens): 
+    #     """
+    #     Add new special tokens to the tokenizer
+    #     Note: HF will assign new IDs at the end of the vocab.
+    #     """
+    #     self.asr_start_token = new_tokens["asr_start_token"]
+    #     self.asr_end_token   = new_tokens["asr_end_token"]
+    #     self.stt_start_token = new_tokens["stt_start_token"]
+    #     self.stt_end_token   = new_tokens["stt_end_token"]
+    #     self.audio_token     = new_tokens["audio_token"]
+    #     path                 = new_tokens["path"]
 
-        # Extract new tokens
-        new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
-        added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
-        if added > 0:
-            # Resize model embeddings to accommodate new tokens
-            self.llm_model.resize_token_embeddings(len(self.tokenizer))
+    #     # Extract new tokens
+    #     new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
+    #     added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
+    #     if added > 0:
+    #         # Resize model embeddings to accommodate new tokens
+    #         self.llm_model.resize_token_embeddings(len(self.tokenizer))
 
-        # Store new token IDs for later convenience
-        self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
-        self.asr_start_token_id = self.special_token_ids.get(self.asr_start_token, None)
-        self.asr_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
-        self.stt_start_token_id = self.special_token_ids.get(self.stt_start_token, None)
-        self.stt_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
-        self.audio_token_id = self.special_token_ids.get(self.audio_token, None)
+    #     # Store new token IDs for later convenience
+    #     self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
+    #     self.asr_start_token_id = self.special_token_ids.get(self.asr_start_token, None)
+    #     self.asr_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
+    #     self.stt_start_token_id = self.special_token_ids.get(self.stt_start_token, None)
+    #     self.stt_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
+    #     self.audio_token_id = self.special_token_ids.get(self.audio_token, None)
 
-        logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
+    #     logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
 
-        if path is None:
-            logger.info(f"Special token embeddings initialized from scratch")
-            return
+    #     if path is None:
+    #         logger.info(f"Special token embeddings initialized from scratch")
+    #         return
         
-        # Load embeddings for previously added special tokens.
-        payload = torch.load(path, map_location="cpu")
-        saved_ids = payload["token_ids"]
-        saved_embeddings = payload["embeddings"]
-        emb_layer = self.llm_model.get_input_embeddings()
+    #     # Load embeddings for previously added special tokens.
+    #     payload = torch.load(path, map_location="cpu")
+    #     saved_ids = payload["token_ids"]
+    #     saved_embeddings = payload["embeddings"]
+    #     emb_layer = self.llm_model.get_input_embeddings()
 
-        # Safety checks
-        assert len(saved_ids) == saved_embeddings.size(0)
-        assert saved_embeddings.size(1) == emb_layer.weight.size(1)
+    #     # Safety checks
+    #     assert len(saved_ids) == saved_embeddings.size(0)
+    #     assert saved_embeddings.size(1) == emb_layer.weight.size(1)
 
-        for i, tid in enumerate(saved_ids):
-            emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
+    #     for i, tid in enumerate(saved_ids):
+    #         emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
 
-        logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
+    #     logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
 

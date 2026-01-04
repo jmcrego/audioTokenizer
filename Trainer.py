@@ -153,13 +153,6 @@ class Trainer:
         self.model.llm_model.save_pretrained(ckpt_path + ".lora")
         logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
 
-        # Save special token embeddings
-        embeddings = self.model.llm_model.get_input_embeddings().weight.data
-        new_ids = list(self.model.backbone.special_token_ids.values()) #Dict tok -> ids
-        new_embeddings = embeddings[new_ids].cpu()
-        torch.save({"token_ids": new_ids, "embeddings": new_embeddings}, ckpt_path + ".embs.pt")
-        logger.info(f"Saved {len(new_ids)} new token embeddings to {ckpt_path}.embs.pt")
-
         # save optimizer state (ckpt_path.optim.pt)
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
         torch.save(state, f"{ckpt_path}.optim.pt")
@@ -274,7 +267,6 @@ class Trainer:
 
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
                     lora_grad_norm = compute_grad_norm(self.model.backbone.lora_parameters())
-                    embs_grad_norm  = compute_grad_norm(self.model.backbone.embedding_parameters())
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
                         scale_val = scale_val.item()
@@ -307,7 +299,6 @@ class Trainer:
                             scale_val=scale_val,
                             proj_grad_norm=proj_grad_norm.item(),
                             lora_grad_norm=lora_grad_norm.item(),
-                            embs_grad_norm=embs_grad_norm.item(),
                         )
 
                     accum_loss = 0.0
@@ -459,7 +450,7 @@ class Trainer:
     # Logging helper
     # -----------------------
 
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, embs_grad_norm=None, is_eval=False):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -474,7 +465,7 @@ class Trainer:
             f"{tag}lr_lora": self.optimizer.param_groups[1]["lr"],
         }
 
-        log_str =  f"{'Eval ' if is_eval else 'Train'} | "
+        log_str =  f"{'Evaluation ' if is_eval else 'Training'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.4f} | "
@@ -487,9 +478,6 @@ class Trainer:
         if lora_grad_norm is not None:
             log_str += f"lora_grad_norm={lora_grad_norm:.2f} | "
             log_dict[f"{tag}lora_grad_norm"] = lora_grad_norm
-        if embs_grad_norm is not None:
-            log_str += f"embs_grad_norm={embs_grad_norm:.2f} | "
-            log_dict[f"{tag}embs_grad_norm"] = embs_grad_norm
         if scale_val is not None:
             log_str += f"scale={scale_val:.2f} | "
             log_dict[f"{tag}scale"] = scale_val

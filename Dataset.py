@@ -49,7 +49,7 @@ def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None, bos_toke
     prompt += "Answer:\n"
     return bos_token+prompt
 
-def build_target(asr=None, stt=None, eos_token="<eos>"):
+def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     if (asr is None or asr == "") and (stt is None or stt == ""):
         raise ValueError("No ASR or STT text provided.")
 
