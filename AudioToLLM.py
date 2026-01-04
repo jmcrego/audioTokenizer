@@ -90,30 +90,68 @@ class AudioToLLM(torch.nn.Module):
         # Embedder
         embedder_total = sum(p.numel() for p in self.audio_embedder.parameters())
         embedder_trainable = sum(p.numel() for p in self.audio_embedder.parameters() if p.requires_grad)
+        embedder_trainable_names = [n for n, p in self.audio_embedder.named_parameters() if p.requires_grad]
         
         # Projector
         projector_total = sum(p.numel() for p in self.projector.parameters())
         projector_trainable = sum(p.numel() for p in self.projector.parameters() if p.requires_grad)
+        projector_trainable_names = [n for n, p in self.projector.named_parameters() if p.requires_grad]
         
         # LLM
         llm_total = sum(p.numel() for p in self.llm_model.parameters())
         llm_trainable = sum(p.numel() for p in self.llm_model.parameters() if p.requires_grad)
+        llm_trainable_names = [n for n, p in self.llm_model.named_parameters() if p.requires_grad]
         
         # Total
         total = embedder_total + projector_total + llm_total
         trainable = embedder_trainable + projector_trainable + llm_trainable
         frozen = total - trainable
         
-        logger.info("-" * 80)
-        logger.info("AudioToLLM model parameter summary")
-        logger.info("-" * 80)
+        logger.info("=" * 80)
+        logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
+        logger.info("=" * 80)
         logger.info(f"Audio Embedder : {embedder_total:>12,} total | {embedder_trainable:>12,} trainable | {embedder_total - embedder_trainable:>12,} frozen")
         logger.info(f"Projector      : {projector_total:>12,} total | {projector_trainable:>12,} trainable | {projector_total - projector_trainable:>12,} frozen")
         logger.info(f"LLM (+ LoRA)   : {llm_total:>12,} total | {llm_trainable:>12,} trainable | {llm_total - llm_trainable:>12,} frozen")
         logger.info("-" * 80)
         logger.info(f"TOTAL          : {total:>12,} total | {trainable:>12,} trainable | {frozen:>12,} frozen")
         logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
+        logger.info("=" * 80)
+        
+        # Show trainable parameter names for each component
+        logger.info("TRAINABLE PARAMETERS:")
         logger.info("-" * 80)
+        
+        # Audio Embedder
+        if embedder_trainable_names:
+            logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params):")
+            for name in embedder_trainable_names[:20]:  # Show first 20
+                logger.info(f"  - {name}")
+            if len(embedder_trainable_names) > 20:
+                logger.info(f"  ... and {len(embedder_trainable_names) - 20} more")
+        else:
+            logger.info("Audio Embedder: (none - all frozen)")
+        
+        # Projector
+        if projector_trainable_names:
+            logger.info(f"Projector ({len(projector_trainable_names)} params):")
+            for name in projector_trainable_names:
+                logger.info(f"  - {name}")
+        else:
+            logger.info("Projector: (none - all frozen)")
+        
+        # LLM
+        if llm_trainable_names:
+            logger.info(f"LLM ({len(llm_trainable_names)} params):")
+            for name in llm_trainable_names[:20]:  # Show first 20
+                logger.info(f"  - {name}")
+            if len(llm_trainable_names) > 20:
+                logger.info(f"  ... and {len(llm_trainable_names) - 20} more")
+        else:
+            logger.info("LLM: (none - all frozen)")
+        
+        logger.info("=" * 80)
+
 
     # ========================================================
     # Forward (training)
