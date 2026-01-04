@@ -110,11 +110,11 @@ class AudioToLLM(torch.nn.Module):
         logger.info("=" * 80)
         logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
         logger.info("=" * 80)
-        logger.info(f"Audio Embedder : {embedder_total:>12,} total | {embedder_trainable:>12,} trainable | {embedder_total - embedder_trainable:>12,} frozen")
-        logger.info(f"Projector      : {projector_total:>12,} total | {projector_trainable:>12,} trainable | {projector_total - projector_trainable:>12,} frozen")
-        logger.info(f"LLM (+ LoRA)   : {llm_total:>12,} total | {llm_trainable:>12,} trainable | {llm_total - llm_trainable:>12,} frozen")
+        logger.info(f"Audio Embedder : {embedder_total:>15,} total | {embedder_trainable:>15,} trainable | {embedder_total - embedder_trainable:>15,} frozen")
+        logger.info(f"Projector      : {projector_total:>15,} total | {projector_trainable:>15,} trainable | {projector_total - projector_trainable:>15,} frozen")
+        logger.info(f"LLM (+ LoRA)   : {llm_total:>15,} total | {llm_trainable:>15,} trainable | {llm_total - llm_trainable:>15,} frozen")
         logger.info("-" * 80)
-        logger.info(f"TOTAL          : {total:>12,} total | {trainable:>12,} trainable | {frozen:>12,} frozen")
+        logger.info(f"TOTAL          : {total:>15,} total | {trainable:>15,} trainable | {frozen:>15,} frozen")
         logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
         logger.info("=" * 80)
         
@@ -124,7 +124,7 @@ class AudioToLLM(torch.nn.Module):
         
         # Audio Embedder
         if embedder_trainable_names:
-            logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params) first 20 params:")
+            logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params):")
             for name in embedder_trainable_names[:20]:  # Show first 20
                 logger.info(f"  - {name}")
             if len(embedder_trainable_names) > 20:
@@ -142,7 +142,7 @@ class AudioToLLM(torch.nn.Module):
         
         # LLM
         if llm_trainable_names:
-            logger.info(f"LLM ({len(llm_trainable_names)} params) first 20 params:")
+            logger.info(f"LLM ({len(llm_trainable_names)} params):")
             for name in llm_trainable_names[:20]:  # Show first 20
                 logger.info(f"  - {name}")
             if len(llm_trainable_names) > 20:
