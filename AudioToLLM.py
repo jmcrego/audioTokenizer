@@ -124,7 +124,7 @@ class AudioToLLM(torch.nn.Module):
         
         # Audio Embedder
         if embedder_trainable_names:
-            logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params):")
+            logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params) first 20 params:")
             for name in embedder_trainable_names[:20]:  # Show first 20
                 logger.info(f"  - {name}")
             if len(embedder_trainable_names) > 20:
@@ -142,7 +142,7 @@ class AudioToLLM(torch.nn.Module):
         
         # LLM
         if llm_trainable_names:
-            logger.info(f"LLM ({len(llm_trainable_names)} params):")
+            logger.info(f"LLM ({len(llm_trainable_names)} params) first 20 params:")
             for name in llm_trainable_names[:20]:  # Show first 20
                 logger.info(f"  - {name}")
             if len(llm_trainable_names) > 20:
