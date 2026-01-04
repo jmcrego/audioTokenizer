@@ -23,14 +23,19 @@ class Backbone(torch.nn.Module):
         logger.info(f"Loaded Tokenizer from {llm_path}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+            logger.info(f"Set pad_token to eos_token: {self.tokenizer.pad_token}")
 
         ###### LLM (frozen) + LoRa (trainable) ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
         logger.info(f"Loaded LLM model from {llm_path}")
 
+        # # Freeze base model parameters
+        # for param in self.llm_model.parameters():
+        #     param.requires_grad = False
+
         # LoRA adapters
         if config_lora is not None:
-            lora_path = config_lora["path"]
+            lora_path = config_lora.get("path", None)
             if lora_path is not None:
                 # load preexisting lora adapters
                 self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_path)
@@ -46,61 +51,40 @@ class Backbone(torch.nn.Module):
                     task_type=config_lora["task_type"],
                 )
                 self.llm_model = get_peft_model(self.llm_model, lora_cfg)
-                logger.info(f"Initialized LoRa adapters {lora_cfg}")
+                logger.info(f"Initialized LoRA adapters with config: {lora_cfg}")
+        else:
+            logger.warning("No LoRA config provided - all LLM parameters are frozen!")
 
-        assert self.llm_model.get_input_embeddings().weight.shape[0] == len(self.tokenizer)
+        # Verify tokenizer and embedding alignment
+        vocab_size = len(self.tokenizer)
+        embed_size = self.llm_model.get_input_embeddings().weight.shape[0]
+        assert embed_size == vocab_size, f"Embedding size mismatch: {embed_size} != {vocab_size}"
+        logger.info(f"Tokenizer vocabulary size: {vocab_size:,}")
+
+        #self.summary()
 
     def lora_parameters(self):
-        return [p for n, p in self.llm_model.named_parameters() if "lora" in n and p.requires_grad]
+        """Returns only LoRA parameters (useful for separate optimizer)"""
+        return [p for n, p in self.llm_model.named_parameters() if "lora" in n.lower() and p.requires_grad]
 
-    # def embedding_parameters(self):
-    #     return self.llm_model.get_input_embeddings().parameters()
+    def summary(self):
+        """Log parameter counts and trainable parameter names"""
+        total_params = 0
+        trainable_params = 0
+        trainable_names = []
 
-    # def add_new_tokens(self, new_tokens): 
-    #     """
-    #     Add new special tokens to the tokenizer
-    #     Note: HF will assign new IDs at the end of the vocab.
-    #     """
-    #     self.asr_start_token = new_tokens["asr_start_token"]
-    #     self.asr_end_token   = new_tokens["asr_end_token"]
-    #     self.stt_start_token = new_tokens["stt_start_token"]
-    #     self.stt_end_token   = new_tokens["stt_end_token"]
-    #     self.audio_token     = new_tokens["audio_token"]
-    #     path                 = new_tokens["path"]
+        for name, param in self.llm_model.named_parameters():  # Use llm_model, not self
+            num_params = param.numel()
+            total_params += num_params
+            
+            if param.requires_grad:
+                trainable_params += num_params
+                trainable_names.append(name)
 
-    #     # Extract new tokens
-    #     new_tokens = [self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.audio_token]
-    #     added = self.tokenizer.add_special_tokens({"additional_special_tokens": new_tokens})
-    #     if added > 0:
-    #         # Resize model embeddings to accommodate new tokens
-    #         self.llm_model.resize_token_embeddings(len(self.tokenizer))
-
-    #     # Store new token IDs for later convenience
-    #     self.special_token_ids = {tok: self.tokenizer.convert_tokens_to_ids(tok) for tok in new_tokens}
-    #     self.asr_start_token_id = self.special_token_ids.get(self.asr_start_token, None)
-    #     self.asr_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
-    #     self.stt_start_token_id = self.special_token_ids.get(self.stt_start_token, None)
-    #     self.stt_end_token_id = self.special_token_ids.get(self.asr_end_token, None)
-    #     self.audio_token_id = self.special_token_ids.get(self.audio_token, None)
-
-    #     logger.info(f"Tokenizer patched with special tokens: {self.special_token_ids}")
-
-    #     if path is None:
-    #         logger.info(f"Special token embeddings initialized from scratch")
-    #         return
+        frozen_params = total_params - trainable_params
         
-    #     # Load embeddings for previously added special tokens.
-    #     payload = torch.load(path, map_location="cpu")
-    #     saved_ids = payload["token_ids"]
-    #     saved_embeddings = payload["embeddings"]
-    #     emb_layer = self.llm_model.get_input_embeddings()
-
-    #     # Safety checks
-    #     assert len(saved_ids) == saved_embeddings.size(0)
-    #     assert saved_embeddings.size(1) == emb_layer.weight.size(1)
-
-    #     for i, tid in enumerate(saved_ids):
-    #         emb_layer.weight.data[tid] = saved_embeddings[i].to(emb_layer.weight.device)
-
-    #     logger.info(f"Loaded {len(saved_ids)} special token embeddings from {path}")
-
+        logger.info(f"Backbone LLM - Total: {total_params:,} | Trainable: {trainable_params:,} | Frozen: {frozen_params:,}")        
+        if len(trainable_names):
+            logger.info(f"Trainable parameters ({len(trainable_names)}): {trainable_names}")
+        else:
+            logger.info("No trainable parameters in LLM!")

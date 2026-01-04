@@ -12,6 +12,7 @@ config = {
         "rmsnorm_mid": False,
         "rmsnorm_pos": False,
         "scale": 0.03,
+        "use_bias": True,
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",

@@ -184,25 +184,6 @@ class Trainer:
             "target_ids": target_ids
         }
 
-    # def collate_fn(self, batch):
-    #     pad_token_id = self.model.tokenizer.pad_token_id
-    #     audio_paths = [x["audio_path"] for x in batch]
-    #     def ensure_1d_long_tensor(x):
-    #         if isinstance(x, torch.Tensor):
-    #             x = x.detach().clone().long()
-    #         else:
-    #             x = torch.tensor(x, dtype=torch.long)
-    #         # Ensure 1D (important!)
-    #         if x.dim() == 0:
-    #             x = x.unsqueeze(0)
-    #         return x
-    #     prompt_ids = pad_sequence([ensure_1d_long_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-    #     target_ids = pad_sequence([ensure_1d_long_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-    #     return {
-    #         "audio_paths": audio_paths,
-    #         "prompt_ids": prompt_ids,
-    #         "target_ids": target_ids,
-    #     }
 
     # -----------------------
     # Training loop

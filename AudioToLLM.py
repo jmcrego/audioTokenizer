@@ -28,6 +28,7 @@ class AudioToLLM(torch.nn.Module):
         self.audio_token_id = self.tokenizer.convert_tokens_to_ids(self.audio_token)
         assert self.audio_token_id is not None, "audio_token_id is None"
         assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
+        logger.info(f"Audio token: '{self.audio_token}' -> ID: {self.audio_token_id}")
 
         self.projector = Projector(
             config['projector'], 
@@ -38,6 +39,7 @@ class AudioToLLM(torch.nn.Module):
         # ====================================================
         # 2. Device & dtype
         # ====================================================
+        logger.info(f"Moving models to device={device}, dtype={dtype}")
         self.audio_embedder.to(device=device, dtype=torch.float32)
         self.projector.to(device=device, dtype=torch.float32)
         self.llm_model.to(device=device, dtype=dtype)
@@ -49,8 +51,10 @@ class AudioToLLM(torch.nn.Module):
         self.audio_embedder.eval()
         for p in self.audio_embedder.parameters():
             p.requires_grad = False
+        logger.info("Audio embedder frozen (eval mode)")
 
         if is_infer:
+            logger.info("Inference mode: freezing all models")
             # Freeze LLM and projector
             self.llm_model.eval()
             self.projector.eval()
@@ -59,6 +63,7 @@ class AudioToLLM(torch.nn.Module):
             for p in self.projector.parameters():
                 p.requires_grad = False
         else:
+            logger.info("Training mode: LLM base frozen, LoRA + Projector trainable")
             # Training: LLM base frozen, LoRA trainable
             self.llm_model.train()
             for n, p in self.llm_model.named_parameters():
@@ -67,11 +72,48 @@ class AudioToLLM(torch.nn.Module):
             self.projector.train()
             for p in self.projector.parameters():
                 p.requires_grad = True
-            self.llm_model.print_trainable_parameters()
+
+            # Print LoRA info
+            if hasattr(self.llm_model, 'print_trainable_parameters'):
+                self.llm_model.print_trainable_parameters()
+
 
         logger.info(f"Audio embedder: {next(self.audio_embedder.parameters()).dtype} on {next(self.audio_embedder.parameters()).device}")
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
         logger.info(f"LLM: {next(self.llm_model.parameters()).dtype} on {next(self.llm_model.parameters()).device}")
+
+        self.summary()
+
+    def summary(self):
+        """Log complete model parameter summary"""
+        logger.info("-" * 80)
+        logger.info("MODEL PARAMETER SUMMARY")
+        logger.info("-" * 80)
+        
+        # Embedder
+        embedder_total = sum(p.numel() for p in self.audio_embedder.parameters())
+        embedder_trainable = sum(p.numel() for p in self.audio_embedder.parameters() if p.requires_grad)
+        
+        # Projector
+        projector_total = sum(p.numel() for p in self.projector.parameters())
+        projector_trainable = sum(p.numel() for p in self.projector.parameters() if p.requires_grad)
+        
+        # LLM
+        llm_total = sum(p.numel() for p in self.llm_model.parameters())
+        llm_trainable = sum(p.numel() for p in self.llm_model.parameters() if p.requires_grad)
+        
+        # Total
+        total = embedder_total + projector_total + llm_total
+        trainable = embedder_trainable + projector_trainable + llm_trainable
+        frozen = total - trainable
+        
+        logger.info(f"Audio Embedder : {embedder_total:>12,} total | {embedder_trainable:>12,} trainable | {embedder_total - embedder_trainable:>12,} frozen")
+        logger.info(f"Projector      : {projector_total:>12,} total | {projector_trainable:>12,} trainable | {projector_total - projector_trainable:>12,} frozen")
+        logger.info(f"LLM (+ LoRA)   : {llm_total:>12,} total | {llm_trainable:>12,} trainable | {llm_total - llm_trainable:>12,} frozen")
+        logger.info("-" * 80)
+        logger.info(f"TOTAL          : {total:>12,} total | {trainable:>12,} trainable | {frozen:>12,} frozen")
+        logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
+        logger.info("-" * 80)
 
     # ========================================================
     # Forward (training)
@@ -225,7 +267,7 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 10) Compute norms safely
         # ----------------------------
-        audio_norm = flat_embs.norm(dim=-1).mean()
+        audio_norm = flat_embs.norm(dim=-1).mean() if flat_embs.numel() > 0 else torch.tensor(0.0, device=device)
         text_norm  = prompt_embs[prompt_mask].norm(dim=-1).mean()
 
         # ----------------------------
@@ -253,21 +295,14 @@ class AudioToLLM(torch.nn.Module):
     # Generate (inference)
     # ========================================================
     @torch.no_grad()
-    def generate(
-        self,
-        audio_files: list[str],
-        prompt_ids: list[str], #(B, T_prompt_max) torch.long   Ex: [BOS]  t₁  t₂  ...  <extra_id_0>  ...  tₙ  [PAD] [PAD]
-        max_new_tokens: int = 256,
-        temperature: float = 0.7,
-        top_p: float = 0.95,
-    ):
+    def generate(self, audio_files, prompt_ids, max_new_tokens=256, temperature=0.7, top_p=0.95):
         """
         Batched generation with per-sample prompts containing exactly one <extra_id_0> token.
         """
         device = self.llm_model.device
         dtype = next(self.projector.parameters()).dtype
         B = len(audio_files)
-        assert len(prompt_ids) == B, "audio_files and prompts must have same length"
+        assert prompt_ids.size(0) == B, f"audio_files length ({B}) and prompt_ids batch size ({prompt_ids.size(0)}) must match"
 
         # ----------------------------
         # 1) Audio → Embedding → Projector
@@ -366,8 +401,8 @@ class AudioToLLM(torch.nn.Module):
             position_ids=position_ids,
             max_new_tokens=max_new_tokens,
             do_sample=(temperature > 0),
-            temperature=temperature,
-            top_p=top_p,
+            temperature=temperature if temperature > 0 else None,
+            top_p=top_p if temperature > 0 else None,
             pad_token_id=self.tokenizer.pad_token_id,
             eos_token_id=self.tokenizer.eos_token_id,
             use_cache=True,

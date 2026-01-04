@@ -21,13 +21,13 @@ class Projector(nn.Module):
         rmsnorm_pre = config.get('rmsnorm_pre', True)
         rmsnorm_mid = config.get('rmsnorm_mid', False)
         rmsnorm_pos = config.get('rmsnorm_pos', True)
-        scale = config.get('scale', 1.0)
+        scale = config.get('scale', 0.0)
+        use_bias = config.get('use_bias', False)
         middle_dim = config.get('middle_dim', llm_embedding_dim)
 
         self.stack_size = config.get('stack_size', 8)
         self.stacked_dim = audio_embedding_dim * self.stack_size
         self.llm_embedding_dim = llm_embedding_dim
-
 
         # --- Pre RMSNorm ---
         self.ln_pre = nn.RMSNorm(self.stacked_dim) if rmsnorm_pre else nn.Identity()
@@ -46,7 +46,16 @@ class Projector(nn.Module):
         self.ln_pos = nn.RMSNorm(self.llm_embedding_dim) if rmsnorm_pos else nn.Identity()
 
         # --- Add a learnable scale to the projector ---
-        self.scale = nn.Parameter(torch.tensor(scale))
+        if scale > 0.:
+            self.register_parameter('scale', nn.Parameter(torch.tensor(scale)))
+        else:
+            self.scale = None
+
+        # --- Add learnable bias for better alignment ---
+        if use_bias:
+            self.register_parameter('bias', nn.Parameter(torch.zeros(self.llm_embedding_dim)))
+        else:
+            self.bias = None
 
         # --- Load projector if path is provided ---
         if path is not None:
@@ -54,9 +63,30 @@ class Projector(nn.Module):
             self.load_state_dict(state_dict, strict=True)
             logger.info(f"Loaded Projector from {path}")
         else:
+            # initialize with with Xavier uniform, rest are random
+            nn.init.xavier_uniform_(self.linear1.weight)
+            nn.init.xavier_uniform_(self.linear2.weight)
             logger.info("Initialized Projector with random weights")
 
+        #self.summary()
 
+    def summary(self):
+        # --- Log parameter summary ---
+        total_params = 0
+        trainable_params = 0
+        trainable_names = []
+
+        for name, param in self.named_parameters():
+            num_params = param.numel()
+            total_params += num_params
+            
+            if param.requires_grad:
+                trainable_params += num_params
+                trainable_names.append(name)
+
+        frozen_params = total_params - trainable_params
+        logger.info(f"Projector parameters: Total={total_params:,} | Trainable={trainable_params:,} | Frozen={frozen_params:,}")
+        logger.info(f"Trainable parameter names: {trainable_names}")
 
 
     def forward(self, x, mask=None):
@@ -97,8 +127,17 @@ class Projector(nn.Module):
         x = self.ln_pos(x)
         # --- HARD norm constraint ---
         # x = F.normalize(x, dim=-1)
-        # --- Scale (scale cannot grow more than 1.0) ---
-        x = self.scale * x #torch.clamp(self.scale, max=1.0) * x
+
+        # --- Apply scale ---
+        # Option 1: Unconstrained scale (current)
+        if self.scale is not None:
+            x = self.scale * x        
+        # Option 2: Constrained scale (uncomment if needed)
+        # x = torch.clamp(self.scale, max=1.0) * x
+
+        # Add bias for better alignment
+        if self.bias is not None:
+            x = x + self.bias
 
         return x, proj_mask
 

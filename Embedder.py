@@ -120,6 +120,23 @@ class Embedder(nn.Module):
                     f"sample_rate={self.sample_rate} | "
                     f"downsample_ratio={self.downsample_ratio}")
 
+        #self.summary()
+
+
+    def summary(self):
+        """Log parameter counts"""
+        total_params = 0
+        trainable_params = 0
+
+        for param in self.embedder.parameters():
+            num_params = param.numel()
+            total_params += num_params
+            if param.requires_grad:
+                trainable_params += num_params
+
+        frozen_params = total_params - trainable_params
+        logger.info(f"Audio Embedder - Total: {total_params:,} | Trainable: {trainable_params:,} | Frozen: {frozen_params:,}")
+        
 
     def forward(self, audio_inputs):
         """
