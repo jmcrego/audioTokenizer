@@ -300,7 +300,7 @@ class Trainer:
                         avg_loss = accum_loss / self.accum_steps
                         avg_audio_norm = accum_audio_norm / self.accum_steps
                         avg_text_norm = accum_text_norm / self.accum_steps
-                        self.esnf(
+                        self.log_fn(
                             avg_loss.item(),
                             audio_norm=avg_audio_norm.item(),
                             text_norm=avg_text_norm.item(),
