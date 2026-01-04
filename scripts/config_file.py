@@ -2,7 +2,7 @@ import json
 
 config = {
     "audio": {
-        "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/mHuBERT-147",
+        "path": "/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium"
     },
     "projector": {
         "path": None,
