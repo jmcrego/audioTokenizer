@@ -85,11 +85,8 @@ class AudioToLLM(torch.nn.Module):
         self.summary()
 
     def summary(self):
-        """Log complete model parameter summary"""
-        logger.info("-" * 80)
-        logger.info("MODEL PARAMETER SUMMARY")
-        logger.info("-" * 80)
-        
+        """Log AudioToLLM model parameter summary"""      
+          
         # Embedder
         embedder_total = sum(p.numel() for p in self.audio_embedder.parameters())
         embedder_trainable = sum(p.numel() for p in self.audio_embedder.parameters() if p.requires_grad)
@@ -107,6 +104,9 @@ class AudioToLLM(torch.nn.Module):
         trainable = embedder_trainable + projector_trainable + llm_trainable
         frozen = total - trainable
         
+        logger.info("-" * 80)
+        logger.info("AudioToLLM model parameter summary")
+        logger.info("-" * 80)
         logger.info(f"Audio Embedder : {embedder_total:>12,} total | {embedder_trainable:>12,} trainable | {embedder_total - embedder_trainable:>12,} frozen")
         logger.info(f"Projector      : {projector_total:>12,} total | {projector_trainable:>12,} trainable | {projector_total - projector_trainable:>12,} frozen")
         logger.info(f"LLM (+ LoRA)   : {llm_total:>12,} total | {llm_trainable:>12,} trainable | {llm_total - llm_trainable:>12,} frozen")

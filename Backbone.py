@@ -61,30 +61,7 @@ class Backbone(torch.nn.Module):
         assert embed_size == vocab_size, f"Embedding size mismatch: {embed_size} != {vocab_size}"
         logger.info(f"Tokenizer vocabulary size: {vocab_size:,}")
 
-        #self.summary()
-
     def lora_parameters(self):
         """Returns only LoRA parameters (useful for separate optimizer)"""
         return [p for n, p in self.llm_model.named_parameters() if "lora" in n.lower() and p.requires_grad]
 
-    def summary(self):
-        """Log parameter counts and trainable parameter names"""
-        total_params = 0
-        trainable_params = 0
-        trainable_names = []
-
-        for name, param in self.llm_model.named_parameters():  # Use llm_model, not self
-            num_params = param.numel()
-            total_params += num_params
-            
-            if param.requires_grad:
-                trainable_params += num_params
-                trainable_names.append(name)
-
-        frozen_params = total_params - trainable_params
-        
-        logger.info(f"Backbone LLM - Total: {total_params:,} | Trainable: {trainable_params:,} | Frozen: {frozen_params:,}")        
-        if len(trainable_names):
-            logger.info(f"Trainable parameters ({len(trainable_names)}): {trainable_names}")
-        else:
-            logger.info("No trainable parameters in LLM!")

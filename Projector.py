@@ -68,25 +68,6 @@ class Projector(nn.Module):
             nn.init.xavier_uniform_(self.linear2.weight)
             logger.info("Initialized Projector with random weights")
 
-        #self.summary()
-
-    def summary(self):
-        # --- Log parameter summary ---
-        total_params = 0
-        trainable_params = 0
-        trainable_names = []
-
-        for name, param in self.named_parameters():
-            num_params = param.numel()
-            total_params += num_params
-            
-            if param.requires_grad:
-                trainable_params += num_params
-                trainable_names.append(name)
-
-        frozen_params = total_params - trainable_params
-        logger.info(f"Projector parameters: Total={total_params:,} | Trainable={trainable_params:,} | Frozen={frozen_params:,}")
-        logger.info(f"Trainable parameter names: {trainable_names}")
 
 
     def forward(self, x, mask=None):
