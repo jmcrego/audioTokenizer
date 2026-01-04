@@ -10,8 +10,8 @@ config = {
         "middle_dim": 2048,
         "rmsnorm_pre": True,
         "rmsnorm_mid": False,
-        "rmsnorm_pos": False,
-        "scale": 0.03,
+        "rmsnorm_pos": True,
+        "scale": 0,
         "use_bias": True,
     },
     "llm": {
