@@ -56,10 +56,10 @@ def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     target = ""
 
     if asr is not None and asr != "":
-        target += f"Transcription:{asr}\n"
+        target += f"Transcription: {asr}\n"
 
     if stt is not None and stt != "":
-        target += f"Translation:{stt}\n"
+        target += f"Translation: {stt}\n"
 
     return target+eos_token
  
