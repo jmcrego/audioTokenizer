@@ -104,7 +104,7 @@ if __name__ == "__main__":
     train_dataset = Dataset(
         file_path=args.train,
         tokenizer=model.tokenizer,
-        add_tokens=config['llm']['add_tokens'],
+        audio_token=config['llm']['audio_token'],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
-        add_tokens=config['llm']['add_tokens'],
+        audio_token=config['llm']['audio_token'],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],

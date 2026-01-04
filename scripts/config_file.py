@@ -15,14 +15,7 @@ config = {
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
-        "add_tokens": {
-            "path": None,
-            "asr_start_token": "<asr>",
-            "asr_end_token": "</asr>",
-            "stt_start_token": "<stt>",
-            "stt_end_token": "</stt>",
-            "audio_token": "<[audio]>",
-        }
+        "audio_token": "<extra_id_0>"
     },
     "lora": {
         "path": None,
