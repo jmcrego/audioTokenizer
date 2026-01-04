@@ -49,17 +49,17 @@ def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None, bos_toke
     prompt += "Answer:\n"
     return bos_token+prompt
 
-def build_target(asr=None, stt=None, asr_start_token="<asr>", asr_end_token="</asr>", stt_start_token="<stt>", stt_end_token="</stt>", eos_token="<eos>"):
+def build_target(asr=None, stt=None, eos_token="<eos>"):
     if (asr is None or asr == "") and (stt is None or stt == ""):
         raise ValueError("No ASR or STT text provided.")
 
     target = ""
 
     if asr is not None and asr != "":
-        target += f"{asr_start_token}{asr}{asr_end_token}\n"
+        target += f"Transcription:{asr}\n"
 
     if stt is not None and stt != "":
-        target += f"{stt_start_token}{stt}{stt_end_token}\n"
+        target += f"Translation:{stt}\n"
 
     return target+eos_token
  
@@ -114,7 +114,7 @@ class Dataset(Dataset):
         self,
         file_path: str,
         tokenizer,
-        add_tokens={},
+        audio_token="<extra_id_0>",
         sample_rate=16000,
         downsample_ratio=320,
         stack_size=8,
@@ -122,11 +122,7 @@ class Dataset(Dataset):
         seed=42,
     ):
         self.tokenizer = tokenizer
-        self.asr_start_token = add_tokens['asr_start_token']
-        self.asr_end_token = add_tokens['asr_end_token']
-        self.stt_start_token = add_tokens['stt_start_token']
-        self.stt_end_token = add_tokens['stt_end_token']
-        self.audio_token = add_tokens['audio_token']
+        self.audio_token = audio_token
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
@@ -160,7 +156,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, self.asr_start_token, self.asr_end_token, self.stt_start_token, self.stt_end_token, self.tokenizer.eos_token)
+                target = build_target(asr, stt, self.tokenizer.eos_token)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",
