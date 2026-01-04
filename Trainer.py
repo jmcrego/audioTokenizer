@@ -161,7 +161,6 @@ class Trainer:
         # Save config file after updating lora path
         self.config['lora']['path'] = ckpt_path + ".lora"
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
-        self.config['llm']['add_tokens']['path'] = ckpt_path + ".embs.pt"
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {ckpt_path}.config.json")
