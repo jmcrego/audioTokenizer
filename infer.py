@@ -171,5 +171,6 @@ if __name__ == "__main__":
                 logger.info(f"PROMPT:\n{prompt_texts[i]}")
                 logger.info(f"PRED:\n{gen_texts[i]}")
                 logger.info("=" * 80)
+                print(gen_texts[i])
 
     logger.info(f"Generation took {time.time() - t:.2f} sec")
