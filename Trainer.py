@@ -67,8 +67,6 @@ class Trainer:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        logger.info(f"Trainable params in model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
-
         param = next(self.model.llm_model.parameters())
         self.device = param.device
         self.dtype = param.dtype
