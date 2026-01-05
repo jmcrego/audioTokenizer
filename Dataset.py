@@ -23,7 +23,7 @@ code2lang={
 }
 
 
-def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_token="<bos>"):
+def build_prompt(src_lang=None, tgt_lang=None, audio_token="<extra_id_0>", bos_token="<bos>"):
     """
     Build prompt for audio-to-text or audio-to-text+translation.
 
@@ -67,7 +67,7 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
     return prompt
 
 
-def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
+def build_target(asr=None, stt=None, asr_token="<extra_id_1>", stt_token="<extra_id_2>", eos_token="<|im_end|>"):
     """
     Build target string for transcription and optional translation.
     Tags Transcription and Translation are included to match the prompt.
@@ -78,10 +78,10 @@ def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     parts = []
 
     if asr and asr.strip():
-        parts.append("ASR\n" + asr.strip())
+        parts.append("{asr_token}\n" + asr.strip())
 
     if stt and stt.strip():
-        parts.append("STT\n" + stt.strip())
+        parts.append("{stt_token}\n" + stt.strip())
 
     # join with newline and append EOS token
     target = "\n".join(parts) + eos_token
@@ -139,6 +139,8 @@ class Dataset(Dataset):
         file_path: str,
         tokenizer,
         audio_token="<extra_id_0>",
+        asr_token="<extra_id_1>",
+        stt_token="<extra_id_2>",
         sample_rate=16000,
         downsample_ratio=320,
         stack_size=8,
@@ -147,6 +149,8 @@ class Dataset(Dataset):
     ):
         self.tokenizer = tokenizer
         self.audio_token = audio_token
+        self.asr_token = asr_token
+        self.stt_token = stt_token
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
         self.stack_size = stack_size
@@ -171,7 +175,7 @@ class Dataset(Dataset):
                 src_lang = src_lang if src_lang else None
                 tgt_lang = tgt_lang if tgt_lang else None
 
-                prompt = build_prompt(self.audio_token, src_lang, tgt_lang, self.tokenizer.bos_token)
+                prompt = build_prompt(src_lang, tgt_lang, audio_token=self.audio_token, bos_token=self.tokenizer.bos_token)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
