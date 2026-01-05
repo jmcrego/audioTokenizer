@@ -495,7 +495,7 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------       
         texts = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)
         for i,text in enumerate(texts):
-            logger.info(f"Generated text[{i}]: {texts[i]}")
+            logger.debug(f"Generated text[{i}]: {texts[i]}")
         return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
     
 class StopOnEOSFirst(StoppingCriteria):
