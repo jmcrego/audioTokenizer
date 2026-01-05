@@ -403,7 +403,14 @@ class AudioToLLM(torch.nn.Module):
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
         logger.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
         logger.info(f"attention_mask.shape = {attention_mask.shape}")
-        assert torch.all(attention_mask.sum(dim=1) == total_lens), "Attention mask mismatch"
+
+        attn_sum = attention_mask.sum(dim=1)
+        if not torch.all(attn_sum == total_lens):
+            raise RuntimeError(
+                f"Attention mismatch:\n"
+                f"attn_sum={attn_sum}\n"
+                f"total_lens={total_lens}"
+            )
 
         # ---------------------------------------------------------
         # Precompute helpers
