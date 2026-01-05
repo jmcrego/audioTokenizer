@@ -24,41 +24,68 @@ code2lang={
 
 
 def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_token="<bos>"):
-    if src_lang is not None and src_lang not in code2lang:
+    """
+    Build prompt for audio-to-text or audio-to-text+translation.
+
+    - src_lang: source language code (required)
+    - tgt_lang: target language code (optional, only if translation is desired)
+    - bos_token: token to prepend at the start of the prompt
+
+    The prompt always includes expected tags [TRANSCRIPTION] and optionally [TRANSLATION].
+    """
+    if src_lang is None:
+        raise ValueError("Source language (src_lang) must be provided")
+    if src_lang not in code2lang:
         raise ValueError(f"Source language code '{src_lang}' not found.")        
     if tgt_lang is not None and tgt_lang not in code2lang:
         raise ValueError(f"Target language code '{tgt_lang}' not found.")        
 
-    src_lang = code2lang.get(src_lang)
-    tgt_lang = code2lang.get(tgt_lang)
+    src_name = code2lang[src_lang]
+    tgt_name = code2lang[tgt_lang] if tgt_lang else None
 
-    prompt = f"Task:\n"    
-    if src_lang and tgt_lang:
-        prompt += f"Transcribe the {src_lang} speech Input and translate it into {tgt_lang}.\n"
-    elif src_lang:
-        prompt += f"Transcribe the {src_lang} speech Input.\n"
+    lines = [
+        "Task:"
+    ]
+
+    if tgt_name:
+        lines.append(f"Transcribe the {src_name} speech Input and translate it into {tgt_name}.")
     else:
-        raise ValueError("No src_lang provided")
-    prompt += f"Input:\n{audio_token}\n"
-    prompt += "Output:\n"
+        lines.append(f"Transcribe the {src_name} speech Input.")
 
-    return bos_token+prompt
+    lines.extend([
+        "Input:",
+        audio_token,
+        "Output:",
+        # "[TRANSCRIPTION]"
+    ])
+
+    # if tgt_name:
+    #     lines.append("[TRANSLATION]")
+
+    # join lines with newline and prepend BOS token
+    prompt = bos_token + "\n" + "\n".join(lines) + "\n"
+    return prompt
+
 
 def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
-    if (asr is None or asr == ""):
-        raise ValueError("No asr text provided.")
+    """
+    Build target string for transcription and optional translation.
+    Tags [TRANSCRIPTION] and [TRANSLATION] are included to match the prompt.
+    """
+    if (asr is None or asr.strip() == "") and (stt is None or stt.strip() == ""):
+        raise ValueError("No ASR or STT text provided.")
 
     parts = []
 
-    if asr:
-        # Transcription block
-        parts.append(f"[TRANSCRIPTION]\n{asr}")
+    if asr and asr.strip():
+        parts.append("[TRANSCRIPTION]\n" + asr.strip())
 
-    if stt:
-        # Translation block
-        parts.append(f"[TRANSLATION]\n{stt}")
+    if stt and stt.strip():
+        parts.append("[TRANSLATION]\n" + stt.strip())
 
-    return "\n".join(parts) + eos_token
+    # join with newline and append EOS token
+    target = "\n".join(parts) + eos_token
+    return target
  
 
 class BatchedLengthSampler(Sampler):
