@@ -164,7 +164,6 @@ if __name__ == "__main__":
 
             B = len(audio_paths)
             for i in range(B):
-                logger.info("=" * 80)
                 logger.info(f"nBatch: {n_batch} nSample: {i}")
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
