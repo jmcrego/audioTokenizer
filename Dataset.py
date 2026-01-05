@@ -78,10 +78,10 @@ def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     parts = []
 
     if asr and asr.strip():
-        parts.append("asr\n" + asr.strip())
+        parts.append("ASR\n" + asr.strip())
 
     if stt and stt.strip():
-        parts.append("stt\n" + stt.strip())
+        parts.append("STT\n" + stt.strip())
 
     # join with newline and append EOS token
     target = "\n".join(parts) + eos_token
