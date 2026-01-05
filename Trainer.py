@@ -73,10 +73,13 @@ class Trainer:
         self.device = param.device
         self.dtype = param.dtype
 
+        train_batch_size = batch_size
+        eval_batch_size = 1
+
         # -----------------------
         # Sampler & DataLoader
         # -----------------------
-        self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=batch_size)
+        self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=train_batch_size)
         self.train_loader = DataLoader(
             train_dataset,
             batch_sampler=self.train_sampler,
@@ -85,7 +88,7 @@ class Trainer:
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
 
         if eval_dataset is not None:
-            self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=batch_size)
+            self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=eval_batch_size)
             self.eval_loader = DataLoader(
                 eval_dataset,
                 batch_sampler=self.eval_sampler,

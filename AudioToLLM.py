@@ -11,14 +11,6 @@ from Backbone import Backbone
 
 logger = logging.getLogger("AudioToLLM")
 
-class StopOnEOS(StoppingCriteria):
-    def __init__(self, eos_token_id):
-        self.eos_token_id = eos_token_id
-
-    def __call__(self, input_ids, scores, **kwargs):
-        return input_ids[0, -1] == self.eos_token_id
-    
-
 class AudioToLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
@@ -442,7 +434,7 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 8) Generate
         # ----------------------------
-        stopping_criteria = StoppingCriteriaList([StopOnEOS(self.tokenizer.eos_token_id)])
+        stopping_criteria = StoppingCriteriaList([StopOnEOSFirst(self.tokenizer.eos_token_id)])
 
         outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
@@ -453,8 +445,9 @@ class AudioToLLM(torch.nn.Module):
             do_sample=(temperature > 0),
             temperature=temperature if temperature > 0 else None,
             top_p=top_p if temperature > 0 else None,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
+            pad_token_id=self.tokenizer.eos_token_id,
+            # pad_token_id=self.tokenizer.pad_token_id,
+            # eos_token_id=self.tokenizer.eos_token_id,
             use_cache=True,
         )
 
@@ -465,3 +458,23 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"Generated text: {texts[0] if len(texts) > 0 else ''}")
         return texts
     
+class StopOnEOSFirst(StoppingCriteria):
+    def __init__(self, eos_token_id):
+        self.eos_token_id = eos_token_id
+
+    def __call__(self, input_ids, scores, **kwargs):
+        # first sequence in batch emits eos
+        return input_ids[0, -1] == self.eos_token_id 
+    
+class StopOnEOSAll(StoppingCriteria):
+    def __init__(self, eos_token_id):
+        self.eos_token_id = eos_token_id
+        self.finished = None
+
+    def __call__(self, input_ids, scores, **kwargs):
+        # all sequences in batch have emitted eos
+        if self.finished is None:
+            self.finished = torch.zeros(input_ids.shape[0], dtype=torch.bool, device=input_ids.device)
+        self.finished |= (input_ids[:, -1] == self.eos_token_id)
+        return self.finished.all() 
+
