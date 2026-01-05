@@ -190,7 +190,24 @@ class Dataset(Dataset):
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
                 if i % 50000 == 0:
-                    logger.info(f"sample={i}\n### prompt #######\n{prompt}\n### target #######\n{target}\n### prompt_ids ###\n{prompt_ids}\n### target_ids ###\n{target_ids}\n##################")
+                    # Map prompt_ids to tokens
+                    prompt_tokens = tokenizer.convert_ids_to_tokens(prompt_ids)
+                    prompt_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(prompt_ids.tolist(), prompt_tokens))
+
+                    # Map target_ids to tokens
+                    target_tokens = tokenizer.convert_ids_to_tokens(target_ids)
+                    target_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(target_ids.tolist(), target_tokens))
+
+                    logger.info(
+                        f"sample={i}\n"
+                        f"### prompt #######\n{prompt}\n"
+                        f"### target #######\n{target}\n"
+                        f"### prompt_ids ###\n{prompt_mapping}\n"
+                        f"### target_ids ###\n{target_mapping}\n"
+                        f"##################"
+                    )
+                # if i % 50000 == 0:
+                #     logger.info(f"sample={i}\n### prompt #######\n{prompt}\n### target #######\n{target}\n### prompt_ids ###\n{prompt_ids}\n### target_ids ###\n{target_ids}\n##################")
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
