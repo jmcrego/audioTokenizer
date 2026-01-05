@@ -171,6 +171,6 @@ if __name__ == "__main__":
                 logger.info(f"PROMPT:\n{prompt_texts[i].replace("\n","↵")}")
                 logger.info(f"PREDIC:\n{genera_texts[i].replace("\n","↵")}")
                 logger.info("=" * 80)
-                print(gen_texts[i])
+                print(genera_texts[i])
 
     logger.info(f"Generation took {time.time() - t:.2f} sec")
