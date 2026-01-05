@@ -29,7 +29,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--test", type=str, required=True, help="Testing dataset file")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     # Inference params
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
