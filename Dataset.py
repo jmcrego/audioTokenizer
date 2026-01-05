@@ -23,7 +23,7 @@ code2lang={
 }
 
 
-def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None, bos_token="<bos>"):
+def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_token="<bos>"):
     if src_lang is not None and src_lang not in code2lang:
         raise ValueError(f"Source language code '{src_lang}' not found.")        
     if tgt_lang is not None and tgt_lang not in code2lang:
@@ -32,21 +32,16 @@ def build_prompt(audio_token="<[audio]>", src_lang=None, tgt_lang=None, bos_toke
     src_lang = code2lang.get(src_lang)
     tgt_lang = code2lang.get(tgt_lang)
 
-    prompt = f"{audio_token}\nTask:\n"
-    
+    prompt = f"Task:\n"    
     if src_lang and tgt_lang:
-        prompt += (
-            f"1. Transcribe the speech.\n"
-            f"2. Translate the transcription into {tgt_lang}.\n"
-        )
+        prompt += f"Transcribe the {src_lang} speech Input and translate it into {tgt_lang}.\n"
     elif src_lang:
-        prompt += "Transcribe the speech.\n"
-    elif tgt_lang:
-        prompt += f"Translate the speech into {tgt_lang}.\n"
+        prompt += f"Transcribe the {src_lang} speech Input.\n"
     else:
-        raise ValueError("No src_lang or tgt_lang provided")
-    
-    prompt += "Answer:\n"
+        raise ValueError("No src_lang provided")
+    prompt += f"Input:\n{audio_token}\n"
+    prompt += "Output:\n"
+
     return bos_token+prompt
 
 def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
@@ -56,10 +51,10 @@ def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     target = ""
 
     if asr is not None and asr != "":
-        target += f"Transcription: {asr}\n"
+        target += f"Transcription: {asr}"
 
     if stt is not None and stt != "":
-        target += f"Translation: {stt}\n"
+        target += f"\nTranslation: {stt}"
 
     return target+eos_token
  
@@ -165,7 +160,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                if i % 10000 == 0:
+                if i % 50000 == 0:
                     logger.info(f"sample={i}\n### prompt #######\n{prompt}\n### target #######\n{target}\n### prompt_ids ###\n{prompt_ids}\n### target_ids ###\n{target_ids}\n##################")
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
