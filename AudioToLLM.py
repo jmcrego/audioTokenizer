@@ -2,12 +2,22 @@
 
 import torch
 import logging
+from transformers import StoppingCriteriaList
+from transformers import StoppingCriteria
 
 from Embedder import Embedder
 from Projector import Projector
 from Backbone import Backbone
 
 logger = logging.getLogger("AudioToLLM")
+
+class StopOnEOS(StoppingCriteria):
+    def __init__(self, eos_token_id):
+        self.eos_token_id = eos_token_id
+
+    def __call__(self, input_ids, scores, **kwargs):
+        return input_ids[0, -1] == self.eos_token_id
+    
 
 class AudioToLLM(torch.nn.Module):
     """
@@ -328,7 +338,6 @@ class AudioToLLM(torch.nn.Module):
             "text_norm": text_norm,
         }
 
-
     # ========================================================
     # Generate (inference)
     # ========================================================
@@ -433,11 +442,14 @@ class AudioToLLM(torch.nn.Module):
         # ----------------------------
         # 8) Generate
         # ----------------------------
+        stopping_criteria = StoppingCriteriaList([StopOnEOS(self.tokenizer.eos_token_id)])
+
         outputs = self.llm_model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             position_ids=position_ids,
             max_new_tokens=max_new_tokens,
+            stopping_criteria=stopping_criteria,
             do_sample=(temperature > 0),
             temperature=temperature if temperature > 0 else None,
             top_p=top_p if temperature > 0 else None,
