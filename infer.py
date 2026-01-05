@@ -139,17 +139,6 @@ if __name__ == "__main__":
             prompt_ids = batch["prompt_ids"]
             target_ids = batch["target_ids"]
 
-            # ----------------------------
-            # 2) Run generation
-            # ----------------------------
-            genera_texts = model.generate(
-                audio_files=audio_paths,
-                prompt_ids=prompt_ids,
-                max_new_tokens=args.max_new_tokens,
-                temperature=args.temperature,
-                top_p=args.top_p,
-            )
-
             # Decode prompt text (for logging only)
             prompt_texts = model.tokenizer.batch_decode(
                 batch["prompt_ids"],
@@ -160,6 +149,17 @@ if __name__ == "__main__":
             target_texts = model.tokenizer.batch_decode(
                 batch["target_ids"],
                 skip_special_tokens=False,
+            )
+
+            # ----------------------------
+            # 2) Run generation
+            # ----------------------------
+            genera_texts = model.generate(
+                audio_files=audio_paths,
+                prompt_ids=prompt_ids,
+                max_new_tokens=args.max_new_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
             )
 
             B = len(audio_paths)
