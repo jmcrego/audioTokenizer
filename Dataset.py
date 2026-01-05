@@ -53,9 +53,9 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
         lines.append(f"Transcribe the {src_name} speech Input.")
 
     lines.extend([
-        "Input:",
+        "\nInput:",
         audio_token,
-        "Output:",
+        "\nOutput:",
         # "[TRANSCRIPTION]"
     ])
 
