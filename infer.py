@@ -142,7 +142,7 @@ if __name__ == "__main__":
             # ----------------------------
             # 2) Run generation
             # ----------------------------
-            gen_texts = model.generate(
+            genera_texts = model.generate(
                 audio_files=audio_paths,
                 prompt_ids=prompt_ids,
                 max_new_tokens=args.max_new_tokens,
@@ -153,13 +153,13 @@ if __name__ == "__main__":
             # Decode prompt text (for logging only)
             prompt_texts = model.tokenizer.batch_decode(
                 batch["prompt_ids"],
-                skip_special_tokens=True,
+                skip_special_tokens=False,
             )
 
             # Decode targets (ground truth)
             target_texts = model.tokenizer.batch_decode(
                 batch["target_ids"],
-                skip_special_tokens=True,
+                skip_special_tokens=False,
             )
 
             B = len(audio_paths)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"TARGET:\n{target_texts[i]}")
                 logger.info(f"PROMPT:\n{prompt_texts[i]}")
-                logger.info(f"PRED:\n{gen_texts[i]}")
+                logger.info(f"PREDIC:\n{genera_texts[i]}")
                 logger.info("=" * 80)
                 print(gen_texts[i])
 
