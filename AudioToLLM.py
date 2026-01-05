@@ -405,14 +405,6 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
         logger.info(f"attention_mask.shape = {attention_mask.shape}")
 
-        attn_sum = attention_mask.sum(dim=1)
-        if not torch.all(attn_sum == total_lens):
-            raise RuntimeError(
-                f"Attention mismatch:\n"
-                f"attn_sum={attn_sum}\n"
-                f"total_lens={total_lens}"
-            )
-
         # ----------------------------
         # 5) Compute insert indices
         # ----------------------------
@@ -460,6 +452,15 @@ class AudioToLLM(torch.nn.Module):
         inputs_embeds[b_after, target_pos] = prompt_embs[b_after, t_after]
         attention_mask[b_after, target_pos] = 1
 
+        attn_sum = attention_mask.sum(dim=1)
+        if not torch.all(attn_sum == total_lens):
+            raise RuntimeError(
+                f"Attention mismatch:\n"
+                f"attn_sum={attn_sum}\n"
+                f"total_lens={total_lens}"
+            )
+
+
         # ----------------------------
         # 9) Position IDs
         # ----------------------------
@@ -491,11 +492,8 @@ class AudioToLLM(torch.nn.Module):
 
         # ----------------------------
         # 11) Decode
-        # ----------------------------
-        prompt_len = max_len
-        generated = outputs[:, prompt_len:]
-        
-        texts = self.tokenizer.batch_decode(generated, skip_special_tokens=True)
+        # ----------------------------       
+        texts = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         logger.info(f"Generated text: {texts[0] if len(texts) > 0 else ''}")
         return texts
     
