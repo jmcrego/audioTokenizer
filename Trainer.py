@@ -408,7 +408,6 @@ class Trainer:
                     if logged_samples >= max_gen_samples:
                         break
 
-                    logger.info("=" * 80)
                     logger.info(f"[EVAL SAMPLE {logged_samples}]")
                     logger.info(f"AUDIO: {audio_paths[i]}")
                     logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
