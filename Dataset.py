@@ -45,18 +45,20 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
     return bos_token+prompt
 
 def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
-    if (asr is None or asr == "") and (stt is None or stt == ""):
-        raise ValueError("No ASR or STT text provided.")
+    if (asr is None or asr == ""):
+        raise ValueError("No asr text provided.")
 
-    target = ""
+    parts = []
 
-    if asr is not None and asr != "":
-        target += f"Transcription: {asr}"
+    if asr:
+        # Transcription block
+        parts.append(f"[TRANSCRIPTION]\n{asr}")
 
-    if stt is not None and stt != "":
-        target += f"\nTranslation: {stt}"
+    if stt:
+        # Translation block
+        parts.append(f"[TRANSLATION]\n{stt}")
 
-    return target+eos_token
+    return "\n".join(parts) + eos_token
  
 
 class BatchedLengthSampler(Sampler):
