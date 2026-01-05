@@ -264,6 +264,7 @@ if __name__ == "__main__":
     sampler = BatchedLengthSampler(ds, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
 
+    sys.exit()
     # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
         print(f"Batch {i}")
