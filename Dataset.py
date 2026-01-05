@@ -31,7 +31,7 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
     - tgt_lang: target language code (optional, only if translation is desired)
     - bos_token: token to prepend at the start of the prompt
 
-    The prompt always includes expected tags [TRANSCRIPTION] and optionally [TRANSLATION].
+    The prompt always includes expected tags Transcription and optionally Translation.
     """
     if src_lang is None:
         raise ValueError("Source language (src_lang) must be provided")
@@ -56,11 +56,11 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
         "\nInput:",
         audio_token,
         "\nOutput:",
-        # "[TRANSCRIPTION]"
+        # "Transcription]"
     ])
 
     # if tgt_name:
-    #     lines.append("[TRANSLATION]")
+    #     lines.append("Translation")
 
     # join lines with newline and prepend BOS token
     prompt = bos_token + "\n" + "\n".join(lines) + "\n"
@@ -70,7 +70,7 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, bos_t
 def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     """
     Build target string for transcription and optional translation.
-    Tags [TRANSCRIPTION] and [TRANSLATION] are included to match the prompt.
+    Tags Transcription and Translation are included to match the prompt.
     """
     if (asr is None or asr.strip() == "") and (stt is None or stt.strip() == ""):
         raise ValueError("No ASR or STT text provided.")
@@ -78,10 +78,10 @@ def build_target(asr=None, stt=None, eos_token="<|im_end|>"):
     parts = []
 
     if asr and asr.strip():
-        parts.append("[TRANSCRIPTION]\n" + asr.strip())
+        parts.append("Transcription\n" + asr.strip())
 
     if stt and stt.strip():
-        parts.append("[TRANSLATION]\n" + stt.strip())
+        parts.append("Translation\n" + stt.strip())
 
     # join with newline and append EOS token
     target = "\n".join(parts) + eos_token
@@ -206,8 +206,6 @@ class Dataset(Dataset):
                         f"### target_ids ###\n{target_mapping}\n"
                         f"##################"
                     )
-                # if i % 50000 == 0:
-                #     logger.info(f"sample={i}\n### prompt #######\n{prompt}\n### target #######\n{target}\n### prompt_ids ###\n{prompt_ids}\n### target_ids ###\n{target_ids}\n##################")
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
