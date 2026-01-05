@@ -72,7 +72,7 @@ if __name__ == "__main__":
     model.eval()
     logger.info(f"Loading model took {time.time() - t:.2f} sec")
 
-    # --------------------------------------------------
+    # -------------------------------------------------- 
     # Load dataset
     # --------------------------------------------------
     def collate_fn(batch):
@@ -88,16 +88,10 @@ if __name__ == "__main__":
             "target_ids": target_ids
         }
 
-    add_tokens = config['llm']['add_tokens']
-
     test_dataset = Dataset(
         file_path=args.test,
         tokenizer=model.tokenizer,
-        asr_start_token=add_tokens["asr_start_token"],
-        asr_end_token=add_tokens["asr_end_token"],
-        stt_start_token=add_tokens["stt_start_token"],
-        stt_end_token=add_tokens["stt_end_token"],
-        audio_token=add_tokens["audio_token"],
+        audio_token=config["llm"]["audio_token"],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
         stack_size=config["projector"]["stack_size"],
