@@ -342,6 +342,7 @@ class AudioToLLM(torch.nn.Module):
         dtype = next(self.projector.parameters()).dtype
         B = len(audio_files)
         assert prompt_ids.size(0) == B, f"audio_files length ({B}) and prompt_ids batch size ({prompt_ids.size(0)}) must match"
+        logger.info(f"Batch with {B} samples")
 
         # ----------------------------
         # 1) Audio → Embedding → Projector
@@ -349,25 +350,36 @@ class AudioToLLM(torch.nn.Module):
         audio_embs, audio_mask = self.audio_embedder(audio_files)
         audio_embs = audio_embs.to(device=device, dtype=dtype)
         audio_mask = audio_mask.bool().to(device)
+        logger.info(f"audio_embs.shape = {audio_embs.shape}")
+        logger.info(f"audio_mask.shape = {audio_mask.shape}")
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_embs = proj_embs.to(device=device, dtype=dtype)
         proj_mask = proj_mask.bool()
+        logger.info(f"proj_embs.shape = {proj_embs.shape}")
+        logger.info(f"proj_mask.shape = {proj_mask.shape}")
 
         audio_lens = proj_mask.sum(dim=1)          # [B]
         S_max = proj_embs.size(1)
         D = proj_embs.size(-1)
+        logger.info(f"audio_lens = {audio_lens}")
+        logger.info(f"S_max = {S_max}")
+        logger.info(f"D = {D}")
 
         # ----------------------------
         # 2) Prompt → Embedding
         # ----------------------------
-
         prompt_ids = prompt_ids.to(device)      # [B, T]
         prompt_mask = prompt_ids != self.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)        # [B]
         T_prompt = prompt_ids.size(1)
+        logger.info(f"prompt_ids.shape = {prompt_ids.shape}")
+        logger.info(f"prompt_mask.shape = {prompt_mask.shape}")
+        logger.info(f"prompt_lens = {prompt_lens}")
+        logger.info(f"T_prompt = {T_prompt}")
 
         prompt_embs = self.llm_model.get_input_embeddings()(prompt_ids)  # [B, T, D]
+        logger.info(f"prompt_embs.shape = {prompt_embs.shape}")
 
         # ----------------------------
         # 3) Locate <extra_id_0> token
@@ -376,63 +388,110 @@ class AudioToLLM(torch.nn.Module):
         assert (audio_token_mask.sum(dim=1) == 1).all(), f"Each prompt must contain exactly one <extra_id_0> token"
 
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
+        logger.info(f"audio_token_mask.shape = {audio_token_mask.shape}")
+        logger.info(f"audio_pos = {audio_pos}")
 
         # ----------------------------
         # 4) Allocate final sequence
         # ----------------------------
-        total_lens = prompt_lens + audio_lens
+        total_lens = prompt_lens - 1 + audio_lens
         max_len = total_lens.max().item()
+        logger.info(f"total_lens = {total_lens}")
+        logger.info(f"max_len = {max_len}")
 
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
-
+        logger.info(f"inputs_embeds.shape = {inputs_embeds.shape}")
+        logger.info(f"attention_mask.shape = {attention_mask.shape}")
+        
+        # ---------------------------------------------------------
+        # Precompute helpers
+        # ---------------------------------------------------------
         batch_idx = torch.arange(B, device=device)
 
-        # ----------------------------
-        # 5) Insert audio embeddings
-        # ----------------------------
-        audio_range = torch.arange(S_max, device=device).unsqueeze(0)     # [1, S]
-        audio_valid = audio_range < audio_lens.unsqueeze(1)               # [B, S]
-        dest_audio_pos = audio_pos.unsqueeze(1) + audio_range             # [B, S]
+        before_len = audio_pos                                  # [B]
+        after_len  = prompt_lens - audio_pos - 1                # [B]
+        logger.info(f"before_len = {before_len}")
+        logger.info(f"after_len = {after_len}")
 
-        b_audio = batch_idx.unsqueeze(1).expand_as(dest_audio_pos)[audio_valid]
-        p_audio = dest_audio_pos[audio_valid]
+        # destination indices
+        dst_range = torch.arange(max_len, device=device).unsqueeze(0)   # [1, L]
+        dst_range = dst_range.expand(B, -1)                              # [B, L]
+        logger.info(f"dst_range = {dst_range}")
 
-        inputs_embeds[b_audio, p_audio] = proj_embs[audio_valid]
-        attention_mask[b_audio, p_audio] = 1
+        # ---------------------------------------------------------
+        # 5) Insert prompt BEFORE audio
+        # ---------------------------------------------------------
+        before_mask = dst_range < before_len.unsqueeze(1)      # [B, L]
+        logger.info(f"before_mask.shape = {before_mask.shape}")
 
-        # ----------------------------
-        # 6) Insert prompt embeddings
-        # ----------------------------
-        prompt_range = torch.arange(T_prompt, device=device).unsqueeze(0).expand(B, -1)
+        # source indices (same positions)
+        src_before_idx = dst_range                              # [B, L]
+        logger.info(f"src_before_idx.shape = {src_before_idx.shape}")
 
-        # a) before <extra_id_0>
-        before = prompt_range < audio_pos.unsqueeze(1)
-        b_before = batch_idx.unsqueeze(1).expand_as(prompt_range)[before]
-        p_before = prompt_range[before]
+        inputs_embeds[before_mask] = prompt_embs[
+            batch_idx.unsqueeze(1).expand_as(dst_range)[before_mask],
+            src_before_idx[before_mask]
+        ]
+        attention_mask[before_mask] = 1
 
-        inputs_embeds[b_before, p_before] = prompt_embs[before]
-        attention_mask[b_before, p_before] = 1
+        # ---------------------------------------------------------
+        # 6) Insert audio embeddings
+        # ---------------------------------------------------------
+        audio_start = before_len                                # [B]
+        audio_end   = before_len + audio_lens                   # [B]
 
-        # b) after <extra_id_0>
-        after = prompt_range > audio_pos.unsqueeze(1)
-        b_after = batch_idx.unsqueeze(1).expand_as(prompt_range)[after]
+        audio_mask_dst = (
+            (dst_range >= audio_start.unsqueeze(1)) &
+            (dst_range <  audio_end.unsqueeze(1))
+        )                                                       # [B, L]
+        logger.info(f"audio_mask_dst.shape = {audio_mask_dst.shape}")
 
-        p_after = (
-            prompt_range[after]
-            + audio_lens.unsqueeze(1).expand_as(prompt_range)[after]
+        # source audio indices
+        src_audio_idx = dst_range - audio_start.unsqueeze(1)    # [B, L]
+        logger.info(f"src_audio_idx.shape = {src_audio_idx.shape}")
+
+        inputs_embeds[audio_mask_dst] = proj_embs[
+            batch_idx.unsqueeze(1).expand_as(dst_range)[audio_mask_dst],
+            src_audio_idx[audio_mask_dst]
+        ]
+        attention_mask[audio_mask_dst] = 1
+
+        # ---------------------------------------------------------
+        # 7) Insert prompt AFTER audio (shifted left)
+        # ---------------------------------------------------------
+        after_start = audio_end                                  # [B]
+        after_end   = after_start + after_len                    # [B]
+
+        after_mask = (
+            (dst_range >= after_start.unsqueeze(1)) &
+            (dst_range <  after_end.unsqueeze(1))
+        )                                                        # [B, L]
+        logger.info(f"after_mask.shape = {after_mask.shape}")
+
+        # source indices in original prompt (skip <extra_id_0>)
+        src_after_idx = (
+            dst_range
+            - audio_lens.unsqueeze(1)
+            + 1
         )
+        logger.info(f"src_after_idx.shape = {src_after_idx.shape}")
 
-        inputs_embeds[b_after, p_after] = prompt_embs[after]
-        attention_mask[b_after, p_after] = 1
+        inputs_embeds[after_mask] = prompt_embs[
+            batch_idx.unsqueeze(1).expand_as(dst_range)[after_mask],
+            src_after_idx[after_mask]
+        ]
+        attention_mask[after_mask] = 1
 
         # ----------------------------
-        # 7) Position IDs
+        # 8) Position IDs
         # ----------------------------
-        position_ids = torch.arange(max_len, device=device).unsqueeze(0).expand(B, -1)
+        position_ids = attention_mask.cumsum(dim=1) - 1
+        position_ids.masked_fill_(attention_mask == 0, 0)
+        logger.info(f"position_ids.shape = {position_ids.shape}")
 
         # ----------------------------
-        # 8) Generate
+        # 9) Generate
         # ----------------------------
         stopping_criteria = StoppingCriteriaList([StopOnEOSFirst(self.tokenizer.eos_token_id)])
 
@@ -450,11 +509,16 @@ class AudioToLLM(torch.nn.Module):
             # eos_token_id=self.tokenizer.eos_token_id,
             use_cache=True,
         )
+        logger.info(f"outputs.shape = {outputs.shape}")
+
 
         # ----------------------------
-        # 9) Decode
+        # 10) Decode
         # ----------------------------
-        texts = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        prompt_len = max_len
+        generated = outputs[:, prompt_len:]
+        
+        texts = self.tokenizer.batch_decode(generated, skip_special_tokens=True)
         logger.info(f"Generated text: {texts[0] if len(texts) > 0 else ''}")
         return texts
     
