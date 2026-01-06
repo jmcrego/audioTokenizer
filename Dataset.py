@@ -154,7 +154,7 @@ class Dataset(Dataset):
                     add_special_tokens=False,
                 ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                target = build_target(asr, stt, asr_token=self.asr_token, stt_token=self.stt_token, eos_token=self.tokenizer.eos_token)
+                target = build_target(asr, stt)
                 target_ids = tokenizer(
                     target,
                     return_tensors="pt",

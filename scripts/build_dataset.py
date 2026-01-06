@@ -37,9 +37,10 @@ def save(args):
     data = sorted(dataset.data, key=lambda x: x["total_length"])
 
     lengths = [x["total_length"] for x in data]
+    total_time = [x[""]]
 
     meta = {
-        "num_samples": len(data),
+        "num_samples": len(lengths),
         "max_seq_len": args.max_seq_len,
         "tokenizer": args.tokenizer,
         "sample_rate": args.sample_rate,
