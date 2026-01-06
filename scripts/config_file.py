@@ -6,10 +6,10 @@ config = {
     },
     "projector": {
         "path": None,
-        "stack_size": 8,
-        "middle_dim": 2048,
+        "conv_kernel": 30,
+        "conv_stride": 30,
         "rmsnorm_pre": True,
-        "rmsnorm_mid": False,
+        "act": "silu",
         "rmsnorm_pos": True,
         "scale": 0,
         "use_bias": False,
@@ -17,8 +17,6 @@ config = {
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
         "audio_token": "<extra_id_0>",
-        "asr_token": "<extra_id_1>",
-        "stt_token": "<extra_id_2>",
     },
     "lora": {
         "path": None,

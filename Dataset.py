@@ -22,71 +22,44 @@ code2lang={
     "ru": "Russian",
 }
 
-
-def build_prompt(src_lang=None, tgt_lang=None, audio_token="<extra_id_0>", bos_token="<bos>"):
-    """
-    Build prompt for audio-to-text or audio-to-text+translation.
-
-    - src_lang: source language code (required)
-    - tgt_lang: target language code (optional, only if translation is desired)
-    - bos_token: token to prepend at the start of the prompt
-
-    The prompt always includes expected tags Transcription and optionally Translation.
-    """
+def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, asr_text=None):
     if src_lang is None:
-        raise ValueError("Source language (src_lang) must be provided")
-    if src_lang not in code2lang:
-        raise ValueError(f"Source language code '{src_lang}' not found.")        
-    if tgt_lang is not None and tgt_lang not in code2lang:
-        raise ValueError(f"Target language code '{tgt_lang}' not found.")        
+        raise ValueError("Source language must be provided")
 
-    src_name = code2lang[src_lang]
-    tgt_name = code2lang[tgt_lang] if tgt_lang else None
+    src_lang_name = code2lang.get(src_lang, src_lang)
+    tgt_lang_name = code2lang.get(tgt_lang, tgt_lang) if tgt_lang else None
 
-    lines = [
-        "Task:"
-    ]
+    # ASR: first step
+    prompt = (
+        f"<|im_start|>system\n"
+        f"You are a professional {src_lang_name} interpreter.\n"
+        f"<|im_end|>\n"
+        f"<|im_start|>user\n"
+        f"Transcribe the following speech:\n"
+        f"{audio_token}\n"
+        f"<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+    )
 
-    if tgt_name:
-        lines.append(f"Transcribe the {src_name} speech Input and translate it into {tgt_name}.")
-    else:
-        lines.append(f"Transcribe the {src_name} speech Input.")
+    if asr_text is not None and tgt_lang_name is not None:
+        # STT: second step
+        prompt += (
+            f"{asr_text}\n"
+            f"Translate into {tgt_lang_name}:\n"
+        )
 
-    lines.extend([
-        "\nInput:",
-        audio_token,
-        "\nOutput:",
-        # "Transcription]"
-    ])
-
-    # if tgt_name:
-    #     lines.append("Translation")
-
-    # join lines with newline and prepend BOS token
-    prompt = bos_token + "\n" + "\n".join(lines) + "\n"
     return prompt
 
 
-def build_target(asr=None, stt=None, asr_token="<extra_id_1>", stt_token="<extra_id_2>", eos_token="<|im_end|>"):
-    """
-    Build target string for transcription and optional translation.
-    Tags Transcription and Translation are included to match the prompt.
-    """
-    if (asr is None or asr.strip() == "") and (stt is None or stt.strip() == ""):
-        raise ValueError("No ASR or STT text provided.")
+def build_target(asr=None, stt=None):
+    if stt is not None:
+        return f"{stt.strip()}\n<|im_end|>"
 
-    parts = []
+    if asr is not None:
+        return f"{asr.strip()}\n<|im_end|>"
 
-    if asr and asr.strip():
-        parts.append(f"{asr_token}\n" + asr.strip())
+    raise ValueError("Either asr or stt must be provided")
 
-    if stt and stt.strip():
-        parts.append(f"{stt_token}\n" + stt.strip())
-
-    # join with newline and append EOS token
-    target = "\n".join(parts) + eos_token
-    return target
- 
 
 class BatchedLengthSampler(Sampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
@@ -139,27 +112,24 @@ class Dataset(Dataset):
         file_path: str,
         tokenizer,
         audio_token="<extra_id_0>",
-        asr_token="<extra_id_1>",
-        stt_token="<extra_id_2>",
         sample_rate=16000,
         downsample_ratio=320,
-        stack_size=8,
+        conv_stride=30,
         max_seq_len=1000,
         seed=42,
     ):
         self.tokenizer = tokenizer
         self.audio_token = audio_token
-        self.asr_token = asr_token
-        self.stt_token = stt_token
         self.sample_rate = sample_rate
         self.downsample_ratio = downsample_ratio
-        self.stack_size = stack_size
+        self.conv_stride = conv_stride
         self.max_seq_len = max_seq_len
 
         #random seed for reproducibility
         np.random.seed(seed)
 
         self.tasks = defaultdict(int)
+        total_audio_time = 0.
 
         self.data = []
         with open(file_path, "r", encoding="utf-8") as f:
@@ -175,7 +145,7 @@ class Dataset(Dataset):
                 src_lang = src_lang if src_lang else None
                 tgt_lang = tgt_lang if tgt_lang else None
 
-                prompt = build_prompt(src_lang, tgt_lang, audio_token=self.audio_token, bos_token=self.tokenizer.bos_token)
+                prompt = build_prompt(src_lang, tgt_lang, audio_token=self.audio_token)
                 prompt_ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -212,6 +182,7 @@ class Dataset(Dataset):
                     )
 
                 audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
+                total_audio_time += audio_time
                 total_length = n_audio + len(prompt_ids) + len(target_ids)
                 if total_length > max_seq_len:
                     logger.info(f"Skipped audio by len={n_audio} {audio_path}")
@@ -225,7 +196,7 @@ class Dataset(Dataset):
                     "audio_time": audio_time,
                 })
                 
-            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({dict(self.tasks)})")
+            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({dict(self.tasks)}) audio length is {total_audio_time} sec.")
 
 
     def __len__(self):
@@ -239,7 +210,7 @@ class Dataset(Dataset):
     def audio_length_in_embeddings(self, filepath):
         """
         Estimate number of tokens produced from an audio file
-        after audio embedding + frame stacking (no chunking).
+        after audio embedding + projection.
         """
         try:
             info = sf.info(filepath)
@@ -247,7 +218,7 @@ class Dataset(Dataset):
                 return 0, 0
             
             if self.downsample_ratio == 160: #whisper (this should be better done!!)
-                n_tokens = (WHISPER_FRAMES + self.stack_size - 1) // self.stack_size
+                n_tokens = (WHISPER_FRAMES + self.conv_stride - 1) // self.conv_stride
                 return info.duration, n_tokens
 
             # total audio samples
@@ -258,7 +229,7 @@ class Dataset(Dataset):
             n_frames = (n_samples + self.downsample_ratio - 1) // self.downsample_ratio
 
             # number of tokens after stacking frames
-            n_tokens = (n_frames + self.stack_size - 1) // self.stack_size
+            n_tokens = (n_frames + self.conv_stride - 1) // self.conv_stride
 
             return info.duration, n_tokens
 
@@ -283,7 +254,6 @@ if __name__ == "__main__":
     sampler = BatchedLengthSampler(ds, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
 
-    sys.exit()
     # Iterate over sampler and print batch info
     for i, idx in enumerate(sampler):
         print(f"Batch {i}")
