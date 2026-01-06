@@ -37,7 +37,6 @@ def save(args):
     data = sorted(dataset.data, key=lambda x: x["total_length"])
 
     lengths = [x["total_length"] for x in data]
-    total_time = [x[""]]
 
     meta = {
         "num_samples": len(lengths),
@@ -46,6 +45,7 @@ def save(args):
         "sample_rate": args.sample_rate,
         "downsample_ratio": args.downsample_ratio,
         "conv_stride": args.conv_stride,
+        "total_audio_time": sum([x["audio_time"] for x in data]),
         "stats": {
             "min": min(lengths),
             "med": lengths[len(lengths)//2],
