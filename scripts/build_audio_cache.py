@@ -118,8 +118,7 @@ def build_audio_cache(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (bucketed)",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (bucketed)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="Path of audio embedder")
