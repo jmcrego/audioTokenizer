@@ -119,7 +119,7 @@ def main():
 
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
-                    if not "/" in str(row[1]):
+                    if not "/" in str(row[1]) or not "/" in str(path):
                         print(f"BAD {row}")
                         print(f"BAD {str(path)}")
                         continue
