@@ -59,7 +59,7 @@ def read_audio_files(mp3_dir, name2entry):
             continue
 
         name2path[path.name] = path   # name = filename name (not path)
-        print(f"{path.name} {str(path)}")
+        #print(f"{path.name} {str(path)}")
     return name2path
 
 def main():
