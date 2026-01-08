@@ -102,8 +102,6 @@ def main():
                     continue
 
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
-                if not str(path).startswith("/"):                    
-                    print(f"{row}")
 
                 fname = path.name
 
@@ -122,6 +120,9 @@ def main():
 
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
+                    if not str(path).startswith("/"):                    
+                        print(f"BAD {row}")
+
                     entry = name2entry[fname]
                     transl = entry[1]
                     split = entry[2]
