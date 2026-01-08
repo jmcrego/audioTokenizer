@@ -47,10 +47,11 @@ def build_audio_cache(
         batch_size):
 
     os.makedirs(cache_dir, exist_ok=True)
+    torch_dtype = getattr(torch, dtype)
 
     # Initialize embedder
     audio_embedder = Embedder(config={'path': embedder_path})
-    audio_embedder.to(device, dtype=getattr(torch, dtype))
+    audio_embedder.to(device, dtype=torch_dtype)
     audio_embedder.eval()
 
     # Read TSV samples
@@ -75,12 +76,12 @@ def build_audio_cache(
         batch.append(idx)
         # Process batch
         if len(batch) == batch_size:
-            process_batch(audio_embedder, samples, batch, cache_dir, device, dtype)
+            process_batch(audio_embedder, samples, batch, cache_dir, device, torch_dtype)
             batch = []
 
     # Process any remaining files
     if batch:
-        process_batch(audio_embedder, samples, batch, cache_dir, device, dtype)
+        process_batch(audio_embedder, samples, batch, cache_dir, device, torch_dtype)
 
 
     logger.info(f"Saved {len(samples)} .pt files in {cache_dir}")
@@ -126,5 +127,5 @@ if __name__ == "__main__":
         args.cache_dir,
         args.embedder_path,
         args.device,
-        getattr(torch, dtype),
+        args.dtype,
         args.batch_size)
