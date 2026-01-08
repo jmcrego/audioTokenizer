@@ -9,6 +9,8 @@ import torch
 import json
 import os
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from Dataset import read_samples_from_tsv
 from Embedder import Embedder
 
