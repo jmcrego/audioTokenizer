@@ -87,7 +87,7 @@ def main():
     fdo = open(args.tsv[:-4] + '.linked.tsv', 'w')
     seen = set()
     N = 0
-    for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
+    for cv_tsv in list(dir_lang.glob("*.tsv")):# + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
         n = 0
         print(f"Parsing file {cv_tsv}")
         with open(cv_tsv, "r", encoding="utf-8") as f:
