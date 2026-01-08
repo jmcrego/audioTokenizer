@@ -53,7 +53,7 @@ def read_audio_files(mp3_dir, name2entry):
             continue
         if path.name not in name2entry:
             continue
-        print("BLA")
+        print(f"{path.name}")
         if "19797247" in str(path.name):
             print(f"BAD {name2entry[path.name]}")
             print(f"BAD {path}")
