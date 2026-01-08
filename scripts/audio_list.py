@@ -55,7 +55,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             
             # Find all .mp3 files
             files = list(lang_path.rglob('*.mp3'))
-            sys.stderr.write(f"{lang}: found {len(files)} files\n")
+            #sys.stderr.write(f"{lang}: found {len(files)} files\n")
             random.shuffle(files)
             
             if not files:
