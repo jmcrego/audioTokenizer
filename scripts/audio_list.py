@@ -5,18 +5,6 @@ from pathlib import Path
 from tqdm import tqdm
 import soundfile as sf
 
-code2lang={
-    "fr": "French",
-    "ca": "Catalan",
-    "de": "German",
-    "es": "Spanish",
-    "en": "English",
-    "ru": "Russian",
-    "it": "Italian",
-    "pt": "Portuguese",
-    "zh-CN": "Chinese"
-}
-
 def get_audio_duration(filepath):
     """Get duration of an audio file in seconds."""
     try:
@@ -74,7 +62,7 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
                 #     continue
 
                 # fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
-                fdo.write(f"{code2lang[lang]}\t{filepath}\n")
+                fdo.write(f"{lang}\t{filepath}\n")
                 bar.update(1)
                 total_lang_files += 1
                 # total_lang_duration += duration
