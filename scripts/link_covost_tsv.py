@@ -122,6 +122,7 @@ def main():
                     if not "/" in str(row[1]):
                         print(f"BAD {row}")
                         print(f"BAD {str(path)}")
+                        continue
 
                     entry = name2entry[fname]
                     transl = entry[1]
