@@ -83,6 +83,7 @@ def main():
     # Now read CommonVoice TSVs under the source language as indicated by *.tsv{.old} (contain file / lang / transcript)
     dir_lang = Path(args.cv) / src_lang
 
+    print(f"Building {args.tsv[:-4] + '.linked.tsv'}")
     fdo = open(args.tsv[:-4] + '.linked.tsv', 'w')
     seen = set()
     N = 0
