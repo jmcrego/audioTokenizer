@@ -54,6 +54,7 @@ def read_audio_files(mp3_dir, name2entry):
         if path.name not in name2entry:
             continue
         name2path[path.name] = path   # name = filename name (not path)
+        print(f"name2path {path.name} {path}")
     return name2path
 
 def main():
