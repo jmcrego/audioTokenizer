@@ -5,6 +5,18 @@ from pathlib import Path
 from tqdm import tqdm
 import soundfile as sf
 
+code2lang={
+    "fr": "French",
+    "ca": "Catalan",
+    "de": "German",
+    "es": "Spanish",
+    "en": "English",
+    "ru": "Russian",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "zh=CN": "Chinese"
+}
+
 def get_audio_duration(filepath):
     """Get duration of an audio file in seconds."""
     try:
@@ -30,9 +42,9 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
     with open(output, 'w') as fdo:
         fdo.write(f"base_path={base_path}\n")
         fdo.write(f"langs={langs}\n")
-        fdo.write(f"max_files_lang={max_files_lang}\n")
-        fdo.write(f"min_duration_file={min_duration_file}\n")
-        total_duration = 0
+        # fdo.write(f"max_files_lang={max_files_lang}\n")
+        # fdo.write(f"min_duration_file={min_duration_file}\n")
+        # total_duration = 0
         total_files = 0
         for lang in langs:
             lang_path = Path(base_path.replace('LANG', lang))
@@ -49,37 +61,38 @@ def find_audio_files_by_lang(base_path, langs, max_files_lang, min_duration_file
             if not files:
                 continue
 
-            bar = tqdm(total=max_files_lang or len(files), desc=f"{lang} files", unit=" file")
-            total_lang_duration = 0
+            bar = tqdm(total=len(files), desc=f"{lang} files", unit=" file")
+            # total_lang_duration = 0
             total_lang_files = 0
             for filepath in files:
-                filepath, duration = get_audio_duration(filepath)
+                # filepath, duration = get_audio_duration(filepath)
 
-                if duration is None:
-                    continue
+                # if duration is None:
+                #     continue
 
-                if min_duration_file is not None and duration < min_duration_file:
-                    continue
+                # if min_duration_file is not None and duration < min_duration_file:
+                #     continue
 
-                fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
+                # fdo.write(f"{lang}\t{duration:.2f}\t{filepath}\n")
+                fdo.write(f"{code2lang{lang}}\t{filepath}\n")
                 bar.update(1)
                 total_lang_files += 1
-                total_lang_duration += duration
+                # total_lang_duration += duration
 
-                if max_files_lang is not None and total_lang_files >= max_files_lang:
-                    break
+                # if max_files_lang is not None and total_lang_files >= max_files_lang:
+                #     break
 
             # force close the bar
             bar.close()
 
             total_files += total_lang_files
-            total_duration += total_lang_duration
+            # total_duration += total_lang_duration
 
-            sys.stderr.write(f"{lang}: total files {total_lang_files}, total duration {total_lang_duration:.2f}s ({total_lang_duration/3600:.2f}h)\n")
-            fdo.write(f"{lang}\tTotalDuration={total_lang_duration/3600:.2f}h TotalFiles={total_lang_files}\n")
+            # sys.stderr.write(f"{lang}: total files {total_lang_files}, total duration {total_lang_duration:.2f}s ({total_lang_duration/3600:.2f}h)\n")
+            # fdo.write(f"{lang}\tTotalDuration={total_lang_duration/3600:.2f}h TotalFiles={total_lang_files}\n")
     
-        sys.stderr.write(f"total files {total_files}, total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
-        fdo.write(f"TotalDuration={total_duration/3600:.2f}h TotalFiles={total_files}\n")
+        # sys.stderr.write(f"total files {total_files}, total duration {total_duration:.2f}s ({total_duration/3600:.2f}h)\n")
+        # fdo.write(f"TotalDuration={total_duration/3600:.2f}h TotalFiles={total_files}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find audio files by language and compute durations.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
