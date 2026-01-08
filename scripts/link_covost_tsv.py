@@ -101,16 +101,15 @@ def main():
                 if len(row) < 4:
                     continue
 
-                path = Path(args.cv) / src_lang / 'clips' / row[1]
-
-                fname = path.name
+                path1 = Path(args.cv) / src_lang / 'clips' / row[1]
+                fname = path1.name
 
                 #if path in seen:
                 if str(fname) in seen:
                     #print(f"Repeated entry {fname}")
                     continue
 
-                if args.verify and not path.is_file():
+                if args.verify and not path1.is_file():
                     #print(f"\tskipping missing linked file {str(path)}")
                     continue
 
@@ -120,8 +119,10 @@ def main():
 
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
+
                     if not str(path).startswith("/"):                    
-                        print(f"BAD {row}")
+                        fdo.write(f"BAD {row}")
+                        fdo.write(f"BAD {str(path1)}")
 
                     entry = name2entry[fname]
                     transl = entry[1]
