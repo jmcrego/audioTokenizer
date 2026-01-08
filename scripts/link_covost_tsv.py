@@ -112,7 +112,7 @@ def main():
 
                 #if fname in seen:
                 if str(fname) in seen:
-                    print(f"Repeated entry {fname}")
+                    #print(f"Repeated entry {fname}")
                     continue
 
                 if args.verify and not path1.is_file():
