@@ -25,14 +25,11 @@ def process_batch(audio_embedder, samples, batch, cache_dir, device, dtype):
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
             audio_embs, audio_mask = audio_embedder(audio_paths)
 
-    audio_embs = audio_embs.cpu().contiguous()
-    audio_mask = audio_mask.cpu().contiguous()
-
     for i, idx in enumerate(batch):
         pt_path = os.path.join(cache_dir, f"{idx:09d}.pt")
         #To avoid partially written .pt files if killed mid-save:
         tmp_path = pt_path + ".tmp"
-        torch.save({"audio_embs": audio_embs[i], "audio_mask": audio_mask[i]}, tmp_path, _use_new_zipfile_serialization=False)
+        torch.save({"audio_embs": audio_embs[i].cpu(), "audio_mask": audio_mask[i].cpu()}, tmp_path, _use_new_zipfile_serialization=False)
         os.replace(tmp_path, pt_path)
         samples[idx]["pt_path"] = f"{idx:09d}.pt"
         samples[idx]["n_audio_embs"] = int(audio_mask[i].sum().item())
@@ -116,8 +113,8 @@ if __name__ == "__main__":
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store .pt files and mapping.json")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="Path of audio embedder")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
-    parser.add_argument("--dtype", type=str, default="float32", help="Torch dtype for embeddings")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for audio embedding")
+    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size for audio embedding")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
