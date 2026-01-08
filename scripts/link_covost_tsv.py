@@ -116,7 +116,7 @@ def main():
                     continue
 
                 if args.verify and not path1.is_file():
-                    #print(f"\tskipping missing linked file {str(path)}")
+                    print(f"\tskipping missing linked file {str(path)}")
                     continue
 
                 transc = row[3]
