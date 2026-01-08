@@ -102,7 +102,7 @@ def main():
                     continue
 
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
-                if not path.startswith("/"):                    
+                if not str(path).startswith("/"):                    
                     print(f"{row}")
 
                 fname = path.name
