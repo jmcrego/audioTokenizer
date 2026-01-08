@@ -14,7 +14,7 @@ code2lang={
     "ru": "Russian",
     "it": "Italian",
     "pt": "Portuguese",
-    "zh=CN": "Chinese"
+    "zh-CN": "Chinese"
 }
 
 def get_audio_duration(filepath):
