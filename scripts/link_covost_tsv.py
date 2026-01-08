@@ -104,6 +104,8 @@ def main():
                 path1 = Path(args.cv) / src_lang / 'clips' / row[1]
                 fname = path1.name
 
+                print(row)
+
                 #if path in seen:
                 if str(fname) in seen:
                     #print(f"Repeated entry {fname}")
@@ -121,8 +123,8 @@ def main():
                     path = name2path[fname]
 
                     if not str(path).startswith("/"):                    
-                        fdo.write(f"BAD {row}")
-                        fdo.write(f"BAD {str(path1)}")
+                        print(f"BAD {row}")
+                        print(f"BAD {str(path1)}")
 
                     entry = name2entry[fname]
                     transl = entry[1]
