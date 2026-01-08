@@ -22,6 +22,8 @@ code2lang={
     "es": "Spanish",
     "en": "English",
     "ru": "Russian",
+    "it": "Italian",
+    "pt": "Portuguese"
 }
 
 def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, downsample_ratio=160):
@@ -140,7 +142,7 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
 
     with open(path, "r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
-            fields= line.rstrip("\n").split(sep)
+            fields = line.rstrip("\n").split(sep)
 
             if len(fields) not in (3, 5):
                 logger.warning(f"{path}:{line_no} expected 3 or 5 fields, got {len(fields)}")
@@ -162,6 +164,10 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
                 continue                
 
             src_lang = code2lang.get(fields[1], "")
+            if not src_lang:
+                logger.warning(f"{path}:{line_no} bad src_lang: {fields[1]}")
+                continue
+
             asr = fields[2].strip()
 
             if not src_lang or not asr:
