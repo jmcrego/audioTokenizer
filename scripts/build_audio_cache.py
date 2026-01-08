@@ -7,6 +7,7 @@ import torch
 import json
 import os
 import sys
+import time
 from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +24,8 @@ def process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, d
     """
     audio_paths = [samples[idx]["audio_path"] for idx in bucket_indices]
 
+    tic = time.time()
+
     with torch.no_grad():
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
             audio_embs, audio_mask = audio_embedder(audio_paths)
@@ -31,17 +34,23 @@ def process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, d
     audio_embs_cpu = audio_embs.cpu().contiguous()
     audio_mask_cpu = audio_mask.cpu().contiguous()
 
+    tac = time.time()
+
     # save bucket
     pt_path = os.path.join(cache_dir, f"bucket_{bucket_id:06d}.pt")
     tmp_path = pt_path + ".tmp"
     torch.save({ "audio_embs": audio_embs_cpu, "audio_mask": audio_mask_cpu}, tmp_path, _use_new_zipfile_serialization=False)
     os.replace(tmp_path, pt_path)
 
+    toc = time.time()
+
     # update sample metadata
     for i, idx in enumerate(bucket_indices):
         samples[idx]["pt_path"] = f"bucket_{bucket_id:06d}.pt"
         samples[idx]["offset"] = i
         samples[idx]["n_audio_embs"] = int(audio_mask_cpu[i].sum().item())
+
+    return tac-tic, toc-tac
 
 
 def build_audio_cache(
@@ -54,6 +63,9 @@ def build_audio_cache(
 
     os.makedirs(cache_dir, exist_ok=True)
     torch_dtype = getattr(torch, dtype)
+
+    t_embedding = 0.0
+    t_saving = 0.0
 
     # Initialize embedder
     audio_embedder = Embedder(config={'path': embedder_path})
@@ -77,15 +89,20 @@ def build_audio_cache(
         bucket_indices.append(idx)
 
         if len(bucket_indices) == bucket_size:
-            process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+            t_emb, t_save = process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+            t_embedding += t_emb
+            t_saving += t_save
             bucket_indices = []
             bucket_id += 1
 
     # Process remaining samples in last bucket
     if bucket_indices:
-        process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+        t_emb, t_save = process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+        t_embedding += t_emb
+        t_saving += t_save
 
     logger.info(f"Saved embeddings in {bucket_id + 1} buckets in {cache_dir}")
+    logger.info(f"time embedding = {t_embedding:.2f} ({bucket_id/t_embedding:.2f}buckets/sec) saving = {t_saving:.2f} ({bucket_id/t_saving:.2f}buckets/sec)")
 
     # Save meta.json
     meta_path = os.path.join(cache_dir, "meta.json")
