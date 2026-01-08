@@ -42,9 +42,9 @@ class AudioToLLM(torch.nn.Module):
         # 2. Device & dtype
         # ====================================================
         logger.info(f"Moving models to device={device}, dtype={dtype}")
-        self.audio_embedder.to(device=device, dtype=torch.float32)
-        self.projector.to(device=device, dtype=torch.float32)
-        self.llm_model.to(device=device, dtype=dtype)
+        self.audio_embedder.to(device=device, dtype=dtype) #use float32 if numerical issues
+        self.projector.to(device=device, dtype=dtype)      #use float32 to ensure stability during early training of projector
+        self.llm_model.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
 
         # ====================================================
         # 3. Freeze / train settings
@@ -219,7 +219,7 @@ class AudioToLLM(torch.nn.Module):
         total_lens = (prompt_lens - 1) + audio_lens + target_lens
         max_len = total_lens.max().item()
 
-        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
+        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype) 
         labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
 
@@ -339,7 +339,7 @@ class AudioToLLM(torch.nn.Module):
         Batched generation with per-sample prompts containing exactly one <extra_id_0> token.
         """
         device = self.llm_model.device
-        dtype = next(self.projector.parameters()).dtype
+        llm_dtype = next(self.llm_model.parameters()).dtype
         B = len(audio_files)
         assert prompt_ids.size(0) == B, f"audio_files length ({B}) and prompt_ids batch size ({prompt_ids.size(0)}) must match"
         logger.debug(f"Batch with {B} samples")
@@ -348,13 +348,13 @@ class AudioToLLM(torch.nn.Module):
         # 1) Audio → Embedding → Projector
         # ----------------------------
         audio_embs, audio_mask = self.audio_embedder(audio_files)
-        audio_embs = audio_embs.to(device=device, dtype=dtype)
+        audio_embs = audio_embs.to(device=device)
         audio_mask = audio_mask.bool().to(device)
         logger.debug(f"audio_embs.shape = {audio_embs.shape}")
         logger.debug(f"audio_mask.shape = {audio_mask.shape}")
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
-        proj_embs = proj_embs.to(device=device, dtype=dtype)
+        proj_embs = proj_embs.to(device=device) 
         proj_mask = proj_mask.bool()
         logger.debug(f"proj_embs.shape = {proj_embs.shape}")
         logger.debug(f"proj_mask.shape = {proj_mask.shape}")
@@ -399,7 +399,7 @@ class AudioToLLM(torch.nn.Module):
         logger.debug(f"total_lens = {total_lens}")
         logger.debug(f"max_len = {max_len}")
 
-        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=dtype)
+        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
 
         logger.debug(f"inputs_embeds.shape = {inputs_embeds.shape}")
@@ -413,8 +413,6 @@ class AudioToLLM(torch.nn.Module):
         after_len  = prompt_lens - audio_pos - 1                # [B]
         logger.debug(f"before_len = {before_len}")
         logger.debug(f"after_len = {after_len}")
-        # batch indices
-        batch_idx = torch.arange(B, device=device)
 
         # ----------------------------
         # 6) Insert prompt embeddings BEFORE audio
@@ -496,6 +494,7 @@ class AudioToLLM(torch.nn.Module):
         texts = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)
         for i,text in enumerate(texts):
             logger.debug(f"Generated text[{i}]: {texts[i]}")
+
         return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
     
 class StopOnEOSFirst(StoppingCriteria):

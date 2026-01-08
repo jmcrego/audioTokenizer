@@ -92,11 +92,9 @@ if __name__ == "__main__":
         file_path=args.test,
         tokenizer=model.tokenizer,
         audio_token=config["llm"]["audio_token"],
-        asr_token=config['llm']['asr_token'],
-        stt_token=config['llm']['stt_token'],
         sample_rate=model.audio_embedder.sample_rate,
         downsample_ratio=model.audio_embedder.downsample_ratio,
-        stack_size=config["projector"]["stack_size"],
+        conv_stride=config["projector"]["conv_stride"],
         max_seq_len=args.max_seq_len
     )
 

@@ -21,6 +21,7 @@ class Backbone(torch.nn.Module):
         ###### Tokenizer ##################################################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         logger.info(f"Loaded Tokenizer from {llm_path}")
+        logger.info(f"eos_token is: {self.tokenizer.eos_token}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             logger.info(f"Set pad_token to eos_token: {self.tokenizer.pad_token}")

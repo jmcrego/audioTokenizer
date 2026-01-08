@@ -40,7 +40,7 @@ def save(args):
     audio_times = [x["audio_time"] for x in data]
 
     meta = {
-        "num_samples": len(lengths),
+        "num_samples": len(data),
         "max_seq_len": args.max_seq_len,
         "tokenizer": args.tokenizer,
         "sample_rate": args.sample_rate,
@@ -68,8 +68,6 @@ def save(args):
         json.dump(meta, f, indent=2)
 
     logger.info("Done.")
-
-def load(data_file):
 
 
 if __name__ == "__main__":

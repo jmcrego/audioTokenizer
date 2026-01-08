@@ -5,13 +5,13 @@ import logging
 import numpy as np
 import soundfile as sf
 from collections import defaultdict
+from typing import Iterator, List, Dict, Optional
 
-from torch.utils.data import Dataset, Sampler
+from torch.utils.data import Dataset, BatchSampler
 from transformers import PreTrainedTokenizerBase
 
-logger = logging.getLogger("Dataset")
 
-WHISPER_FRAMES = 1500
+logger = logging.getLogger("Dataset")
 
 code2lang={
     "fr": "French",
@@ -22,17 +22,55 @@ code2lang={
     "ru": "Russian",
 }
 
-def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, asr_text=None):
+def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, downsample_ratio=160):
+    """
+    Estimate number of tokens produced from an audio file
+    after audio embedding + projection.
+    """
+    #whisper (always 1500 frames)
+    if downsample_ratio == 160: 
+        return (1500 + conv_stride - 1) // conv_stride
+    
+    # wav2vec OR mhubert
+    n_samples = int(duration * sample_rate)
+
+    # number of frame-level embeddings
+    # (audio encoder internal downsampling)
+    n_frames = (n_samples + downsample_ratio - 1) // downsample_ratio
+
+    # number of tokens after stacking frames
+    n_tokens = (n_frames + conv_stride - 1) // conv_stride
+
+    return n_tokens
+
+
+def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, asr=None):
+    """
+    Build a chat-style prompt for speech processing tasks.
+
+    Supports:
+    - ASR: transcribing speech into text.
+    - STT: transcribing speech and translating it into a target language.
+
+    Args:
+        audio_token (str): Placeholder token representing the audio input.
+        src_lang (str): Source language of the speech (required).
+        tgt_lang (str, optional): Target language for translation.
+        asr (str, optional): Transcription text, required if tgt_lang is provided.
+
+    Returns:
+        str: Formatted prompt compatible with chat-based LLMs.
+
+    Raises:
+        ValueError: If src_lang is not provided, or if tgt_lang is provided without asr.
+    """    
     if src_lang is None:
         raise ValueError("Source language must be provided")
-
-    src_lang_name = code2lang.get(src_lang, src_lang)
-    tgt_lang_name = code2lang.get(tgt_lang, tgt_lang) if tgt_lang else None
 
     # ASR: first step
     prompt = (
         f"<|im_start|>system\n"
-        f"You are a professional {src_lang_name} interpreter.\n"
+        f"You are a professional {src_lang} interpreter.\n"
         f"<|im_end|>\n"
         f"<|im_start|>user\n"
         f"Transcribe the following speech:\n"
@@ -41,34 +79,141 @@ def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, asr_t
         f"<|im_start|>assistant\n"
     )
 
-    if asr_text is not None and tgt_lang_name is not None:
+    if tgt_lang is not None:
         # STT: second step
+        if asr is None:
+            raise ValueError("asr must be provided")
         prompt += (
-            f"{asr_text}\n"
-            f"Translate into {tgt_lang_name}:\n"
+            f"{asr}\n"
+            f"Translate into {tgt_lang}:\n"
         )
 
     return prompt
 
 
 def build_target(asr=None, stt=None):
+    """
+    Build the training target corresponding to an ASR or STT prompt.
+
+    If a translation (stt) is provided, it is used as the target.
+    Otherwise, the transcription (asr) is used.
+
+    Args:
+        asr (str, optional): Transcription of the audio.
+        stt (str, optional): Translation of the transcription.
+
+    Returns:
+        str: Target text terminated with an end-of-turn token.
+
+    Raises:
+        ValueError: If neither asr nor stt is provided.
+    """
     if stt is not None:
         return f"{stt.strip()}\n<|im_end|>"
-
     if asr is not None:
         return f"{asr.strip()}\n<|im_end|>"
-
     raise ValueError("Either asr or stt must be provided")
 
 
-class BatchedLengthSampler(Sampler):
+def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"):
+    """
+    Read ASR and STT samples from a TSV file and build training examples.
+
+    Each line in the file must contain either:
+    - 3 fields: audio_path, source_language, transcription (ASR)
+    - 5 fields: audio_path, source_language, transcription, target_language, translation (STT)
+
+    The function validates audio files, constructs prompts and targets,
+    and returns a list of samples suitable for training chat-based LLMs.
+
+    Args:
+        path (str): Path to the TSV file.
+        max_duration (float): Maximum duration for an audio file.
+        sep (str): Field separator used in the TSV file.
+
+    Returns:
+        list[dict]: A list of samples with audio metadata, prompt, and target text.
+    """    
+    samples = []
+
+    with open(path, "r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            fields= line.rstrip("\n").split(sep)
+
+            if len(fields) not in (3, 5):
+                logger.warning(f"{path}:{line_no} expected 3 or 5 fields, got {len(fields)}")
+                continue
+
+            audio_path = fields[0]
+
+            try:
+                info = sf.info(audio_path)
+                if not info.duration:
+                    logger.warning(f"{path}:{line_no} invalid duration in audio file")
+                    continue
+                if info.duration > max_duration:
+                    logger.warning(f"{path}:{line_no} audio file duration={info.duration} exceeds max_duration ({max_duration})")
+                    continue
+
+            except Exception as e:
+                logger.warning(f"{path}:{line_no} failed to read audio: {e}")
+                continue                
+
+            src_lang = code2lang.get(fields[1], "")
+            asr = fields[2].strip()
+
+            if not src_lang or not asr:
+                logger.warning(f"{path}:{line_no} bad src_lang or empty asr")
+                continue
+
+            if len(fields) == 5: #STT 
+                tgt_lang = code2lang.get(fields[3], "")
+                stt = fields[4].strip()
+                if not tgt_lang or not stt:
+                    logger.warning(f"{path}:{line_no} bad tgt_lang or empty asr")
+                    continue
+
+            else: #ASR
+                tgt_lang = None
+                stt = None
+
+            sample = {
+                "audio_path": audio_path,
+                "src_lang": src_lang,
+                "asr": asr,
+                "duration": info.duration,
+                "tgt_lang": tgt_lang,
+                "stt": stt,
+            }
+
+            samples.append(sample)
+
+    logger.info(f"samples: {len(samples)}")
+    stt_count = sum(1 for x in samples if x["stt"] is not None)
+    logger.info("### Task stats ###")
+    logger.info(f"ASR samples: {len(samples) - stt_count}")
+    logger.info(f"STT samples: {stt_count}")
+
+    if samples:
+        durations = [x["duration"] for x in samples]
+        total_duration = sum(durations)
+        logger.info("### Audio duration stats ###")
+        logger.info(f"sum: {total_duration}")
+        logger.info(f"max: {max(durations)}")
+        logger.info(f"min: {min(durations)}")
+        logger.info(f"avg: {total_duration / len(durations)}")
+
+    return samples
+
+
+class BatchedLengthSampler(BatchSampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
 
         if not shuffle:
-            self.all_indices = list(range(len(dataset)))
+            self.indices = list(range(len(dataset)))
 
         else:
             # Extract total_length for each sample
@@ -128,76 +273,44 @@ class Dataset(Dataset):
         #random seed for reproducibility
         np.random.seed(seed)
 
-        self.tasks = defaultdict(int)
-        total_audio_time = 0.
+        self.data = read_samples_from_tsv(path=file_path, audio_token=audio_token, sep="\t")
+        for idx in range(len(self.data)):
+            sample = self.data[idx]
+            asr = sample['asr']
+            src_lang = sample['src_lang']
+            stt = sample['stt']
+            tgt_lang = sample['tgt_lang']
 
-        self.data = []
-        with open(file_path, "r", encoding="utf-8") as f:
-            for i,line in enumerate(f):
-                parts = line.strip("\n").split("\t")
-                if len(parts) < 5:
-                    continue
-                audio_path, src_lang, asr, tgt_lang, stt = parts[:5]
+            prompt = build_prompt(audio_token=audio_token, src_lang=src_lang, tgt_lang=tgt_lang, asr=asr)
+            prompt_ids = tokenizer(prompt, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                task = "asr+stt" if asr and stt else "asr" if asr else "stt" if stt else None
-                self.tasks[task] += 1
+            target = build_target(asr=asr, stt=stt)
+            target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-                src_lang = src_lang if src_lang else None
-                tgt_lang = tgt_lang if tgt_lang else None
+            duration = self.data[idx]["duration"]
+            n_tokens_audio = audio_length_in_embeddings(duration, conv_stride=self.conv_stride, sample_rate=self.sample_rate, downsample_ratio=self.downsample_ratio)
 
-                prompt = build_prompt(src_lang, tgt_lang, audio_token=self.audio_token)
-                prompt_ids = tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    padding=False,
-                    truncation=False,
-                    add_special_tokens=False,
-                ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
+            self.data[idx]["prompt_ids"] = prompt_ids
+            self.data[idx]["target_ids"] = target_ids
+            self.data[idx]["total_length"] = n_tokens_audio + len(prompt_ids) + len(target_ids)
 
-                target = build_target(asr, stt)
-                target_ids = tokenizer(
-                    target,
-                    return_tensors="pt",
-                    padding=False,
-                    truncation=False,
-                    add_special_tokens=False,
-                ).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
+            if idx % 50000 == 0:
+                # Map prompt_ids to tokens
+                prompt_tokens = tokenizer.convert_ids_to_tokens(prompt_ids)
+                prompt_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(prompt_ids.tolist(), prompt_tokens))
 
-                if i % 50000 == 0:
-                    # Map prompt_ids to tokens
-                    prompt_tokens = tokenizer.convert_ids_to_tokens(prompt_ids)
-                    prompt_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(prompt_ids.tolist(), prompt_tokens))
+                # Map target_ids to tokens
+                target_tokens = tokenizer.convert_ids_to_tokens(target_ids)
+                target_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(target_ids.tolist(), target_tokens))
 
-                    # Map target_ids to tokens
-                    target_tokens = tokenizer.convert_ids_to_tokens(target_ids)
-                    target_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(target_ids.tolist(), target_tokens))
-
-                    logger.info(
-                        f"sample={i}\n"
-                        f"### prompt #######\n{prompt}\n"
-                        f"### target #######\n{target}\n"
-                        f"### prompt_ids ###\n{prompt_mapping}\n"
-                        f"### target_ids ###\n{target_mapping}\n"
-                        f"##################"
-                    )
-
-                audio_time, n_audio = self.audio_length_in_embeddings(audio_path)
-                total_audio_time += audio_time
-                total_length = n_audio + len(prompt_ids) + len(target_ids)
-                if total_length > max_seq_len:
-                    logger.info(f"Skipped audio by len={n_audio} {audio_path}")
-                    continue
-
-                self.data.append({
-                    "audio_path": audio_path,
-                    "prompt_ids": prompt_ids,
-                    "target_ids": target_ids,
-                    "total_length": total_length,
-                    "audio_time": audio_time,
-                })
-                
-            logger.info(f"Read dataset {file_path} with {len(self.data)} samples ({dict(self.tasks)}) audio length is {total_audio_time} sec.")
-
+                logger.info(
+                    f"sample={idx}\n"
+                    f"### prompt #######\n{prompt}\n"
+                    f"### target #######\n{target}\n"
+                    f"### prompt_ids ###\n{prompt_mapping}\n"
+                    f"### target_ids ###\n{target_mapping}\n"
+                    f"##################"
+                )
 
     def __len__(self):
         return len(self.data)
@@ -205,36 +318,6 @@ class Dataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
         return item
-
-
-    def audio_length_in_embeddings(self, filepath):
-        """
-        Estimate number of tokens produced from an audio file
-        after audio embedding + projection.
-        """
-        try:
-            info = sf.info(filepath)
-            if not info.duration:
-                return 0, 0
-            
-            if self.downsample_ratio == 160: #whisper (this should be better done!!)
-                n_tokens = (WHISPER_FRAMES + self.conv_stride - 1) // self.conv_stride
-                return info.duration, n_tokens
-
-            # total audio samples
-            n_samples = int(info.duration * self.sample_rate)
-
-            # number of frame-level embeddings
-            # (audio encoder internal downsampling)
-            n_frames = (n_samples + self.downsample_ratio - 1) // self.downsample_ratio
-
-            # number of tokens after stacking frames
-            n_tokens = (n_frames + self.conv_stride - 1) // self.conv_stride
-
-            return info.duration, n_tokens
-
-        except Exception:
-            return 0, 0
 
 
 if __name__ == "__main__":
@@ -262,5 +345,5 @@ if __name__ == "__main__":
             n_prompt = len(e["prompt_ids"])
             n_target = len(e["target_ids"])
             n_audio = e["total_length"] - n_prompt - n_target
-            audio_time = e["audio_time"]
-            print(f"\tidx={id}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}, audio_time={audio_time}")
+            duration = e["duration"]
+            print(f"\tidx={id}\tn_audio={n_audio}, n_prompt={n_prompt}, n_target={n_target}, n_total={e['total_length']}, duration={duration}")

@@ -1,0 +1,123 @@
+#build_audio_cache.py
+
+import argparse
+from tqdm import tqdm
+import itertools
+import logging
+import string
+import torch
+import json
+import os
+
+from Dataset import read_samples_from_tsv
+from Embedder import Embedder
+
+logger = logging.getLogger("build_audio_cache")
+
+def process_batch(audio_embedder, samples, batch, cache_dir):
+    # batch is a list with idx's in samples to embed
+    audio_paths = [samples[idx]["audio_path"] for idx in batch]
+
+    with torch.no_grad():
+        audio_embs, audio_mask = audio_embedder(audio_paths)
+
+    audio_embs = audio_embs.cpu().contiguous()
+    audio_mask = audio_mask.cpu().contiguous()
+
+    for i, idx in enumerate(batch):
+        pt_path = os.path.join(cache_dir, f"{idx:09d}.pt")
+        torch.save({"audio_embs": audio_embs[i], "audio_mask": audio_mask[i]}, pt_path)
+        samples[idx]["pt_path"] = f"{idx:09d}.pt"
+        samples[idx]["n_audio_embs"] = int(audio_mask[i].sum().item())
+
+
+def build_audio_cache(
+        tsv_path,
+        cache_dir,
+        embedder_path,
+        device,
+        dtype,
+        batch_size):
+
+    os.makedirs(cache_dir, exist_ok=True)
+
+    # Initialize embedder
+    audio_embedder = Embedder(config={'path': embedder_path})
+    audio_embedder.to(device, dtype=getattr(torch, dtype))
+    audio_embedder.eval()
+
+    # Read TSV samples
+    samples = read_samples_from_tsv(tsv_path)
+
+    # Prepare batches
+    batch = []
+
+    for idx in tqdm(range(len(samples)), total=len(samples), desc="Process audio samples", unit="sample", unit_scale=True):
+
+        pt_path = os.path.join(cache_dir, f"{idx:09d}.pt")
+
+        if os.path.exists(pt_path):
+            try:
+                data = torch.load(pt_path, map_location="cpu")
+                samples[idx]["pt_path"] = f"{idx:09d}.pt"
+                samples[idx]["n_audio_embs"] = int(data["audio_mask"].sum().item())
+                continue
+            except Exception:
+                logger.warning(f"Corrupted cache: {pt_path}, recomputing")
+    
+        batch.append(idx)
+        # Process batch
+        if len(batch) == batch_size:
+            process_batch(audio_embedder, samples, batch, cache_dir)
+            batch = []
+
+    # Process any remaining files
+    if batch:
+        process_batch(audio_embedder, samples, batch, cache_dir)
+
+
+    logger.info(f"Saved {len(samples)} .pt files in {cache_dir}")
+
+    # Save mapping with metadata
+    meta_path = os.path.join(cache_dir, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "embedder": {
+                "path": embedder_path,
+                "dtype": dtype,
+                "device": str(device),
+            },
+            "samples": [{
+                "audio_path": s["audio_path"],
+                "pt_path": s["pt_path"],
+                "duration": s["duration"],
+                "n_audio_embs": s["n_audio_embs"],
+                "src_lang": s["src_lang"],
+                "asr": s["asr"],
+                "tgt_lang": s.get("tgt_lang"),
+                "stt": s.get("stt"),
+            } for s in samples],
+        }, f, indent=2)
+
+    logger.info(f"Saved {meta_path}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (batched)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
+    parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store .pt files and mapping.json")
+    parser.add_argument("--audio_embedder", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium" help="Path of audio embedder")
+    parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
+    parser.add_argument("--dtype", type=str, default="float32", help="Torch dtype for embeddings")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for audio embedding")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    build_audio_cache(
+        args.tsv_path,
+        args.cache_dir,
+        args.embedder_path,
+        args.device,
+        args.dtype,
+        args.batch_size)

@@ -13,7 +13,7 @@ logger = logging.getLogger("Embedder")
 # torch.backends.cuda.matmul.allow_tf32 = True
 # torch.backends.cudnn.benchmark = True
 
-def preprocess_audio(audio_input, sample_rate=None, channel=0):
+def preprocess_audio(audio_input, sample_rate=None, channel=-1, norm=True):
     """
     Load audio from:
       - file path (str)
@@ -33,8 +33,19 @@ def preprocess_audio(audio_input, sample_rate=None, channel=0):
         sr = sample_rate
     else:
         raise ValueError("audio_input must be a path or np.ndarray")
+    logger.debug(f"preprocess: loaded wav shape={wav.shape}, sr={sr}")
 
-    logger.debug(f"preprocess: input wav shape={wav.shape}, sr={sr}")
+    # -----------------------------
+    # Convert to numpy float32
+    # -----------------------------
+    wav = wav.astype(np.float32)
+
+    # -----------------------------
+    # Normalize to [-1,1] if needed (Whisper expects this)
+    # -----------------------------
+    if norm:
+        wav /= np.abs(wav).max() + 1e-9  # prevents div by zero
+        logger.debug(f"preprocess: normalized to [-1, 1]")
 
     # -----------------------------
     # Convert to mono
@@ -44,19 +55,14 @@ def preprocess_audio(audio_input, sample_rate=None, channel=0):
             wav = wav.mean(axis=1)                  # [T]
         else:
             wav = wav[:, channel]                   # [T]
-        logger.debug(f"preprocess: convert to mono wav shape={wav.shape}")
+        logger.debug(f"preprocess: converted to mono wav shape={wav.shape} using channel {channel}")
 
     # -----------------------------
     # Resample if needed
     # -----------------------------
     if sample_rate is not None and sr != sample_rate:
         wav = soxr.resample(wav, sr, sample_rate)
-        logger.debug(f"preprocess: resampled to {sample_rate} wav shape={wav.shape}")
-
-    # -----------------------------
-    # Convert to numpy float32
-    # -----------------------------
-    wav = wav.astype(np.float32)
+        logger.debug(f"preprocess: resample to {sample_rate} wav shape={wav.shape}")
 
     return wav
 
