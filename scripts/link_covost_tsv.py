@@ -104,7 +104,7 @@ def main():
                 path1 = Path(args.cv) / src_lang / 'clips' / row[1]
                 fname = path1.name
 
-                if not "/" in str(path1):
+                if not "/" in str(row[1]):
                     print(f"BAD {row}")
                     print(f"BAD {str(path1)}")
 
