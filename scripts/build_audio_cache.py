@@ -25,8 +25,13 @@ def process_batch(audio_embedder, samples, batch, cache_dir, device, dtype):
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
             audio_embs, audio_mask = audio_embedder(audio_paths)
 
+        # move batch to CPU once
+        audio_embs_cpu = audio_embs.cpu().contiguous()
+        audio_mask_cpu = audio_mask.cpu().contiguous()
+
     for i, idx in enumerate(batch):
         pt_path = os.path.join(cache_dir, f"{idx:09d}.pt")
+
         #To avoid partially written .pt files if killed mid-save:
         tmp_path = pt_path + ".tmp"
         torch.save({"audio_embs": audio_embs[i].cpu(), "audio_mask": audio_mask[i].cpu()}, tmp_path, _use_new_zipfile_serialization=False)
