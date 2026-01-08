@@ -17,12 +17,13 @@ from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
 
-def process_batch(audio_embedder, samples, batch, cache_dir):
+def process_batch(audio_embedder, samples, batch, cache_dir, device, dtype):
     # batch is a list with idx's in samples to embed
     audio_paths = [samples[idx]["audio_path"] for idx in batch]
 
     with torch.no_grad():
-        audio_embs, audio_mask = audio_embedder(audio_paths)
+        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
+            audio_embs, audio_mask = audio_embedder(audio_paths)
 
     audio_embs = audio_embs.cpu().contiguous()
     audio_mask = audio_mask.cpu().contiguous()
@@ -74,12 +75,12 @@ def build_audio_cache(
         batch.append(idx)
         # Process batch
         if len(batch) == batch_size:
-            process_batch(audio_embedder, samples, batch, cache_dir)
+            process_batch(audio_embedder, samples, batch, cache_dir, device, dtype)
             batch = []
 
     # Process any remaining files
     if batch:
-        process_batch(audio_embedder, samples, batch, cache_dir)
+        process_batch(audio_embedder, samples, batch, cache_dir, device, dtype)
 
 
     logger.info(f"Saved {len(samples)} .pt files in {cache_dir}")
@@ -125,5 +126,5 @@ if __name__ == "__main__":
         args.cache_dir,
         args.embedder_path,
         args.device,
-        args.dtype,
+        getattr(torch, dtype),
         args.batch_size)
