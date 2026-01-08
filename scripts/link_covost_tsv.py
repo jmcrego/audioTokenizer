@@ -54,7 +54,6 @@ def read_audio_files(mp3_dir, name2entry):
         if path.name not in name2entry:
             continue
         name2path[path.name] = path   # name = filename name (not path)
-        print(f"name2path {path.name} {path}")
     return name2path
 
 def main():
@@ -103,9 +102,12 @@ def main():
                     continue
 
                 path = Path(args.cv) / src_lang / 'clips' / row[1]
+                if not path.beginswith("/"):                    
+                    print(f"{row}")
+
                 fname = path.name
 
-                #if path in seen:                                                                                                                                                                                                                                                                 
+                #if path in seen:
                 if str(fname) in seen:
                     #print(f"Repeated entry {fname}")
                     continue
