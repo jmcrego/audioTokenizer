@@ -53,6 +53,10 @@ def read_audio_files(mp3_dir, name2entry):
             continue
         if path.name not in name2entry:
             continue
+        if not "/" in str(path):
+            print(f"BAD {str(path)}")
+            continue
+
         name2path[path.name] = path   # name = filename name (not path)
     return name2path
 
@@ -119,11 +123,6 @@ def main():
 
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
-                    if not "/" in str(row[1]) or not "/" in str(path):
-                        print(f"BAD {row}")
-                        print(f"BAD {str(path)}")
-                        continue
-
                     entry = name2entry[fname]
                     transl = entry[1]
                     split = entry[2]
