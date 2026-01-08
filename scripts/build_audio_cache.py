@@ -112,7 +112,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (batched)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store .pt files and mapping.json")
-    parser.add_argument("--audio_embedder", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="Path of audio embedder")
+    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="Path of audio embedder")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float32", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for audio embedding")
