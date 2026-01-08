@@ -70,7 +70,6 @@ def build_audio_cache(
     for idx in tqdm(range(len(samples)), total=len(samples), desc="Process audio samples", unit="sample"):
 
         # Skip if already cached
-        pt_path_tmp = os.path.join(cache_dir, f"bucket_*")  # placeholder
         existing_pt = samples[idx].get("pt_path")
         if existing_pt and os.path.exists(os.path.join(cache_dir, existing_pt)):
             continue
