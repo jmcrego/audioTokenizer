@@ -34,11 +34,7 @@ def process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, d
     # save bucket
     pt_path = os.path.join(cache_dir, f"bucket_{bucket_id:06d}.pt")
     tmp_path = pt_path + ".tmp"
-    torch.save({
-        "audio_embs": audio_embs_cpu,   # shape [bucket_size, ...]
-        "audio_mask": audio_mask_cpu,   # shape [bucket_size, ...]
-        # "indices": bucket_indices       # original sample indices
-    }, tmp_path, _use_new_zipfile_serialization=False)
+    torch.save({ "audio_embs": audio_embs_cpu, "audio_mask": audio_mask_cpu}, tmp_path, _use_new_zipfile_serialization=False)
     os.replace(tmp_path, pt_path)
 
     # update sample metadata
