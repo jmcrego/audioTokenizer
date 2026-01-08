@@ -26,7 +26,10 @@ def process_batch(audio_embedder, samples, batch, cache_dir):
 
     for i, idx in enumerate(batch):
         pt_path = os.path.join(cache_dir, f"{idx:09d}.pt")
-        torch.save({"audio_embs": audio_embs[i], "audio_mask": audio_mask[i]}, pt_path)
+        #To avoid partially written .pt files if killed mid-save:
+        tmp_path = pt_path + ".tmp"
+        torch.save({"audio_embs": audio_embs[i], "audio_mask": audio_mask[i]}, tmp_path)
+        os.replace(tmp_path, pt_path)
         samples[idx]["pt_path"] = f"{idx:09d}.pt"
         samples[idx]["n_audio_embs"] = int(audio_mask[i].sum().item())
 

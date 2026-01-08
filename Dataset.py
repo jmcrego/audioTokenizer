@@ -1,5 +1,7 @@
 # Dataset.py
 
+import os
+import json
 import torch
 import logging
 import numpy as np
@@ -206,12 +208,37 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
     return samples
 
 
+def log_sample(samples, idx, prompt, target, tokenizer):
+    prompt_ids = samples[idx]["prompt_ids"]
+    target_ids = samples[idx]["target_ids"]
+
+    # Map prompt_ids to tokens
+    prompt_tokens = tokenizer.convert_ids_to_tokens(prompt_ids)
+    prompt_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(prompt_ids.tolist(), prompt_tokens))
+
+    # Map target_ids to tokens
+    target_tokens = tokenizer.convert_ids_to_tokens(target_ids)
+    target_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(target_ids.tolist(), target_tokens))
+
+    logger.info(
+        f"### idx={idx} #######\n"
+        f"### prompt #######\n{prompt}\n"
+        f"### target #######\n{target}\n"
+        f"### prompt_ids ###\n{prompt_mapping}\n"
+        f"### target_ids ###\n{target_mapping}\n"
+        f"##################"
+    )
+
 class BatchedLengthSampler(BatchSampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
 
+        """
+        When shuffle is False, batches are build without sorting
+        When shuffle is True, batches are build using the 'total_length' field of the dataset
+        """
         if not shuffle:
             self.indices = list(range(len(dataset)))
 
@@ -220,11 +247,7 @@ class BatchedLengthSampler(BatchSampler):
             lengths = np.array([s["total_length"] for s in dataset])
 
             # sort indices by length
-            if self.shuffle:
-                sorted_indices = np.argsort(lengths)
-                #sorted_lengths = lengths[sorted_indices]
-            else:
-                sorted_indices = np.arange(len(lengths))
+            sorted_indices = np.argsort(lengths)
 
             # Create batches of sorted indices (contain samples of similar lengths)
             batches = [
@@ -233,8 +256,7 @@ class BatchedLengthSampler(BatchSampler):
             ]
 
             # Randomize batches
-            if self.shuffle:
-                np.random.shuffle(batches)
+            np.random.shuffle(batches)
 
             # flat list of indices
             self.indices = np.concatenate(batches) #[idx for batch in batches for idx in batch]
@@ -250,67 +272,61 @@ class BatchedLengthSampler(BatchSampler):
 class Dataset(Dataset):
     """
     PyTorch Dataset for audio-to-LLM SFT training.
-    Builds prompt/target, estimates audio token lengths, and filters by max_seq_len.
     """
     def __init__(
         self,
         file_path: str,
         tokenizer,
         audio_token="<extra_id_0>",
-        sample_rate=16000,
-        downsample_ratio=320,
-        conv_stride=30,
-        max_seq_len=1000,
+        # sample_rate=16000,
+        # downsample_ratio=320,
+        # conv_stride=30,
+        # max_seq_len=1000,
         seed=42,
     ):
-        self.tokenizer = tokenizer
-        self.audio_token = audio_token
-        self.sample_rate = sample_rate
-        self.downsample_ratio = downsample_ratio
-        self.conv_stride = conv_stride
-        self.max_seq_len = max_seq_len
+        """
+        Read audio embedding cache metadata.
+
+        Args:
+            file_path (str): Path to meta.json
+            cache_dir (str): Directory containing .pt embedding files
+
+        Returns:
+            dict with keys:
+                - embedder: embedder configuration
+                - samples: list of samples with resolved pt_path
+        """
 
         #random seed for reproducibility
         np.random.seed(seed)
 
-        self.data = read_samples_from_tsv(path=file_path, audio_token=audio_token, sep="\t")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"meta.json not found: {file_path}")
+
+        if file_path.endswith('.json'):
+            with open(file_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            self.data = meta["samples"]
+        else:
+            self.data = read_samples_from_tsv(file_path)
+
         for idx in range(len(self.data)):
             sample = self.data[idx]
-            asr = sample['asr']
-            src_lang = sample['src_lang']
-            stt = sample['stt']
-            tgt_lang = sample['tgt_lang']
 
-            prompt = build_prompt(audio_token=audio_token, src_lang=src_lang, tgt_lang=tgt_lang, asr=asr)
+            prompt = build_prompt(audio_token=audio_token, src_lang=sample['src_lang'], tgt_lang=sample['tgt_lang'], asr=sample["asr"] if sample.get("tgt_lang") else None)
             prompt_ids = tokenizer(prompt, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
-
-            target = build_target(asr=asr, stt=stt)
-            target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
-
-            duration = self.data[idx]["duration"]
-            n_tokens_audio = audio_length_in_embeddings(duration, conv_stride=self.conv_stride, sample_rate=self.sample_rate, downsample_ratio=self.downsample_ratio)
-
             self.data[idx]["prompt_ids"] = prompt_ids
+
+            target = build_target(asr=sample['asr'], stt=sample['stt'])
+            target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["target_ids"] = target_ids
-            self.data[idx]["total_length"] = n_tokens_audio + len(prompt_ids) + len(target_ids)
+
+            if "n_audio_embs" in sample:
+                n_tokens_audio = sample['n_audio_embs']
+                self.data[idx]["total_length"] = n_tokens_audio + len(prompt_ids) + len(target_ids)
 
             if idx % 50000 == 0:
-                # Map prompt_ids to tokens
-                prompt_tokens = tokenizer.convert_ids_to_tokens(prompt_ids)
-                prompt_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(prompt_ids.tolist(), prompt_tokens))
-
-                # Map target_ids to tokens
-                target_tokens = tokenizer.convert_ids_to_tokens(target_ids)
-                target_mapping = ", ".join(f"{id_}:'{tok}'" for id_, tok in zip(target_ids.tolist(), target_tokens))
-
-                logger.info(
-                    f"sample={idx}\n"
-                    f"### prompt #######\n{prompt}\n"
-                    f"### target #######\n{target}\n"
-                    f"### prompt_ids ###\n{prompt_mapping}\n"
-                    f"### target_ids ###\n{target_mapping}\n"
-                    f"##################"
-                )
+                log_sample(self.data, idx, prompt, target, tokenizer)
 
     def __len__(self):
         return len(self.data)
