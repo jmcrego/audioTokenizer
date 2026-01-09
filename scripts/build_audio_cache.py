@@ -9,10 +9,10 @@ import time
 
 from transformers import AutoTokenizer
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from Dataset import read_samples_from_tsv, build_prompt, build_target
 from Embedder import Embedder
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = logging.getLogger("build_audio_cache")
 
