@@ -33,7 +33,7 @@ def read_covost_tsv(tsv_path):
     """
     name2entry = {}
 
-    with open(tsv_path, "r", encoding="utf-8") as f:
+    with open(tsv_path, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
 
         expected_fields = {"path", "translation", "split"}
