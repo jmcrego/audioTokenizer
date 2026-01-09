@@ -111,7 +111,7 @@ def main():
         writer = csv.writer(fdo, delimiter="\t")
 
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
-            print(f"Parsing file {cv_tsv}")
+            #print(f"Parsing file {cv_tsv}")
             linked_in_file = 0
 
             with open(cv_tsv, "r", encoding="utf-8", newline="") as f:
