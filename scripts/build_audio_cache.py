@@ -93,7 +93,7 @@ def build_audio_cache(
     logger.info(f"Read {len(samples)} samples from {tsv_path}")
 
     # Build prompts, targets, and tokenized lengths
-    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit="sample"):
+    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr"))
         target = build_target(asr=s.get("asr"), stt=s.get("stt"))
         s["seq_len"] = len(tokenizer(prompt, target, add_special_tokens=False)["input_ids"])
@@ -108,7 +108,7 @@ def build_audio_cache(
     t_embedding = 0.0
     t_saving = 0.0
 
-    for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit="sample"):
+    for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit=" sample"):
 
         batch_indices.append(idx)
 
