@@ -24,7 +24,42 @@ def get_langs(file):
     tgt_lang = parts[0] if len(parts) > 1 else tgt_lang
     return src_lang, tgt_lang
 
-def read_covost_tsv(file):
+def read_covost_tsv(tsv_path):
+    """
+    Read CoVoST TSV with columns:
+    path    translation     split
+    """
+    name2entry = {}
+
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+
+        expected_fields = {"path", "translation", "split"}
+        if not expected_fields.issubset(reader.fieldnames):
+            raise ValueError(
+                f"Invalid TSV header. Expected {expected_fields}, got {reader.fieldnames}"
+            )
+
+        for nrow, row in enumerate(reader, start=2):  # start=2 (line after header)
+            path = row["path"].strip()
+            translation = row["translation"].strip()
+            split = row["split"].strip()
+
+            if not path:
+                continue
+
+            if path in name2entry:
+                raise ValueError(f"Duplicate entry for '{path}' at line {nrow}")
+
+            name2entry[path] = {
+                "translation": translation,
+                "split": split,
+            }
+
+    print(f"Found {len(name2entry)} entries in {tsv_path}")
+    return name2entry
+
+def read_covost_tsv_old(file):
     # Read CoVoST TSV (translation table)
     name2entry = {}
 
