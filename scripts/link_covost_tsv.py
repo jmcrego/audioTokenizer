@@ -62,40 +62,46 @@ def read_covost_tsv(tsv_path):
 
     return name2entry
 
+def read_covost_tsv_linewise(tsv_path):
+    """
+    Robust TSV parser for broken CoVoST files.
+    Enforces: one physical line = one entry.
+    """
+    name2entry = {}
 
-    # with open(tsv_path, "r", encoding="utf-8") as f:
-    #     text = f.read().replace("\r\n", "\n").replace("\r", "\n")
-    #     f_like = io.StringIO(text)
-    #     reader = csv.DictReader(f_like, delimiter="\t")
+    with open(tsv_path, "r", encoding="utf-8", errors="replace") as f:
+        for lineno, line in enumerate(f, start=1):
+            line = line.rstrip("\n")
 
-    # # with open(tsv_path, "r", encoding="utf-8", newline="") as f:
-    # #     reader = csv.DictReader(f, delimiter="\t")
+            if not line:
+                continue
 
-    #     expected_fields = {"path", "translation", "split"}
-    #     if not expected_fields.issubset(reader.fieldnames):
-    #         raise ValueError(
-    #             f"Invalid TSV header. Expected {expected_fields}, got {reader.fieldnames}"
-    #         )
+            parts = line.split("\t")
 
-    #     for nrow, row in enumerate(reader, start=2):  # start=2 (line after header)
-    #         path = row["path"].strip()
-    #         translation = row["translation"].strip()
-    #         split = row["split"].strip()
+            # Expect exactly 3 columns
+            if len(parts) != 3:
+                # malformed line → skip
+                continue
 
-    #         if not path:
-    #             continue
+            path, translation, split = parts
 
-    #         if path in name2entry:
-    #             raise ValueError(f"Duplicate entry for '{path}' at line {nrow}")
+            path = path.strip()
+            translation = translation.strip()
+            split = split.strip()
 
-    #         name2entry[path] = {
-    #             "translation": translation,
-    #             "split": split,
-    #         }
+            if not path or not translation or not split:
+                continue
 
-    # # print(f"Found {len(name2entry)} entries in {tsv_path}")
-    # return name2entry
+            # Guard against hidden newlines (paranoia)
+            if any("\n" in x for x in (path, translation, split)):
+                continue
 
+            name2entry[path] = {
+                "translation": translation,
+                "split": split,
+            }
+
+    return name2entry
 
 def read_audio_files(mp3_dir, name2entry):
     name2path = {}
@@ -125,7 +131,7 @@ def main():
     # ------------------------------------------------------------------
     # Load CoVoST translation table
     # ------------------------------------------------------------------
-    name2entry = read_covost_tsv(args.tsv)
+    name2entry = read_covost_tsv_linewise(args.tsv)
     print(f"Loaded {len(name2entry)} CoVoST entries")
 
     # ------------------------------------------------------------------
