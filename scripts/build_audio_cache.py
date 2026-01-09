@@ -1,5 +1,3 @@
-# build_audio_cache.py
-
 import argparse
 from tqdm import tqdm
 import logging
@@ -8,145 +6,193 @@ import json
 import os
 import sys
 import time
-from collections import defaultdict
+
+from transformers import AutoTokenizer
+
+from Dataset import read_samples_from_tsv, build_prompt, build_target
+from Embedder import Embedder
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from Dataset import read_samples_from_tsv
-from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
 
 
-def process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, dtype, bucket_id):
+def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     """
-    Process a list of sample indices (bucket) and save all embeddings in a single .pt file.
+    Embed audio for a batch of indices.
+    Returns embeddings on CPU.
     """
-    audio_paths = [samples[idx]["audio_path"] for idx in bucket_indices]
+    audio_paths = [samples[idx]["audio_path"] for idx in batch_indices]
+
+    tic = time.time()
+    with torch.no_grad():
+        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
+            audio_embs, _ = audio_embedder(audio_paths)  # Whisper: ignore mask
+    tac = time.time()
+
+    return audio_embs.cpu().contiguous(), tac - tic
+
+
+def split_batch(batch_indices, audio_embs):
+    """
+    Convert batch embeddings into a list of (index, embedding) tuples.
+    """
+    return [(idx, audio_embs[i]) for i, idx in enumerate(batch_indices)]
+
+
+def save_bucket(samples, bucket, cache_dir, bucket_id):
+    """
+    Save a bucket of embeddings to disk and update sample metadata.
+    """
+    pt_path = os.path.join(cache_dir, f"bucket_{bucket_id:06d}.pt")
+    tmp_path = pt_path + ".tmp"
+
+    indices = [idx for idx, _ in bucket]
+    embs = torch.stack([emb for _, emb in bucket])  # (B, T, D)
 
     tic = time.time()
 
-    with torch.no_grad():
-        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
-            audio_embs, audio_mask = audio_embedder(audio_paths)
-
-    # move to CPU once
-    audio_embs_cpu = audio_embs.cpu().contiguous()
-    audio_mask_cpu = audio_mask.cpu().contiguous()
+    torch.save({"audio_embs": embs}, tmp_path, _use_new_zipfile_serialization=False)
+    os.replace(tmp_path, pt_path)
 
     tac = time.time()
 
-    # save bucket
-    pt_path = os.path.join(cache_dir, f"bucket_{bucket_id:06d}.pt")
-    tmp_path = pt_path + ".tmp"
-    torch.save({ "audio_embs": audio_embs_cpu, "audio_mask": audio_mask_cpu}, tmp_path, _use_new_zipfile_serialization=False)
-    os.replace(tmp_path, pt_path)
-
-    toc = time.time()
-
     # update sample metadata
-    for i, idx in enumerate(bucket_indices):
-        samples[idx]["pt_path"] = f"bucket_{bucket_id:06d}.pt"
+    for i, idx in enumerate(indices):
+        samples[idx]["pt_path"] = os.path.basename(pt_path)
         samples[idx]["offset"] = i
-        samples[idx]["n_audio_embs"] = int(audio_mask_cpu[i].sum().item())
+        samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
-    return tac-tic, toc-tac
+    return tac-tic
 
 
 def build_audio_cache(
-        tsv_path,
-        cache_dir,
-        embedder_path,
-        device,
-        dtype,
-        bucket_size):
-
+        tsv_path, 
+        cache_dir, 
+        embedder_path, 
+        tokenizer_path, 
+        audio_token,
+        device, 
+        dtype, 
+        batch_size, 
+        bucket_size
+    ):
     os.makedirs(cache_dir, exist_ok=True)
     torch_dtype = getattr(torch, dtype)
-
-    t_embedding = 0.0
-    t_saving = 0.0
 
     # Initialize embedder
     audio_embedder = Embedder(config={'path': embedder_path})
     audio_embedder.to(device, dtype=torch_dtype)
     audio_embedder.eval()
 
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
+
     # Read TSV samples
     samples = read_samples_from_tsv(tsv_path)
     logger.info(f"Read {len(samples)} samples from {tsv_path}")
 
-    bucket_indices = []
+    # Build prompts, targets, and tokenized lengths
+    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit="sample"):
+        prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr"))
+        target = build_target(asr=s.get("asr"), stt=s.get("stt"))
+        s["seq_len"] = len(tokenizer(prompt, target, add_special_tokens=False)["input_ids"])
+
+    # Sort samples by tokenized length (shortest → longest)
+    samples.sort(key=lambda x: x["seq_len"])
+
+    # embed samples (using batch_size samples) and save embeddings in files with bucket_size samples
+    batch_indices = []
+    bucket = []
     bucket_id = 0
+    t_embedding = 0.0
+    t_saving = 0.0
 
-    for idx in tqdm(range(len(samples)), total=len(samples), desc="Process audio samples", unit="sample"):
+    for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit="sample"):
 
-        # Skip if already cached
-        existing_pt = samples[idx].get("pt_path")
-        if existing_pt and os.path.exists(os.path.join(cache_dir, existing_pt)):
-            continue
+        batch_indices.append(idx)
 
-        bucket_indices.append(idx)
-
-        if len(bucket_indices) == bucket_size:
-            t_emb, t_save = process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+        if len(batch_indices) == batch_size:
+            audio_embs_cpu, t_emb = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+            bucket.extend(split_batch(batch_indices, audio_embs_cpu))
+            batch_indices = []
             t_embedding += t_emb
-            t_saving += t_save
-            bucket_indices = []
-            bucket_id += 1
 
-    # Process remaining samples in last bucket
-    if bucket_indices:
-        t_emb, t_save = process_bucket(audio_embedder, samples, bucket_indices, cache_dir, device, torch_dtype, bucket_id)
+        while len(bucket) >= bucket_size:
+            t_save = save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+            bucket = bucket[bucket_size:]
+            bucket_id += 1
+            t_saving += t_save
+
+    # process remaining batch
+    if batch_indices:
+        audio_embs_cpu, t_emb = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+        bucket.extend(split_batch(batch_indices, audio_embs_cpu))
         t_embedding += t_emb
+
+    # process remaining bucket
+    while bucket:
+        t_save = save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+        bucket = bucket[bucket_size:]
+        bucket_id += 1
         t_saving += t_save
 
-    logger.info(f"Saved embeddings in {bucket_id + 1} buckets in {cache_dir}")
-    logger.info(f"time embedding = {t_embedding:.2f} ({bucket_id/t_embedding:.2f}buckets/sec) saving = {t_saving:.2f} ({bucket_id/t_saving:.2f}buckets/sec)")
+    logger.info(f"Saved embeddings in {bucket_id} buckets in {cache_dir}")
+    logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
-    # Save meta.json
+    # Save meta.json including prompts and targets
     meta_path = os.path.join(cache_dir, "meta.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({
-            "embedder": {
-                "path": embedder_path,
-                "dtype": dtype,
+            "info": {
+                "tsv_path": tsv_path, 
+                "cache_dir": cache_dir, 
+                "embedder_path": embedder_path,
+                "tokenizer_path": tokenizer_path,
+                "audio_token": audio_token,
                 "device": str(device),
+                "dtype": dtype,
+                "batch_size": batch_size, 
+                "bucket_size": bucket_size,
             },
             "samples": [{
                 "audio_path": s["audio_path"],
                 "pt_path": s["pt_path"],
                 "offset": s["offset"],
-                "duration": s["duration"],
+                "duration": s.get("duration"),
                 "n_audio_embs": s["n_audio_embs"],
-                "src_lang": s["src_lang"],
-                "asr": s["asr"],
+                "src_lang": s.get("src_lang"),
+                "asr": s.get("asr"),
                 "tgt_lang": s.get("tgt_lang"),
                 "stt": s.get("stt"),
             } for s in samples],
         }, f, indent=2)
-
     logger.info(f"Saved {meta_path}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (bucketed)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (bucketed)")
     parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
-    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="Path of audio embedder")
+    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
+    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
-    parser.add_argument("--bucket_size", type=int, default=64, help="Number of samples per saved bucket")
+    parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
+    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO,
-                        format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
-                        handlers=[logging.StreamHandler()])
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     build_audio_cache(
-        args.tsv_path,
-        args.cache_dir,
+        args.tsv_path, 
+        args.cache_dir, 
         args.embedder_path,
-        args.device,
+        args.tokenizer_path, 
+        args.audio_token,
+        args.device, 
         args.dtype,
-        args.bucket_size)
+        args.batch_size, 
+        args.bucket_size
+    )
