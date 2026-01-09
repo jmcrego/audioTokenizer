@@ -158,6 +158,10 @@ def main():
                     if split is None:
                         continue
 
+                    if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
+                            print(f"skipping line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
+                            continue  # skip this row entirely
+
                     if args.verify and not path.is_file():
                         print(f"\tskipping missing linked file {path}")
                         continue
