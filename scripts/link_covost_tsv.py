@@ -33,8 +33,13 @@ def read_covost_tsv(tsv_path):
     """
     name2entry = {}
 
-    with open(tsv_path, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        text = f.read().replace("\r\n", "\n").replace("\r", "\n")
+        f_like = io.StringIO(text)
+        reader = csv.DictReader(f_like, delimiter="\t")
+
+    # with open(tsv_path, "r", encoding="utf-8", newline="") as f:
+    #     reader = csv.DictReader(f, delimiter="\t")
 
         expected_fields = {"path", "translation", "split"}
         if not expected_fields.issubset(reader.fieldnames):
