@@ -158,8 +158,8 @@ def main():
                 if fname in name2entry and fname in name2path:
                     path = name2path[fname]
                     entry = name2entry[fname]
-                    transl = entry[1]
-                    split = entry[2]
+                    transl = entry["translation"]
+                    split = entry["split"]
 
                     if not transl:
                         continue
