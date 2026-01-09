@@ -163,7 +163,7 @@ def main():
                         continue
 
                     writer.writerow([
-                        str(name2path[fname]),
+                        path.strip(),
                         src_lang.strip(),
                         transc.strip(),
                         tgt_lang.strip(),
