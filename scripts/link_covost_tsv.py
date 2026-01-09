@@ -129,10 +129,9 @@ def main():
                     continue
 
                 for row in reader:
-                    rel_path = row.get("path", "").strip()
-                    transc = row.get("sentence", "").strip()
 
-                    if not rel_path or not transc:
+                    rel_path = row.get("path", "").strip()
+                    if not rel_path:
                         continue
 
                     fname = Path(rel_path).name
@@ -140,23 +139,25 @@ def main():
                     if fname in seen:
                         continue
 
-                    path = name2path.get(fname)
+                    transc = row.get("sentence", "").strip()
+                    if not transc:
+                        continue
 
+                    path = name2path.get(fname)
                     if path is None:
+                        continue
+
+                    entry = name2entry.get(fname)
+                    if entry is None:
+                        continue
+
+                    transl = entry.get("translation", "").strip()
+                    split = entry.get("split", "").strip()
+                    if not transl or not split:
                         continue
 
                     if args.verify and not Path(path).is_file():
                         print(f"\tskipping missing linked file {path}")
-                        continue
-
-                    if fname not in name2entry or fname not in name2path:
-                        continue
-
-                    entry = name2entry[fname]
-                    transl = entry.get("translation", "").strip()
-                    split = entry.get("split", "").strip()
-
-                    if not transl or not split:
                         continue
 
                     writer.writerow([
