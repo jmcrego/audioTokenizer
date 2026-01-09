@@ -159,7 +159,7 @@ def main():
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
 
             if cv_tsv.name not in ALLOWED:
-                print(f"filtering {cv_tsv.name}")                
+                #print(f"\tfiltering {cv_tsv.name}")                
                 continue
 
             linked_in_file = 0
