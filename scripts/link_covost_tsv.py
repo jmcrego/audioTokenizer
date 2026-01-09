@@ -152,8 +152,18 @@ def main():
 
     ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv"}
 
-    with open(out_path, "w", encoding="utf-8", newline="") as fdo:
-        writer = csv.writer(fdo, delimiter="\t")
+    def clean_field(s: str) -> str:
+        if not s:
+            return ""
+        return (
+            s.replace("\n", " ")
+            .replace("\r", " ")
+            .replace("\t", " ")
+            .strip()
+        )
+    
+    with open(out_path, "w", encoding="utf-8") as fdo:
+        #writer = csv.writer(fdo, delimiter="\t")
 
         print(f"Parsing {dir_lang}/*.tsv files")
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
@@ -227,14 +237,14 @@ def main():
                         n_missing += 1
                         continue
 
-                    writer.writerow([
-                        str(path),
-                        src_lang.strip(),
-                        transc.strip(),
-                        tgt_lang.strip(),
-                        transl.strip(),
-                        split.strip(),
-                    ])
+                    print('\t'.join([
+                        clean_field(str(path)),
+                        clean_field(src_lang),
+                        clean_field(transc),
+                        clean_field(tgt_lang),
+                        clean_field(transl),
+                        clean_field(split),
+                    ]), file=fdo)
 
                     seen.add(fname)
                     linked_in_file += 1
