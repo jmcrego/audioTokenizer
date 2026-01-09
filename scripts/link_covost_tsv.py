@@ -135,14 +135,16 @@ def main():
                     if not rel_path or not transc:
                         continue
 
-                    path1 = Path(args.cv) / src_lang / "clips" / rel_path
-                    fname = path1.name
+                    fname = Path(rel_path).name
+                    path = name2path.get(fname)
+                    # path1 = Path(args.cv) / src_lang / "clips" / rel_path
+                    # fname = path1.name
 
                     if fname in seen:
                         continue
 
-                    if args.verify and not path1.is_file():
-                        print(f"\tskipping missing linked file {path1}")
+                    if args.verify and not path.is_file():
+                        print(f"\tskipping missing linked file {path}")
                         continue
 
                     if fname not in name2entry or fname not in name2path:
