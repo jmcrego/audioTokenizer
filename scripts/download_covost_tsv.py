@@ -45,12 +45,12 @@ def download_covost_tsv(src_lang, tgt_lang, output_dir):
     with urllib.request.urlopen(req) as response, open(tsv_path, 'wb') as out_file:
         out_file.write(response.read())
 
-#    print(f"Extracting {tsv_path}...")
-#    with tarfile.open(tsv_path, "r:gz") as tar:
-#        tar.extractall(path=output_dir)
+    print(f"Extracting {tsv_path}...")
+    with tarfile.open(tsv_path, "r:gz") as tar:
+        tar.extractall(path=output_dir)
 
-#    os.remove(tsv_path)
-#    print(f"TSV file saved to {output_dir}")
+    os.remove(tsv_path)
+    print(f"TSV file saved to {output_dir}")
 
 def main():
     parser = argparse.ArgumentParser(description="Download CoVoST 2 TSV files for a specific language pair.")
