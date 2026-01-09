@@ -136,11 +136,13 @@ def main():
                         continue
 
                     fname = Path(rel_path).name
-                    path = name2path.get(fname)
-                    # path1 = Path(args.cv) / src_lang / "clips" / rel_path
-                    # fname = path1.name
 
                     if fname in seen:
+                        continue
+
+                    path = name2path.get(fname)
+
+                    if path is None:
                         continue
 
                     if args.verify and not Path(path).is_file():
