@@ -34,38 +34,67 @@ def read_covost_tsv(tsv_path):
     """
     name2entry = {}
 
-    with open(tsv_path, "r", encoding="utf-8") as f:
-        text = f.read().replace("\r\n", "\n").replace("\r", "\n")
-        f_like = io.StringIO(text)
-        reader = csv.DictReader(f_like, delimiter="\t")
+    with open(tsv_path, "r", encoding="utf-8", newline="") as f:
+            # `newline=""` is important for csv.reader to handle embedded newlines
+            reader = csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_MINIMAL)
 
-    # with open(tsv_path, "r", encoding="utf-8", newline="") as f:
-    #     reader = csv.DictReader(f, delimiter="\t")
+            expected_fields = {"path", "translation", "split"}
+            if not expected_fields.issubset(reader.fieldnames):
+                raise ValueError(
+                    f"Invalid TSV header. Expected {expected_fields}, got {reader.fieldnames}"
+                )
 
-        expected_fields = {"path", "translation", "split"}
-        if not expected_fields.issubset(reader.fieldnames):
-            raise ValueError(
-                f"Invalid TSV header. Expected {expected_fields}, got {reader.fieldnames}"
-            )
+            for nrow, row in enumerate(reader, start=2):  # start=2 (line after header)
+                path = row["path"].strip()
+                translation = row["translation"].strip()
+                split = row["split"].strip()
 
-        for nrow, row in enumerate(reader, start=2):  # start=2 (line after header)
-            path = row["path"].strip()
-            translation = row["translation"].strip()
-            split = row["split"].strip()
+                if not path:
+                    continue
 
-            if not path:
-                continue
+                if path in name2entry:
+                    raise ValueError(f"Duplicate entry for '{path}' at line {nrow}")
 
-            if path in name2entry:
-                raise ValueError(f"Duplicate entry for '{path}' at line {nrow}")
+                name2entry[path] = {
+                    "translation": translation,
+                    "split": split,
+                }
 
-            name2entry[path] = {
-                "translation": translation,
-                "split": split,
-            }
-
-    # print(f"Found {len(name2entry)} entries in {tsv_path}")
     return name2entry
+
+
+    # with open(tsv_path, "r", encoding="utf-8") as f:
+    #     text = f.read().replace("\r\n", "\n").replace("\r", "\n")
+    #     f_like = io.StringIO(text)
+    #     reader = csv.DictReader(f_like, delimiter="\t")
+
+    # # with open(tsv_path, "r", encoding="utf-8", newline="") as f:
+    # #     reader = csv.DictReader(f, delimiter="\t")
+
+    #     expected_fields = {"path", "translation", "split"}
+    #     if not expected_fields.issubset(reader.fieldnames):
+    #         raise ValueError(
+    #             f"Invalid TSV header. Expected {expected_fields}, got {reader.fieldnames}"
+    #         )
+
+    #     for nrow, row in enumerate(reader, start=2):  # start=2 (line after header)
+    #         path = row["path"].strip()
+    #         translation = row["translation"].strip()
+    #         split = row["split"].strip()
+
+    #         if not path:
+    #             continue
+
+    #         if path in name2entry:
+    #             raise ValueError(f"Duplicate entry for '{path}' at line {nrow}")
+
+    #         name2entry[path] = {
+    #             "translation": translation,
+    #             "split": split,
+    #         }
+
+    # # print(f"Found {len(name2entry)} entries in {tsv_path}")
+    # return name2entry
 
 
 def read_audio_files(mp3_dir, name2entry):
