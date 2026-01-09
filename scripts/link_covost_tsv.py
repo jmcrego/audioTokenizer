@@ -159,7 +159,7 @@ def main():
                         continue
 
                     if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
-                            print(f"skipping line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
+                            print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
                             continue  # skip this row entirely
 
                     if args.verify and not path.is_file():
