@@ -130,17 +130,16 @@ def main():
 
                 for row in reader:
 
-                    rel_path = row.get("path", "").strip()
-                    if not rel_path:
+                    rel_path = row.get("path")
+                    if rel_path is None:
                         continue
 
-                    fname = Path(rel_path).name
-
+                    fname = Path(rel_path.strip()).name
                     if fname in seen:
                         continue
 
-                    transc = row.get("sentence", "").strip()
-                    if not transc:
+                    transc = row.get("sentence")
+                    if transc is None:
                         continue
 
                     path = name2path.get(fname)
@@ -151,22 +150,25 @@ def main():
                     if entry is None:
                         continue
 
-                    transl = entry.get("translation", "").strip()
-                    split = entry.get("split", "").strip()
-                    if not transl or not split:
+                    transl = entry.get("translation")
+                    if transl is None:
                         continue
 
-                    if args.verify and not Path(path).is_file():
-                        print(f"\tskipping missing linked file {path}")
+                    split = entry.get("split")
+                    if split is None:
+                        continue
+
+                    if args.verify and not Path(path.strip()).is_file():
+                        print(f"\tskipping missing linked file {path.strip()}")
                         continue
 
                     writer.writerow([
                         str(name2path[fname]),
-                        src_lang,
-                        transc,
-                        tgt_lang,
-                        transl,
-                        split,
+                        src_lang.strip(),
+                        transc.strip(),
+                        tgt_lang.strip(),
+                        transl.strip(),
+                        split.strip(),
                     ])
 
                     seen.add(fname)
