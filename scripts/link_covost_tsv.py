@@ -112,6 +112,7 @@ def main():
     with open(out_path, "w", encoding="utf-8", newline="") as fdo:
         writer = csv.writer(fdo, delimiter="\t")
 
+        print(f"Parsing {{dir_lang}/*.tsv files}")
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
             #print(f"Parsing file {cv_tsv}")
             linked_in_file = 0
@@ -182,95 +183,6 @@ def main():
         f"Total {total_linked} out of {len(name2entry)} "
         f"({pct:.2f}%) entries written to {out_path}"
     )
-
-# def main():
-#     parser = argparse.ArgumentParser(description="Link CoVoST 2 TSV file with corresponding CommonVoice audio files.")
-#     parser.add_argument("--tsv", type=str, required=True, help="tsv file with translations (built by download_covost_tsv.py)")
-#     parser.add_argument("--cv", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Directory with CommonVoice audio files")
-#     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
-#     args = parser.parse_args()
-
-#     src_lang, tgt_lang = get_langs(args.tsv)
-#     print(src_lang, tgt_lang)
-
-#     ### read from args.tsv the valid entries:
-#     # name: common_voice_es_19764307.mp3
-#     # entry ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
-#     name2entry = read_covost_tsv(args.tsv)
-#     ### read audio mp3 files from args.csv / src_lang / clips:
-#     # name: common_voice_es_19764307.mp3
-#     # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
-#     name2path = read_audio_files(Path(args.cv) / src_lang / "clips", name2entry)
-#     # Now read CommonVoice TSVs under the source language as indicated by *.tsv{.old} (contain file / lang / transcript)
-#     dir_lang = Path(args.cv) / src_lang
-
-#     fdo = open(args.tsv[:-4] + '.linked.tsv', 'w')
-#     seen = set()
-#     N = 0
-#     for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
-#         n = 0
-#         print(f"Parsing file {cv_tsv}")
-#         with open(cv_tsv, "r", encoding="utf-8") as f:
-#             reader = csv.reader(f, delimiter="\t")
-#             try:
-#                 header = next(reader)
-#             except StopIteration:
-#                 print(f"\tskipping empty file {cv_tsv}")
-#                 continue
-
-#             if "path" not in header or "sentence" not in header:
-#                 print(f"\tskipping bad header file {cv_tsv}")
-#                 continue
-
-#             # Expected columns: client_id path sentence_id sentence sentence_domain up_votes down_votes age gender accents variant locale segment
-#             for row in reader:
-#                 if len(row) < 4:
-#                     continue
-
-#                 path1 = Path(args.cv) / src_lang / 'clips' / row[1]
-#                 fname = path1.name
-
-#                 #if fname in seen:
-#                 if str(fname) in seen:
-#                     #print(f"Repeated entry {fname}")
-#                     continue
-
-#                 if args.verify and not path1.is_file():
-#                     print(f"\tskipping missing linked file {str(path1)}")
-#                     continue
-
-#                 transc = row[3]
-#                 if not transc:
-#                     continue
-
-#                 if fname in name2entry and fname in name2path:
-#                     path = name2path[fname]
-#                     entry = name2entry[fname]
-#                     transl = entry["translation"]
-#                     split = entry["split"]
-
-#                     if not transl:
-#                         continue
-#                     if not split:
-#                         continue
-
-#                     fdo.write(
-#                         str(path) + '\t' +
-#                         src_lang + '\t' +
-#                         transc + '\t' +
-#                         tgt_lang + '\t' +
-#                         transl + '\t' +
-#                         split + '\n'
-#                     )
-#                     n += 1
-#                     N += 1
-#                     seen.add(fname)
-
-#         if n:
-#             print(f"\t{n} entries found from {cv_tsv}")
-
-#     fdo.close()
-#     print(f"Total {N} out of {len(name2entry)} ({100*N/len(name2entry):.2f}%) entries left in {args.tsv[:-4] + '.linked.tsv'}")
 
 if __name__ == "__main__":
     main()
