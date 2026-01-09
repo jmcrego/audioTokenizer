@@ -40,6 +40,7 @@ def read_covost_tsv(file):
                     continue
                 file_name = row[0]
                 name2entry[file_name] = row
+                print(f"name2entry: {file_name} => {row}")
         except Exception as e:
             raise Exception(f"Error on line {nrow}: {e}")
 
@@ -76,6 +77,7 @@ def main():
     # name: common_voice_es_19764307.mp3
     # entry ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
+    sys.exit
     ### read audio mp3 files from args.csv / src_lang / clips:
     # name: common_voice_es_19764307.mp3
     # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
@@ -87,7 +89,7 @@ def main():
     fdo = open(args.tsv[:-4] + '.linked.tsv', 'w')
     seen = set()
     N = 0
-    for cv_tsv in list(dir_lang.glob("*.tsv")):# + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
+    for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")): #tsv.old are parsed after tsv files                                                                                                                                                                            
         n = 0
         print(f"Parsing file {cv_tsv}")
         with open(cv_tsv, "r", encoding="utf-8") as f:
