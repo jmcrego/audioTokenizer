@@ -145,16 +145,23 @@ def main():
     # Parse CommonVoice TSVs and link
     # ------------------------------------------------------------------
     dir_lang = Path(args.cv) / src_lang
-    out_path = args.tsv + ".cv-linked.tsv" #args.tsv[:-4] + ".linked.tsv"
+    out_path = args.tsv + ".cv-linked.tsv"
 
     seen = set()
     total_linked = 0
+
+    ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv"}
 
     with open(out_path, "w", encoding="utf-8", newline="") as fdo:
         writer = csv.writer(fdo, delimiter="\t")
 
         print(f"Parsing {dir_lang}/*.tsv files")
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
+
+            if cv_tsv.name not in ALLOWED:
+                print(f"filtering {cv_tsv.name}")                
+                continue
+
             linked_in_file = 0
             n_missing = 0
             n_errors = 0
