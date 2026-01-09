@@ -156,17 +156,17 @@ def main():
         print(f"Parsing {dir_lang}/*.tsv files")
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
             linked_in_file = 0
-
+            n_missing = 0
             with open(cv_tsv, "r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f, delimiter="\t")
 
                 if reader.fieldnames is None:
-                    print(f"\tskipping empty file {cv_tsv}")
+                    #print(f"\tskipping empty file {cv_tsv}")
                     continue
 
                 required_cols = {"path", "sentence"}
                 if not required_cols.issubset(reader.fieldnames):
-                    print(f"\tskipping bad header file {cv_tsv}")
+                    #print(f"\tskipping bad header file {cv_tsv}")
                     continue
 
                 for row in reader:
@@ -200,11 +200,12 @@ def main():
                         continue
 
                     if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
-                            print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
-                            continue  # skip this row entirely
+                            #print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
+                            continue
 
                     if args.verify and not path.is_file():
-                        print(f"\tskipping missing linked file {path}")
+                        #print(f"\tskipping missing linked file {path}")
+                        n_missing += 1
                         continue
 
                     writer.writerow([
@@ -221,7 +222,7 @@ def main():
                     linked_in_file += 1
                     total_linked += 1
 
-            print(f"\t{linked_in_file} entries found from {cv_tsv}")
+            print(f"\t{linked_in_file} entries found from {cv_tsv}, {n_missing} missing files")
 
     # ------------------------------------------------------------------
     # Summary
