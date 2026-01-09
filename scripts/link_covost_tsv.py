@@ -40,7 +40,7 @@ def read_covost_tsv(file):
                     continue
                 file_name = row[0]
                 name2entry[file_name] = row
-                print(f"name2entry: {file_name} => {row}")
+                print(f"name2entry: {file_name} => {row}\n\n")
         except Exception as e:
             raise Exception(f"Error on line {nrow}: {e}")
 
