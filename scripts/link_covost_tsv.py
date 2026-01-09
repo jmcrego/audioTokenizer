@@ -162,6 +162,9 @@ def main():
                         print(f"\tskipping missing linked file {path}")
                         continue
 
+                    if "/" not in str(path):
+                        print(f"BAD path={str(path)}")
+
                     writer.writerow([
                         str(path),
                         src_lang.strip(),
