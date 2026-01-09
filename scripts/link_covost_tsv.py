@@ -77,7 +77,7 @@ def main():
     # name: common_voice_es_19764307.mp3
     # entry ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
-    sys.exit
+    sys.exit()
     ### read audio mp3 files from args.csv / src_lang / clips:
     # name: common_voice_es_19764307.mp3
     # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
