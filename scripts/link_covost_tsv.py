@@ -157,51 +157,63 @@ def main():
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
             linked_in_file = 0
             n_missing = 0
+            n_errors = 0
+            n_repeated = 0
             with open(cv_tsv, "r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f, delimiter="\t")
 
                 if reader.fieldnames is None:
                     #print(f"\tskipping empty file {cv_tsv}")
+                    n_errors += 1
                     continue
 
                 required_cols = {"path", "sentence"}
                 if not required_cols.issubset(reader.fieldnames):
                     #print(f"\tskipping bad header file {cv_tsv}")
+                    n_errors += 1
                     continue
 
                 for row in reader:
 
                     rel_path = row.get("path")
                     if rel_path is None:
+                        n_errors += 1
                         continue
 
                     fname = Path(rel_path.strip()).name
                     if fname in seen:
+                        n_repeated += 1
                         continue
 
                     transc = row.get("sentence")
                     if transc is None:
+                        n_errors += 1
                         continue
 
                     path = name2path.get(fname) #Path object or None
                     if path is None:
+                        n_errors += 1
                         continue
 
                     entry = name2entry.get(fname)
                     if entry is None:
+                        n_errors += 1
                         continue
 
                     transl = entry.get("translation")
                     if transl is None:
+                        n_errors += 1
                         continue
 
                     split = entry.get("split")
                     if split is None:
+                        n_errors += 1
                         continue
 
                     if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
-                            #print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
-                            continue
+                        #print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
+                        n_errors += 1
+                        continue
 
                     if args.verify and not path.is_file():
                         #print(f"\tskipping missing linked file {path}")
@@ -223,7 +235,7 @@ def main():
                     total_linked += 1
 
             if linked_in_file:
-                print(f"\t{linked_in_file} entries found from {cv_tsv}, {n_missing} missing files")
+                print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
 
     # ------------------------------------------------------------------
     # Summary
