@@ -143,7 +143,7 @@ def main():
                     if fname in seen:
                         continue
 
-                    if args.verify and not path.is_file():
+                    if args.verify and not Path(path).is_file():
                         print(f"\tskipping missing linked file {path}")
                         continue
 
