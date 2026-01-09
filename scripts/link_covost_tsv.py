@@ -166,8 +166,7 @@ def main():
                     linked_in_file += 1
                     total_linked += 1
 
-            if linked_in_file:
-                print(f"\t{linked_in_file} entries found from {cv_tsv}")
+            print(f"\t{linked_in_file} entries found from {cv_tsv}")
 
     # ------------------------------------------------------------------
     # Summary
