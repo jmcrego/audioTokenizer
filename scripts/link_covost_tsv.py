@@ -1,5 +1,6 @@
 # coding=utf-8                                                                                                                                                                                                                                                                                    
 import os
+import io
 import sys
 import argparse
 import tarfile
