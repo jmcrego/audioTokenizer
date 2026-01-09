@@ -150,7 +150,7 @@ def main():
     seen = set()
     total_linked = 0
 
-    ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv"}
+    ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv", "test.tsv.old", "dev.tsv.old", "train.tsv.old", "validated.tsv.old", "other.tsv.old"}
 
     def clean_field(s: str) -> str:
         if not s:
