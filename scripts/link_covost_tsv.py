@@ -90,13 +90,9 @@ def read_audio_files(mp3_dir, name2entry):
             continue
         if path.name not in name2entry:
             continue
-        if "19797247" in str(path.name):
-            print(f"BAD {name2entry[path.name]}")
-            print(f"BAD {path}")
-            continue
-
-        name2path[path.name] = path   # name = filename name (not path)
+        name2path[path.name] = path   # path.name = file name (not path)
         #print(f"{path.name} {str(path)}")
+    print(f"Found {len(name2path)} files in {mp3_dir}")
     return name2path
 
 def main():
@@ -113,12 +109,11 @@ def main():
     # name: common_voice_es_19764307.mp3
     # entry ['common_voice_es_19764307.mp3', 'Lady Faustina, Countess of Benavente, then ordered them to compose a zarzuela.', 'test']
     name2entry = read_covost_tsv(args.tsv)
-    sys.exit()
     ### read audio mp3 files from args.csv / src_lang / clips:
     # name: common_voice_es_19764307.mp3
     # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
     name2path = read_audio_files(Path(args.cv) / src_lang / "clips", name2entry)
-
+    sys.exit()
     # Now read CommonVoice TSVs under the source language as indicated by *.tsv{.old} (contain file / lang / transcript)
     dir_lang = Path(args.cv) / src_lang
 
