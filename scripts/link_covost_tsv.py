@@ -142,7 +142,7 @@ def main():
                     if transc is None:
                         continue
 
-                    path = name2path.get(fname)
+                    path = name2path.get(fname) #Path object or None
                     if path is None:
                         continue
 
@@ -158,12 +158,12 @@ def main():
                     if split is None:
                         continue
 
-                    if args.verify and not Path(path.strip()).is_file():
-                        print(f"\tskipping missing linked file {path.strip()}")
+                    if args.verify and not path.is_file():
+                        print(f"\tskipping missing linked file {path}")
                         continue
 
                     writer.writerow([
-                        path.strip(),
+                        str(path),
                         src_lang.strip(),
                         transc.strip(),
                         tgt_lang.strip(),
