@@ -113,7 +113,6 @@ def main():
     # name: common_voice_es_19764307.mp3
     # path /lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20/es/20/common_voice_es_19764307.mp3
     name2path = read_audio_files(Path(args.cv) / src_lang / "clips", name2entry)
-    sys.exit()
     # Now read CommonVoice TSVs under the source language as indicated by *.tsv{.old} (contain file / lang / transcript)
     dir_lang = Path(args.cv) / src_lang
 
