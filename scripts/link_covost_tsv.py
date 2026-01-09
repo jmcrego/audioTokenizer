@@ -22,6 +22,8 @@ def get_langs(file):
     src_lang = parts[0] if len(parts) > 1 else src_lang
     parts = tgt_lang.split("-")
     tgt_lang = parts[0] if len(parts) > 1 else tgt_lang
+    assert "\t" not in src_lang
+    assert "\t" not in tgt_lang
     return src_lang, tgt_lang
 
 def read_covost_tsv(tsv_path):
@@ -102,7 +104,7 @@ def main():
     # Parse CommonVoice TSVs and link
     # ------------------------------------------------------------------
     dir_lang = Path(args.cv) / src_lang
-    out_path = args.tsv[:-4] + ".linked.tsv"
+    out_path = args.tsv + ".cv-linked.tsv" #args.tsv[:-4] + ".linked.tsv"
 
     seen = set()
     total_linked = 0
