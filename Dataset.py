@@ -119,7 +119,7 @@ def build_target(asr=None, stt=None):
     raise ValueError("Either asr or stt must be provided")
 
 
-def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"):
+def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
     """
     Read ASR and STT samples from a TSV file and build training examples.
 
@@ -141,11 +141,7 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
     samples = []
 
     with open(path, "r", encoding="utf-8") as f:
-        total = sum(1 for _ in f)
-
-
-    with open(path, "r", encoding="utf-8") as f:
-        for line_no, line in enumerate(tqdm(f, total=total, desc=f"Reading TSV", unit="line"), start=1):
+        for line_no, line in enumerate(tqdm(f, desc=f"Reading TSV", unit="line", disable=not use_tqdm), start=1):
         
     # with open(path, "r", encoding="utf-8") as f:
     #     for line_no, line in enumerate(f, start=1):
