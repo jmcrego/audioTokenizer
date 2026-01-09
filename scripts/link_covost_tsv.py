@@ -234,7 +234,6 @@ def main():
                         tgt_lang.strip(),
                         transl.strip(),
                         split.strip(),
-                        len(str(path)),
                     ])
 
                     seen.add(fname)
