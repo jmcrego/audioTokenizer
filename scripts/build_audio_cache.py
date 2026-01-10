@@ -55,7 +55,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
     for i, idx in enumerate(indices):
         samples[idx]["pt_path"] = os.path.basename(pt_path)
         samples[idx]["offset"] = i
-        samples[idx]["n_audio_embs"] = embs.shape[1]  # T
+        #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
 
 def build_audio_cache(
@@ -157,7 +157,7 @@ def build_audio_cache(
                 "pt_path": s["pt_path"],
                 "offset": s["offset"],
                 "duration": s.get("duration"),
-                "n_audio_embs": s["n_audio_embs"],
+                #not used: "n_audio_embs": s["n_audio_embs"],
                 "src_lang": s.get("src_lang"),
                 "asr": s.get("asr"),
                 "tgt_lang": s.get("tgt_lang"),
