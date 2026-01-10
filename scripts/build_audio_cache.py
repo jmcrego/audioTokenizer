@@ -24,13 +24,11 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     """
     audio_paths = [samples[idx]["audio_path"] for idx in batch_indices]
 
-    tic = time.time()
     with torch.no_grad():
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
             audio_embs, _ = audio_embedder(audio_paths)  # Whisper: ignore mask
-    tac = time.time()
 
-    return audio_embs.cpu().contiguous(), tac - tic
+    return audio_embs.cpu().contiguous()
 
 
 def split_batch(batch_indices, audio_embs):
@@ -50,20 +48,14 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
     indices = [idx for idx, _ in bucket]
     embs = torch.stack([emb for _, emb in bucket])  # (B, T, D)
 
-    tic = time.time()
-
     torch.save({"audio_embs": embs}, tmp_path, _use_new_zipfile_serialization=False)
     os.replace(tmp_path, pt_path)
-
-    tac = time.time()
 
     # update sample metadata
     for i, idx in enumerate(indices):
         samples[idx]["pt_path"] = os.path.basename(pt_path)
         samples[idx]["offset"] = i
         samples[idx]["n_audio_embs"] = embs.shape[1]  # T
-
-    return tac-tic
 
 
 def build_audio_cache(
@@ -90,19 +82,18 @@ def build_audio_cache(
 
     # Read TSV samples
     samples = read_samples_from_tsv(tsv_path)
-    logger.info(f"Read {len(samples)} samples from {tsv_path}")
 
     # Build prompts, targets, and tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
-        prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr"))
+        prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr") if s.get("tgt_lang") else None)
         target = build_target(asr=s.get("asr"), stt=s.get("stt"))
-        s["seq_len"] = len(tokenizer(prompt, target, add_special_tokens=False)["input_ids"])
-
+        s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
+    
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
 
-    # embed samples (using batch_size samples) and save embeddings in files with bucket_size samples
-    batch_indices = []
+    # embed (batch_size) samples and save embeddings in files containing bucket_size samples
+    batch_indices = 
     bucket = []
     bucket_id = 0
     t_embedding = 0.0
@@ -112,32 +103,38 @@ def build_audio_cache(
 
         batch_indices.append(idx)
 
+        # process batch
         if len(batch_indices) == batch_size:
-            audio_embs_cpu, t_emb = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+            tic = time.time()
+            audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+            t_embedding += time.time() - tic
             bucket.extend(split_batch(batch_indices, audio_embs_cpu))
             batch_indices = []
-            t_embedding += t_emb
 
+        # process bucket
         while len(bucket) >= bucket_size:
-            t_save = save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+            tic = time.time()
+            save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+            t_saving += time.time - tic
             bucket = bucket[bucket_size:]
             bucket_id += 1
-            t_saving += t_save
 
     # process remaining batch
     if batch_indices:
-        audio_embs_cpu, t_emb = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+        tic = time.time()
+        audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+        t_embedding += time.time() - tic
         bucket.extend(split_batch(batch_indices, audio_embs_cpu))
-        t_embedding += t_emb
 
     # process remaining bucket
     while bucket:
-        t_save = save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+        tic = time.time()
+        save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+        t_saving += time.time - tic
         bucket = bucket[bucket_size:]
         bucket_id += 1
-        t_saving += t_save
 
-    logger.info(f"Saved embeddings in {bucket_id} buckets in {cache_dir}")
+    logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
     # Save meta.json including prompts and targets

@@ -7,6 +7,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
+from pathlib import Path
 from collections import defaultdict
 from typing import Iterator, List, Dict, Optional
 
@@ -141,10 +142,8 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
     samples = []
 
     with open(path, "r", encoding="utf-8") as f:
-        for line_no, line in enumerate(tqdm(f, desc=f"Reading TSV", unit=" line", disable=not use_tqdm), start=1):
+        for line_no, line in enumerate(tqdm(f, desc=f"Reading {Path(path).name}", unit=" sample", disable=not use_tqdm), start=1):
         
-    # with open(path, "r", encoding="utf-8") as f:
-    #     for line_no, line in enumerate(f, start=1):
             fields = line.rstrip("\n").split(sep)
 
             if len(fields) not in (3, 5):
