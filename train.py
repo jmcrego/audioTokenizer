@@ -105,20 +105,20 @@ if __name__ == "__main__":
         file_path=args.train,
         tokenizer=model.tokenizer,
         audio_token=config['llm']['audio_token'],
-        sample_rate=model.audio_embedder.sample_rate,
-        downsample_ratio=model.audio_embedder.downsample_ratio,
-        conv_stride=config["projector"]["conv_stride"],
-        max_seq_len=args.max_seq_len
+        # sample_rate=model.audio_embedder.sample_rate,
+        # downsample_ratio=model.audio_embedder.downsample_ratio,
+        # conv_stride=config["projector"]["conv_stride"],
+        # max_seq_len=args.max_seq_len
     )
 
     eval_dataset = Dataset(
         file_path=args.eval,
         tokenizer=model.tokenizer,
         audio_token=config['llm']['audio_token'],
-        sample_rate=model.audio_embedder.sample_rate,
-        downsample_ratio=model.audio_embedder.downsample_ratio,
-        conv_stride=config["projector"]["conv_stride"],
-        max_seq_len=args.max_seq_len
+        # sample_rate=model.audio_embedder.sample_rate,
+        # downsample_ratio=model.audio_embedder.downsample_ratio,
+        # conv_stride=config["projector"]["conv_stride"],
+        # max_seq_len=args.max_seq_len
     ) if args.eval is not None else None
 
     # -----------------------------
