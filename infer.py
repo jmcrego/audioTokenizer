@@ -164,9 +164,9 @@ if __name__ == "__main__":
             for i in range(B):
                 logger.info(f"nBatch: {n_batch} nSample: {i}")
                 logger.info(f"AUDIO: {audio_paths[i]}")
-                logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
-                logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
-                logger.info(f"PREDIC: {genera_texts[i].replace("\n","↵")}")
+                logger.info(f"TARGET: {target_texts[i].replace('\n','↵')}")
+                logger.info(f"PROMPT: {prompt_texts[i].replace('\n','↵')}")
+                logger.info(f"PREDIC: {genera_texts[i].replace('\n','↵')}")
                 logger.info("=" * 80)
                 print(genera_texts[i])
 
