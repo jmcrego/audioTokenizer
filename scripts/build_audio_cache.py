@@ -93,7 +93,7 @@ def build_audio_cache(
     samples.sort(key=lambda x: x["seq_len"])
 
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
-    batch_indices = 
+    batch_indices = []
     bucket = []
     bucket_id = 0
     t_embedding = 0.0
