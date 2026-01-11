@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use ~5%)")
     # train pars
-    parser.add_argument("--batch_size", type=int, default=8, help="Numer of sampels in a batch")
+    parser.add_argument("--batch_size", type=int, default=8, help="Number of sampels in a batch")
     parser.add_argument("--accum_steps", type=int, default=4, help="Accumulate this many batchs before optimizing")
     parser.add_argument("--max_seq_len", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--eval_every", type=int, default=100, help="Evaluation (and saving checkpoint) after this many optimization steps")
