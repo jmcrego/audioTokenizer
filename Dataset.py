@@ -237,12 +237,11 @@ def log_sample(samples, idx, prompt, target, tokenizer):
         f"##################"
     )
 
+
 class BatchedLengthSampler(BatchSampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
         self.dataset = dataset
         self.batch_size = batch_size
-        self.shuffle = shuffle
-
         """
         When shuffle is False, batches are build without sorting
         When shuffle is True, batches are build using the 'total_length' field of the dataset
@@ -253,19 +252,15 @@ class BatchedLengthSampler(BatchSampler):
         else:
             # Extract total_length for each sample
             lengths = np.array([s["total_length"] for s in dataset])
-
             # sort indices by length
             sorted_indices = np.argsort(lengths)
-
             # Create batches of sorted indices (contain samples of similar lengths)
             batches = [
                 sorted_indices[i:i+self.batch_size] 
                 for i in range(0, len(sorted_indices), self.batch_size)
             ]
-
             # Randomize batches
             np.random.shuffle(batches)
-
             # flat list of indices
             self.indices = np.concatenate(batches) #[idx for batch in batches for idx in batch]
 
@@ -308,15 +303,19 @@ class Dataset(Dataset):
         #random seed for reproducibility
         np.random.seed(seed)
 
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"meta.json not found: {file_path}")
+        if Path(file_path).name == "meta.json":
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"File not found: {file_path}")
 
-        if file_path.endswith('.json'):
             with open(file_path, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            self.data = meta["samples"]
+                self.meta = json.load(f)
+            self.info = self.meta['info']
+            self.data = self.meta['samples']
+
         else:
+            self.info = None
             self.data = read_samples_from_tsv(file_path)
+
 
         for idx in range(len(self.data)):
             sample = self.data[idx]
@@ -329,7 +328,7 @@ class Dataset(Dataset):
             target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["target_ids"] = target_ids
 
-            if "n_audio_embs" in sample:
+            if self.info is None: #tsv dataset
                 n_tokens_audio = sample['n_audio_embs']
                 self.data[idx]["total_length"] = n_tokens_audio + len(prompt_ids) + len(target_ids)
 
@@ -340,8 +339,7 @@ class Dataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        item = self.data[idx]
-        return item
+        return self.data[idx]
 
 
 if __name__ == "__main__":
@@ -358,7 +356,7 @@ if __name__ == "__main__":
     print(f"Dataset size: {len(ds)} samples")
 
     # Create sampler from datset
-    sampler = BatchedLengthSampler(ds, shuffle=True)
+    sampler = BatchedLengthSampler(ds, batch_size=4, shuffle=True)
     print(f"Sampler size: {len(sampler)} samples")
 
     # Iterate over sampler and print batch info

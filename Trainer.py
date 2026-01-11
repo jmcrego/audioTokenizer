@@ -19,7 +19,7 @@ from torch.nn.utils.rnn import pad_sequence
 #from torch.optim.lr_scheduler import LambdaLR
 from transformers import get_linear_schedule_with_warmup
 
-from Dataset import BatchedLengthSampler 
+from Dataset import BatchedLengthSampler
 
 logger = logging.getLogger("Trainer")
 
@@ -179,12 +179,22 @@ class Trainer:
             return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
         prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
         target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
+
+        has_audio_cache = "pt_path" in batch[0] and "offset" in batch[0]
+        if has_audio_cache:
+            pt_paths = [x["pt_path"] for x in batch]
+            offsets = torch.tensor([x["offset"] for x in batch], dtype=torch.long)
+        else:
+            pt_paths = None
+            offsets = None
+
         return {
             "audio_paths": audio_paths,
+            "pt_paths": pt_paths,         # List[str]
+            "offsets": offsets,           # (B,)
             "prompt_ids": prompt_ids,
             "target_ids": target_ids
         }
-
 
     # -----------------------
     # Training loop
@@ -209,6 +219,9 @@ class Trainer:
                 self.sample += batch["prompt_ids"].size(0)
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                for k, v in batch.items():
+                    print(k)
+                kk
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
