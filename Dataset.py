@@ -331,7 +331,7 @@ class Dataset(Dataset):
             target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["target_ids"] = target_ids
 
-            if self.info is not None: 
+            if self.info is not None: #convert the pt_path into an absolute path
                 self.data[idx]["pt_path"] = file_path_dir / self.data[idx]["pt_path"] 
 
             else: #tsv dataset
