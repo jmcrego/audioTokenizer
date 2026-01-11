@@ -21,7 +21,6 @@ class AudioToLLM(torch.nn.Module):
         super().__init__()
 
         self.buffer_size = 2  # max number of cache buckets kept in memory
-        self._bucket_cache = OrderedDict()
 
         # ====================================================
         # 1. Modules
@@ -184,7 +183,7 @@ class AudioToLLM(torch.nn.Module):
             with torch.no_grad():
                 audio_embs, audio_mask = self.audio_embedder(audio_paths)
         else:
-            audio_embs, audio_mask = self.read_cache_embeddings(pt_paths, offsets)
+            audio_embs, audio_mask = self.read_cache_embs(pt_paths, offsets)
 
         audio_embs = audio_embs.to(device)
         audio_mask = audio_mask.bool().to(device)
@@ -337,10 +336,55 @@ class AudioToLLM(torch.nn.Module):
             "target_norm": target_norm,
         }
 
-    def read_cache_embeddings(self, pt_paths, offsets):
+    def read_cache_embs(self, pt_paths, offsets):
         """
-        reads the batch embeddings cached in disk as indicated by pt_paths and offsets
+        Reads the batch embeddings cached in disk as indicated by pt_paths and offsets
+        Args:
+            pt_paths (List[str]): bucket filenames
+            offsets (List[int] or Tensor): index inside each bucket
+
+        Returns:
+            audio_embs: Tensor [B, T, D] (on CPU)
         """
+
+        if not hasattr(self, "_bucket_cache"):
+            self._bucket_cache = OrderedDict()
+
+        if isinstance(offsets, torch.Tensor):
+            offsets = offsets.tolist()
+
+        assert len(pt_paths) == len(offsets)
+
+        # Group batch positions by pt_path
+        path_to_items = {}
+        for batch_idx, (pt_path, offset) in enumerate(zip(pt_paths, offsets)):
+            path_to_items.setdefault(pt_path, []).append((batch_idx, offset))
+
+        batch_embs = [None] * len(pt_paths)
+
+        for pt_path, items in path_to_items.items():
+            # ---- Load or reuse bucket ----
+            if pt_path in self._bucket_cache:
+                bucket = self._bucket_cache.pop(pt_path)  # mark as recently used
+            else:
+                bucket = torch.load(pt_path, map_location="cpu")
+                # Enforce buffer size (LRU eviction)
+                if len(self._bucket_cache) >= self.buffer_size:
+                    self._bucket_cache.popitem(last=False)
+
+            self._bucket_cache[pt_path] = bucket
+            bucket_embs = bucket["audio_embs"]  # [B_bucket, T, D]
+
+            # ---- Extract needed embeddings ----
+            for batch_idx, offset in items:
+                batch_embs[batch_idx] = bucket_embs[offset]
+
+        # Stack in original batch order
+        audio_embs = torch.stack(batch_embs, dim=0)
+
+        return audio_embs
+
+
 
     # ========================================================
     # Generate (inference)
