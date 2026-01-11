@@ -183,12 +183,12 @@ class AudioToLLM(torch.nn.Module):
             with torch.no_grad():
                 audio_embs, audio_mask = self.audio_embedder(audio_paths)
         else:
-            audio_embs, audio_mask = self.read_cache_embs(pt_paths, offsets)
+            audio_embs = self.read_cache_embs(pt_paths, offsets)
 
         audio_embs = audio_embs.to(device)
-        audio_mask = audio_mask.bool().to(device)
+        #audio_mask = audio_mask.bool().to(device)
 
-        proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
+        proj_embs, proj_mask = self.projector(audio_embs) #projector does not receives mask
         proj_mask = proj_mask.bool()
 
         audio_lens = proj_mask.sum(dim=1)        # [B]
