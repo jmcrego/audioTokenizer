@@ -16,6 +16,8 @@ from transformers import PreTrainedTokenizerBase
 
 logger = logging.getLogger("Dataset")
 
+WHISPER_FRAMES = 1500
+
 code2lang={
     "fr": "French",
     "ca": "Catalan",
@@ -329,7 +331,9 @@ class Dataset(Dataset):
             self.data[idx]["target_ids"] = target_ids
 
             if self.info is None: #tsv dataset
-                n_tokens_audio = sample['n_audio_embs']
+                conv_kernel = 30
+                conv_stride = 30
+                n_tokens_audio = (WHISPER_FRAMES - conv_kernel) // conv_stride + 1
                 self.data[idx]["total_length"] = n_tokens_audio + len(prompt_ids) + len(target_ids)
 
             if idx % 50000 == 0:
