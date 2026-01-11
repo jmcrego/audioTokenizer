@@ -158,7 +158,7 @@ class AudioToLLM(torch.nn.Module):
     # ========================================================
     # Forward (training)
     # ========================================================
-    def forward(self, audio_paths, prompt_ids, target_ids):
+    def forward(self, audio_paths, prompt_ids, target_ids, pt_paths, offsets):
         """
         audio + prompt(with <extra_id_0>) + target → LLM
         <extra_id_0> is REPLACED by audio embeddings
@@ -175,10 +175,14 @@ class AudioToLLM(torch.nn.Module):
         # ============================================================
         # 1) AUDIO → PROJECTED EMBEDDINGS
         # ============================================================
-        with torch.no_grad():
-            audio_embs, audio_mask = self.audio_embedder(audio_paths)
-            audio_embs = audio_embs.to(device)
-            audio_mask = audio_mask.bool().to(device)
+        if pt_paths is None and offsets is None:
+            with torch.no_grad():
+                audio_embs, audio_mask = self.audio_embedder(audio_paths)
+        else:
+            audio_embs, audio_mask = self.read_cache_embeddings(pt_paths, offsets)
+
+        audio_embs = audio_embs.to(device)
+        audio_mask = audio_mask.bool().to(device)
 
         proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
         proj_mask = proj_mask.bool()

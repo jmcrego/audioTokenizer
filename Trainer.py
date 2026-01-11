@@ -219,9 +219,6 @@ class Trainer:
                 self.sample += batch["prompt_ids"].size(0)
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
-                for k, v in batch.items():
-                    print(k)
-                kk
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
