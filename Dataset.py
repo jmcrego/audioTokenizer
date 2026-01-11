@@ -332,7 +332,7 @@ class Dataset(Dataset):
             self.data[idx]["target_ids"] = target_ids
 
             if self.info is not None: 
-                self.data[idx]["pt_path"] = file_path_dir // self.data[idx]["pt_path"] 
+                self.data[idx]["pt_path"] = file_path_dir / self.data[idx]["pt_path"] 
 
             else: #tsv dataset
                 conv_kernel = 30
