@@ -313,6 +313,7 @@ class Dataset(Dataset):
                 self.meta = json.load(f)
             self.info = self.meta['info']
             self.data = self.meta['samples']
+            file_path_dir = Path(file_path).parent
 
         else:
             self.info = None
@@ -330,7 +331,10 @@ class Dataset(Dataset):
             target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["target_ids"] = target_ids
 
-            if self.info is None: #tsv dataset
+            if self.info is not None: 
+                self.data[idx]["pt_path"] = file_path_dir // self.data[idx]["pt_path"] 
+
+            else: #tsv dataset
                 conv_kernel = 30
                 conv_stride = 30
                 n_tokens_audio = (WHISPER_FRAMES - conv_kernel) // conv_stride + 1

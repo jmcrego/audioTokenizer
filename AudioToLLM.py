@@ -1,7 +1,9 @@
 # AudioToLLM.py
 
+import os
 import torch
 import logging
+from collections import OrderedDict
 from transformers import StoppingCriteriaList
 from transformers import StoppingCriteria
 
@@ -17,6 +19,9 @@ class AudioToLLM(torch.nn.Module):
     """
     def __init__(self, config, device, dtype, is_infer=False):
         super().__init__()
+
+        self.buffer_size = 2  # max number of cache buckets kept in memory
+        self._bucket_cache = OrderedDict()
 
         # ====================================================
         # 1. Modules
@@ -332,7 +337,10 @@ class AudioToLLM(torch.nn.Module):
             "target_norm": target_norm,
         }
 
-
+    def read_cache_embeddings(self, pt_paths, offsets):
+        """
+        reads the batch embeddings cached in disk as indicated by pt_paths and offsets
+        """
 
     # ========================================================
     # Generate (inference)
