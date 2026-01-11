@@ -115,7 +115,7 @@ def build_audio_cache(
         while len(bucket) >= bucket_size:
             tic = time.time()
             save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
-            t_saving += time.time - tic
+            t_saving += time.time() - tic
             bucket = bucket[bucket_size:]
             bucket_id += 1
 
@@ -130,7 +130,7 @@ def build_audio_cache(
     while bucket:
         tic = time.time()
         save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
-        t_saving += time.time - tic
+        t_saving += time.time() - tic
         bucket = bucket[bucket_size:]
         bucket_id += 1
 
