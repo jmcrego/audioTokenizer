@@ -409,7 +409,7 @@ class AudioToLLM(torch.nn.Module):
         logger.debug(f"audio_embs.shape = {audio_embs.shape}")
         logger.debug(f"audio_mask.shape = {audio_mask.shape}")
 
-        proj_embs, proj_mask = self.projector(audio_embs, audio_mask)
+        proj_embs, proj_mask = self.projector(audio_embs) #, audio_mask)
         proj_embs = proj_embs.to(device=device) 
         proj_mask = proj_mask.bool()
         logger.debug(f"proj_embs.shape = {proj_embs.shape}")
