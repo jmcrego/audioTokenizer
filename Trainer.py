@@ -303,7 +303,7 @@ class Trainer:
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
                         # self.evaluate()
                         self.evaluate_with_generation(
-                            max_gen_samples=0,
+                            max_gen_samples=10,
                             max_new_tokens=256,
                             temperature=0.0,
                             no_repeat_ngram_size = 0,
@@ -356,7 +356,7 @@ class Trainer:
     @torch.no_grad()
     def evaluate_with_generation(
         self,
-        max_gen_samples=0,
+        max_gen_samples=10,
         max_new_tokens=256,
         temperature=0.0,
         top_p=1.0,
