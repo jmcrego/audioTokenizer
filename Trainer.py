@@ -303,7 +303,7 @@ class Trainer:
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
                         # self.evaluate()
                         self.evaluate_with_generation(
-                            max_gen_samples=10,
+                            max_gen_samples=0, #0 for all
                             max_new_tokens=256,
                             temperature=0.0,
                             no_repeat_ngram_size = 0,
@@ -356,7 +356,7 @@ class Trainer:
     @torch.no_grad()
     def evaluate_with_generation(
         self,
-        max_gen_samples=10,
+        max_gen_samples=0,
         max_new_tokens=256,
         temperature=0.0,
         top_p=1.0,
@@ -406,44 +406,41 @@ class Trainer:
             # ----------------------------
             # 2) Generation
             # ----------------------------
-            if logged_samples < max_gen_samples:
-                audio_paths = batch["audio_paths"]
-                prompt_ids = batch["prompt_ids"]
-                target_ids = batch["target_ids"]
+            audio_paths = batch["audio_paths"]
+            prompt_ids = batch["prompt_ids"]
+            target_ids = batch["target_ids"]
 
-                # Run generation
-                gen_texts = self.model.generate(
-                    audio_files=audio_paths,
-                    prompt_ids=prompt_ids,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    no_repeat_ngram_size = no_repeat_ngram_size,
-                    repetition_penalty = repetition_penalty,
-                )
+            # Run generation
+            gen_texts = self.model.generate(
+                audio_files=audio_paths,
+                prompt_ids=prompt_ids,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                no_repeat_ngram_size = no_repeat_ngram_size,
+                repetition_penalty = repetition_penalty,
+            )
 
-                # Decode prompt text (for logging only)
-                prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
-                # Decode targets (ground truth)
-                target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
+            # Decode prompt text (for logging only)
+            prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
+            # Decode targets (ground truth)
+            target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
 
-                predictions.extend(gen_texts)
-                references.extend(target_texts)
+            predictions.extend(gen_texts)
+            references.extend(target_texts)
 
+            for i in range(len(audio_paths)):
+                if max_gen_samples and logged_samples >= max_gen_samples:
+                    break
 
-                B = len(audio_paths)
-                for i in range(B):
-                    if max_gen_samples and logged_samples >= max_gen_samples:
-                        break
+                logger.info(f"[EVAL SAMPLE {logged_samples}]")
+                logger.info(f"AUDIO: {audio_paths[i]}")
+                logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
+                logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
+                logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
+                logger.info("=" * 80)
 
-                    logger.info(f"[EVAL SAMPLE {logged_samples}]")
-                    logger.info(f"AUDIO: {audio_paths[i]}")
-                    logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
-                    logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
-                    logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
-                    logger.info("=" * 80)
-
-                    logged_samples += 1
+                logged_samples += 1
 
         logger.info(f"len predictions = {len(predictions)}")
         logger.info(f"len references = {len(references)}")
