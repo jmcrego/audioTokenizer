@@ -514,7 +514,6 @@ class AudioToLLM(torch.nn.Module):
                 f"total_lens={total_lens}"
             )
 
-
         # ----------------------------
         # 9) Position IDs
         # ----------------------------
@@ -543,7 +542,6 @@ class AudioToLLM(torch.nn.Module):
             use_cache=True,
         )
         logger.debug(f"outputs.shape = {outputs.shape}")
-
 
         # ----------------------------
         # 11) Decode

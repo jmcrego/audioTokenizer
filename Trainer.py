@@ -9,6 +9,7 @@ import torch
 import shutil
 import random
 import logging
+import sacrebleu
 import numpy as np
 from datetime import datetime
 
@@ -351,7 +352,7 @@ class Trainer:
     @torch.no_grad()
     def evaluate_with_generation(
         self,
-        max_gen_samples=4,
+        max_gen_samples=0,
         max_new_tokens=256,
         temperature=0.0,
         top_p=1.0,
@@ -367,6 +368,9 @@ class Trainer:
         n_batches = 0
 
         logged_samples = 0
+
+        predictions = []
+        references = []
 
         for batch in self.eval_loader:
             # ----------------------------
@@ -415,7 +419,7 @@ class Trainer:
 
                 B = len(audio_paths)
                 for i in range(B):
-                    if logged_samples >= max_gen_samples:
+                    if max_gen_samples and logged_samples >= max_gen_samples:
                         break
 
                     logger.info(f"[EVAL SAMPLE {logged_samples}]")
@@ -427,10 +431,14 @@ class Trainer:
 
                     logged_samples += 1
 
+                    predictions.append(gen_texts[i])
+                    references.append(target_texts[i])
+
+        bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
-        self.log_fn(avg_loss, is_eval=True)
+        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score)
 
         self.model.train()
         return avg_loss
@@ -440,7 +448,7 @@ class Trainer:
     # Logging helper
     # -----------------------
 
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu_score=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -477,6 +485,9 @@ class Trainer:
         if text_norm is not None:
             log_str += f"text_norm={text_norm:.2f} | "
             log_dict[f"{tag}text_norm"] = text_norm
+        if bleu_score is not None:
+            log_str += f"bleu={bleu_score:.2f} | "
+            log_dict[f"{tag}bleu_score"] = bleu_score
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
         logger.info(log_str)
