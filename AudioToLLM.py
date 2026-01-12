@@ -390,7 +390,16 @@ class AudioToLLM(torch.nn.Module):
     # Generate (inference)
     # ========================================================
     @torch.no_grad()
-    def generate(self, audio_files, prompt_ids, max_new_tokens=256, temperature=0.7, top_p=0.95):
+    def generate(
+        self, 
+        audio_files, 
+        prompt_ids, 
+        max_new_tokens=256, 
+        temperature=0.7, 
+        top_p=0.95,
+        no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
+        repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
+    ):
         """
         Batched generation with per-sample prompts containing exactly one <extra_id_0> token.
         """
@@ -535,10 +544,10 @@ class AudioToLLM(torch.nn.Module):
             do_sample=(temperature > 0),
             temperature=temperature if temperature > 0 else None,
             top_p=top_p if temperature > 0 else None,
-            no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
-            repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
-            pad_token_id=self.tokenizer.eos_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
+            no_repeat_ngram_size = no_repeat_ngram_size, 
+            repetition_penalty = repetition_penalty,
+            pad_token_id = self.tokenizer.eos_token_id,
+            eos_token_id = self.tokenizer.eos_token_id,
             use_cache=True,
         )
         logger.debug(f"outputs.shape = {outputs.shape}")

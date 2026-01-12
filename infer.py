@@ -35,6 +35,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
     parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling parameter")
+    parser.add_argument("--no_repeat_ngram_size", type=int, default=0, help="No repeat ngram size")
+    parser.add_argument("--repetition_penalty", type=float, default=1.1, help="Repetition penalty")
     # Task params
     #parser.add_argument("--task", type=str, default="transcribe", help="Task to perform, either: transcribe, translate2lang OR transcribe_translate2lang")
     #parser.add_argument("--output", type=str, default=None, help="File to save outputs")
@@ -158,6 +160,8 @@ if __name__ == "__main__":
                 max_new_tokens=args.max_new_tokens,
                 temperature=args.temperature,
                 top_p=args.top_p,
+                no_repeat_ngram_size = args.no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
+                repetition_penalty = args.repetition_penalty, #good for ASR/STT, but bad for QA
             )
 
             B = len(audio_paths)

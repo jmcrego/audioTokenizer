@@ -10,8 +10,10 @@ import shutil
 import random
 import logging
 import sacrebleu
+from jiwer import wer
 import numpy as np
 from datetime import datetime
+import time
 
 import torch.nn as nn
 from torch.optim import AdamW
@@ -301,9 +303,11 @@ class Trainer:
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
                         # self.evaluate()
                         self.evaluate_with_generation(
-                            max_gen_samples=4,
+                            max_gen_samples=0,
                             max_new_tokens=256,
                             temperature=0.0,
+                            no_repeat_ngram_size = 0,
+                            repetition_penalty = 1.1,
                         )
                         self.save_checkpoint(self.step)
 
@@ -356,6 +360,8 @@ class Trainer:
         max_new_tokens=256,
         temperature=0.0,
         top_p=1.0,
+        no_repeat_ngram_size = 0,
+        repetition_penalty = 1.1,
     ):
         """
         Evaluation with:
@@ -371,6 +377,8 @@ class Trainer:
 
         predictions = []
         references = []
+        
+        tic = time.time()
 
         for batch in self.eval_loader:
             # ----------------------------
@@ -396,7 +404,7 @@ class Trainer:
             n_batches += 1
 
             # ----------------------------
-            # 2) Generation (limited samples)
+            # 2) Generation
             # ----------------------------
             if logged_samples < max_gen_samples:
                 audio_paths = batch["audio_paths"]
@@ -410,12 +418,18 @@ class Trainer:
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     top_p=top_p,
+                    no_repeat_ngram_size = no_repeat_ngram_size,
+                    repetition_penalty = repetition_penalty,
                 )
 
                 # Decode prompt text (for logging only)
-                prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=False)
+                prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
                 # Decode targets (ground truth)
-                target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=False)
+                target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
+
+                predictions.extend(gen_texts)
+                references.extend(target_texts)
+
 
                 B = len(audio_paths)
                 for i in range(B):
@@ -431,14 +445,14 @@ class Trainer:
 
                     logged_samples += 1
 
-                    predictions.append(gen_texts[i])
-                    references.append(target_texts[i])
-
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
+        wer_score = wer(references, predictions)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
-        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score)
+        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score)
+
+        logger.info(f"Generation took {time.time()-tic:.2f}s for {len(predictions)} samples")
 
         self.model.train()
         return avg_loss
@@ -448,7 +462,7 @@ class Trainer:
     # Logging helper
     # -----------------------
 
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu_score=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -485,9 +499,12 @@ class Trainer:
         if text_norm is not None:
             log_str += f"text_norm={text_norm:.2f} | "
             log_dict[f"{tag}text_norm"] = text_norm
-        if bleu_score is not None:
-            log_str += f"bleu={bleu_score:.2f} | "
-            log_dict[f"{tag}bleu_score"] = bleu_score
+        if bleu is not None:
+            log_str += f"bleu={bleu:.2f} | "
+            log_dict[f"{tag}bleu_score"] = bleu
+        if wer is not None:
+            log_str += f"wer={wer:.2f} | "
+            log_dict[f"{tag}wer_score"] = wer
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
         logger.info(log_str)
