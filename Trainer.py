@@ -445,7 +445,8 @@ class Trainer:
 
                     logged_samples += 1
 
-        bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
+        references_for_bleu = [[r] for r in references]
+        bleu_score = sacrebleu.corpus_bleu(predictions, references_for_bleu).score
         wer_score = wer(references, predictions)
         avg_loss = total_loss / max(1, n_batches)
 
