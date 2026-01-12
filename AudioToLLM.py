@@ -536,9 +536,10 @@ class AudioToLLM(torch.nn.Module):
             do_sample=(temperature > 0),
             temperature=temperature if temperature > 0 else None,
             top_p=top_p if temperature > 0 else None,
+            no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
+            repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
             pad_token_id=self.tokenizer.eos_token_id,
-            # pad_token_id=self.tokenizer.pad_token_id,
-            # eos_token_id=self.tokenizer.eos_token_id,
+            eos_token_id=self.tokenizer.eos_token_id,
             use_cache=True,
         )
         logger.debug(f"outputs.shape = {outputs.shape}")
