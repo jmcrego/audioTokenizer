@@ -44,9 +44,10 @@ class Backbone(torch.nn.Module):
             self.special_tokens = config_embeddings.get("special_tokens", None)
 
             if self.special_tokens is not None:
-                self.tokenizer.add_tokens(self.special_tokens)
+                self.tokenizer.add_special_tokens({"additional_special_tokens": self.special_tokens})
                 self.llm_model.resize_token_embeddings(len(self.tokenizer))
                 self.new_vocab_size = len(self.tokenizer)
+                logger.info(f"Extended tokenizer ({self.new_vocab_size}) and LLM embeddings accordingly")
 
                 embeddings_path = config_embeddings.get("path", None)
                 if embeddings_path is not None:
