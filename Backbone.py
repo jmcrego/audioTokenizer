@@ -94,6 +94,39 @@ class Backbone(torch.nn.Module):
         embed_size = self.llm_model.get_input_embeddings().weight.shape[0]
         assert embed_size == vocab_size, f"Embedding size mismatch: {embed_size} != {vocab_size}"
 
+
+    def freeze(self):
+        self.llm_model.eval()
+        for p in self.llm_model.parameters():
+            p.requires_grad = False
+        logger.info("llm_model frozen (eval mode)")
+
+
+    def unfreeze(self):
+        self.llm_model.train()
+        
+        def freeze_old_embeddings(grad):
+            grad[:self.original_vocab_size] = 0
+            return grad
+        
+        for n, p in self.llm_model.named_parameters():
+            # LoRA trainable
+            if "lora" in n.lower():
+                p.requires_grad = True
+            # Embeddings: enable grads globally (old rows frozen below)
+            elif n in ["model.embed_tokens.weight", "lm_head.weight"]:
+                p.requires_grad = True
+                # Register hook immediately after enabling gradients
+                if n == "model.embed_tokens.weight" and not hasattr(self, "_embedding_hook_registered"):
+                    p.register_hook(freeze_old_embeddings)
+                    self._embedding_hook_registered = True
+            # Everything else → frozen
+            else:
+                p.requires_grad = False
+
+        logger.info("llm_model (LoRA, special_tokens i/o embeddings) unfrozen (train mode)")
+
+
     def lora_parameters(self):
         """Returns only LoRA parameters (useful for separate optimizer)"""
         return [p for n, p in self.llm_model.named_parameters() if "lora" in n.lower() and p.requires_grad]

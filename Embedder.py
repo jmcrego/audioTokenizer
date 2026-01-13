@@ -116,15 +116,24 @@ class Embedder(nn.Module):
         self.sample_rate = self.feature_extractor.sampling_rate
         self.downsample_ratio = self._downsample_ratio()
         
-        # wrapper may also do this
-        self.embedder.eval()  
-        for p in self.embedder.parameters():
-            p.requires_grad = False
-
         logger.info(f"Loaded {self.path} | "
                     f"embedding_dim={self.embedding_dim} | "
                     f"sample_rate={self.sample_rate} | "
                     f"downsample_ratio={self.downsample_ratio}")
+
+
+    def freeze(self):
+        self.eval()
+        for p in self.parameters():
+            p.requires_grad = False
+        logger.info("Audio embedder frozen (eval mode)")
+
+
+    def unfreeze(self):
+        self.train()
+        for p in self.parameters():
+            p.requires_grad = True
+        logger.info("Audio embedder unfreeze (train mode)")
 
 
     def forward(self, audio_inputs):

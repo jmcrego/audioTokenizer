@@ -148,26 +148,13 @@ class Trainer:
         step_str = f"_step{step}" if step is not None else ""
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
 
-        # Save Projector
-        self.model.projector.save(ckpt_path)
-        # torch.save(self.model.projector.state_dict(), ckpt_path + ".proj.pt")
-        # logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
+        # save model
+        self.model.save(ckpt_path)
 
-        # Save model LoRa adapters (PEFT)
-        self.model.llm_model.save(ckpt_path)
-        # self.model.llm_model.save_pretrained(ckpt_path + ".lora")
-        # logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
-
-        # # Save special_token Embeddings
-        # torch.save({
-        #     "special_tokens": self.model.llm_model.special_tokens, 
-        #     "input_embeddings": self.model.llm_model.get_input_embeddings().weight[self.model.llm_model.original_vocab_size : ].detach().cpu().clone()
-        # }, os.path.join(ckpt_path + ".embs.pt"))
-
-        # save optimizer state (ckpt_path.optim.pt)
+        # save optimizer
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
         torch.save(state, f"{ckpt_path}.optim.pt")
-        print(f"Saved checkpoint to {ckpt_path}")
+        logger.info(f"Saved optimizer to {ckpt_path}.optim.pt")
 
         # Save config file after updating lora path
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
@@ -176,6 +163,20 @@ class Trainer:
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {ckpt_path}.config.json")
+
+        # Save Projector
+        # torch.save(self.model.projector.state_dict(), ckpt_path + ".proj.pt")
+        # logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
+
+        # Save model LoRa adapters (PEFT)
+        # self.model.llm_model.save_pretrained(ckpt_path + ".lora")
+        # logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
+
+        # # Save special_token Embeddings
+        # torch.save({
+        #     "special_tokens": self.model.llm_model.special_tokens, 
+        #     "input_embeddings": self.model.llm_model.get_input_embeddings().weight[self.model.llm_model.original_vocab_size : ].detach().cpu().clone()
+        # }, os.path.join(ckpt_path + ".embs.pt"))
 
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)

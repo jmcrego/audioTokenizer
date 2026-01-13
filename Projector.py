@@ -80,6 +80,19 @@ class Projector(nn.Module):
         logger.info(f"Initialized AudioProjector with {total_params/1e6:.2f}M params")
 
 
+    def freeze(self):
+        self.eval()
+        for p in self.parameters():
+            p.requires_grad = False
+        logger.info("Projector frozen (eval mode)")
+
+    def unfreeze(self):
+        self.projector.train()
+        for p in self.projector.parameters():
+            p.requires_grad = True
+        logger.info("Projector unfrozen (train mode)")
+
+
     def save(self, ckpt_path):
         torch.save(self.state_dict(), ckpt_path + ".proj.pt")
         logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
