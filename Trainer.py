@@ -109,7 +109,7 @@ class Trainer:
 
         self.optimizer = torch.optim.AdamW([
             {"params": self.model.projector.parameters(), "lr": lr_proj},
-            {"params": [p for n, p in self.model.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
+            {"params": [p for n, p in self.model.backbone.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
