@@ -16,7 +16,10 @@ config = {
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
-        "audio_token": "<extra_id_0>", ### added in the tokenizer if it does not exist (placeholder only)
+        "audio_token": "<extra_id_0>", 
+    },
+    "embeddings": {
+        "path": None,
         "special_tokens": [
             "<|task:asr|>", 
             "<|task:stt|>", 
@@ -31,6 +34,7 @@ config = {
             "<|src_lang:it|>", 
             "<|src_lang:es|>", 
             "<|src_lang:pt|>", 
+            "<|src_lang:nl|>", 
             "<|src_lang:ru|>", 
             "<|src_lang:ja|>", 
             "<|src_lang:ko|>", 
@@ -43,6 +47,7 @@ config = {
             "<|tgt_lang:it|>", 
             "<|tgt_lang:es|>", 
             "<|tgt_lang:pt|>", 
+            "<|tgt_lang:nl|>", 
             "<|tgt_lang:ru|>", 
             "<|tgt_lang:ja|>", 
             "<|tgt_lang:ko|>", 

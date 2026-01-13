@@ -69,20 +69,44 @@ class AudioToLLM(torch.nn.Module):
             for p in self.projector.parameters():
                 p.requires_grad = False
         else:
-            logger.info("Training mode: LLM base frozen, LoRA + Projector trainable")
-            # Training: LLM base frozen, LoRA trainable
-            self.llm_model.train()
-            for n, p in self.llm_model.named_parameters():
-                p.requires_grad = "lora" in n.lower()
+            logger.info("Training mode: LLM base frozen, LoRA + Embeddings + Projector trainable")
             # Projector trainable
             self.projector.train()
             for p in self.projector.parameters():
                 p.requires_grad = True
 
-            # Print LoRA info
-            if hasattr(self.llm_model, 'print_trainable_parameters'):
-                self.llm_model.print_trainable_parameters()
+            # Training: LLM  
+            self.llm_model.train()
+            for n, p in self.llm_model.named_parameters():
+                # LoRA trainable
+                if "lora" in n.lower():
+                    p.requires_grad = True
 
+                # Embeddings: enable grads globally (old rows freezed below)
+                elif n in ["model.embed_tokens.weight", "lm_head.weight"]:
+                    p.requires_grad = True
+
+                # Everything else → frozen
+                else:
+                    p.requires_grad = False
+
+            # freeze old embedding rows via gradient hook
+            emb = self.llm_model.get_input_embeddings().weight
+            old_vocab = self.llm_model.original_vocab_size
+
+            def freeze_old_embeddings(grad):
+                grad[:old_vocab] = 0
+                return grad
+
+            if not hasattr(self, "_embedding_hook_registered"):
+                emb.register_hook(freeze_old_embeddings)
+                self._embedding_hook_registered = True            
+
+            # sanity check
+            with torch.no_grad():
+                grad = emb.grad
+                assert grad[:old_vocab].abs().sum() == 0
+                assert grad[old_vocab:].abs().sum() > 0
 
         logger.info(f"Audio embedder: {next(self.audio_embedder.parameters()).dtype} on {next(self.audio_embedder.parameters()).device}")
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
