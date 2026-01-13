@@ -70,7 +70,7 @@ class Trainer:
         self.tokenizer = self.model.backbone.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
-        param = next(self.model.llm_model.parameters())
+        param = next(self.model.backbone.llm_model.parameters())
         self.device = param.device
         self.dtype = param.dtype
 
