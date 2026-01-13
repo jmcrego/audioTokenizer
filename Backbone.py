@@ -31,11 +31,12 @@ class Backbone(torch.nn.Module):
 
         ###### LLM  ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
-        assert self.llm_model.get_input_embeddings().weight.data_ptr() == self.llm_model.get_output_embeddings().weight.data_ptr(), "input/output embeddings are not tied!"
+        self.tied_embeddings = self.llm_model.get_input_embeddings().weight.data_ptr() == self.llm_model.get_output_embeddings().weight.data_ptr()
 
-        original_embeddings_size = self.llm_model.get_input_embeddings().weight.shape[0]
-        logger.info(f"Loaded LLM model from {llm_path} with size={original_embeddings_size}")
-        assert self.original_vocab_size == original_embeddings_size
+        original_input_embeddings_size = self.llm_model.get_input_embeddings().weight.shape[0]
+        original_output_embeddings_size = self.llm_model.get_output_embeddings().weight.shape[0]
+        logger.info(f"Loaded LLM model from {llm_path} with embeddings size={original_input_embeddings_size}/{original_output_embeddings_size}")
+        assert self.original_vocab_size == original_input_embeddings_size
 
         # special embeddings
         if config_embeddings is not None:
@@ -51,11 +52,13 @@ class Backbone(torch.nn.Module):
                     ckpt = torch.load(embeddings_path, map_location="cpu")
                     new_tokens = ckpt["special_tokens"]
                     new_input_emb = ckpt["input_embeddings"]
+                    new_output_emb = ckpt["output_embeddings"]
                     assert new_tokens == self.special_tokens
                     assert len(new_tokens) == self.new_vocab_size - self.original_vocab_size
                     ### insert tokens
                     with torch.no_grad():
                         self.llm_model.get_input_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_input_emb)
+                        self.llm_model.get_output_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_output_emb)
                     logger.info(f"Loaded special_tokens embeddings with config: {config_embeddings}")
                 else:
                     logger.info(f"Initialized special_tokens embeddings with config: {config_embeddings}")
@@ -100,8 +103,7 @@ class Backbone(torch.nn.Module):
         self.llm_model.save_pretrained(ckpt_path + ".lora")
         logger.info(f"Saved LoRA adapters to {ckpt_path}.lora")
 
-        torch.save({
-            "special_tokens": self.special_tokens, 
-            "input_embeddings": self.llm_model.get_input_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
-        }, ckpt_path + ".embs.pt")
+        input_embs = self.llm_model.get_input_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
+        output_embs = self.llm_model.get_output_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
+        torch.save({"special_tokens": self.special_tokens, "input_embeddings": input_embs, "output_embeddings": output_embs}, ckpt_path + ".embs.pt")
         logger.info(f"Saved special_tokens embeddings to {ckpt_path}.embs.pt")
