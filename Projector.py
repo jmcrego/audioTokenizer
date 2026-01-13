@@ -87,8 +87,8 @@ class Projector(nn.Module):
         logger.info("Projector frozen (eval mode)")
 
     def unfreeze(self):
-        self.projector.train()
-        for p in self.projector.parameters():
+        self.train()
+        for p in self.parameters():
             p.requires_grad = True
         logger.info("Projector unfrozen (train mode)")
 

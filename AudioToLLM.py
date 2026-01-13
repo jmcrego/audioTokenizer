@@ -108,7 +108,6 @@ class AudioToLLM(torch.nn.Module):
         #         emb.register_hook(freeze_old_embeddings)
         #         self._embedding_hook_registered = True            
 
-
         logger.info(f"Audio embedder: {next(self.audio_embedder.parameters()).dtype} on {next(self.audio_embedder.parameters()).device}")
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
         logger.info(f"LLM: {next(self.backbone.llm_model.parameters()).dtype} on {next(self.backbone.llm_model.parameters()).device}")
