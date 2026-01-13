@@ -48,8 +48,9 @@ class AudioToLLM(torch.nn.Module):
         self.projector.to(device=device, dtype=dtype)      #use float32 to ensure stability during early training of projector
         self.backbone.llm_model.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
 
+        self.audio_embedder.freeze()
+        
         if is_infer:
-            self.audio_embedder.freeze()
             self.projector.freeze()
             self.backbone.freeze()
         else:
@@ -147,7 +148,7 @@ class AudioToLLM(torch.nn.Module):
         logger.info("=" * 100)
         logger.info(f"Audio Embedder : {embedder_total:>15,} total | {embedder_trainable:>15,} trainable | {embedder_total - embedder_trainable:>15,} frozen")
         logger.info(f"Projector      : {projector_total:>15,} total | {projector_trainable:>15,} trainable | {projector_total - projector_trainable:>15,} frozen")
-        logger.info(f"LLM (+ LoRA)   : {llm_total:>15,} total | {llm_trainable:>15,} trainable | {llm_total - llm_trainable:>15,} frozen")
+        logger.info(f"LLM (LoRA/Emb) : {llm_total:>15,} total | {llm_trainable:>15,} trainable | {llm_total - llm_trainable:>15,} frozen")
         logger.info("-" * 100)
         logger.info(f"TOTAL          : {total:>15,} total | {trainable:>15,} trainable | {frozen:>15,} frozen")
         logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
