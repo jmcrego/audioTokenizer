@@ -24,8 +24,8 @@ class Backbone(torch.nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         self.original_vocab_size = len(self.tokenizer)
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
-        logger.info(f"bos_token is: {self.tokenizer.bos_token}")
-        logger.info(f"eos_token is: {self.tokenizer.eos_token}")
+        logger.info(f"bos_token = {self.tokenizer.bos_token}")
+        logger.info(f"eos_token = {self.tokenizer.eos_token}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             logger.info(f"Set pad_token to eos_token: {self.tokenizer.pad_token}")
