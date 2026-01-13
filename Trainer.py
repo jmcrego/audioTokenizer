@@ -67,6 +67,7 @@ class Trainer:
         self.log_every = log_every
         self.accum_steps = accum_steps
         self.output_dir = output_dir
+        self.tokenizer = self.model.backbone.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
         param = next(self.model.llm_model.parameters())
@@ -185,7 +186,7 @@ class Trainer:
     # Collator function
     # -----------------------
     def collate_fn(self, batch):
-        pad_token_id = self.model.tokenizer.pad_token_id
+        pad_token_id = self.tokenizer.pad_token_id
         audio_paths = [x["audio_path"] for x in batch]
         def ensure_tensor(x):
             return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
@@ -280,10 +281,6 @@ class Trainer:
                     # Optimizer step via scaler
                     scaler.step(optimizer)
                     scaler.update()
-
-                    # with torch.no_grad():
-                    #     if hasattr(self.model.projector, "scale") and self.model.projector.scale.requires_grad:
-                    #         self.model.projector.scale.clamp_(0.01, 0.1)
 
                     optimizer.zero_grad()
                     # Scheduler step
@@ -432,9 +429,9 @@ class Trainer:
             )
 
             # Decode prompt text (for logging only)
-            prompt_texts = self.model.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
+            prompt_texts = self.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
             # Decode targets (ground truth)
-            target_texts = self.model.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
+            target_texts = self.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
 
             predictions.extend(gen_texts)
             references.extend(target_texts)
