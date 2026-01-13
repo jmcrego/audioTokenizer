@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     train_dataset = Dataset(
         file_path=args.train,
-        tokenizer=model.tokenizer,
+        tokenizer=model.backbone.tokenizer,
         audio_token=config['llm']['audio_token'],
         # sample_rate=model.audio_embedder.sample_rate,
         # downsample_ratio=model.audio_embedder.downsample_ratio,
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     eval_dataset = Dataset(
         file_path=args.eval,
-        tokenizer=model.tokenizer,
+        tokenizer=model.backbone.tokenizer,
         audio_token=config['llm']['audio_token'],
         # sample_rate=model.audio_embedder.sample_rate,
         # downsample_ratio=model.audio_embedder.downsample_ratio,
