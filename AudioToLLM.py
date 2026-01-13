@@ -92,7 +92,7 @@ class AudioToLLM(torch.nn.Module):
 
             # freeze old embedding rows via gradient hook
             emb = self.llm_model.get_input_embeddings().weight
-            old_vocab = self.llm_model.original_vocab_size
+            old_vocab = self.backbone.original_vocab_size
 
             def freeze_old_embeddings(grad):
                 grad[:old_vocab] = 0
