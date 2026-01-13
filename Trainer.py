@@ -157,6 +157,12 @@ class Trainer:
         self.model.llm_model.save_pretrained(ckpt_path + ".lora")
         logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
 
+        # Save special_token Embeddings
+        torch.save({
+            "special_tokens": self.model.llm_model.special_tokens, 
+            "input_embeddings": self.model.llm_model.get_input_embeddings().weight[self.model.llm_model.original_vocab_size : ].detach().cpu().clone()
+        }, os.path.join(ckpt_path + ".embs.pt"))
+
         # save optimizer state (ckpt_path.optim.pt)
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
         torch.save(state, f"{ckpt_path}.optim.pt")
@@ -165,6 +171,7 @@ class Trainer:
         # Save config file after updating lora path
         self.config['lora']['path'] = ckpt_path + ".lora"
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
+        self.config['embedding']['path'] = ckpt_path + ".embs.pt"
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {ckpt_path}.config.json")

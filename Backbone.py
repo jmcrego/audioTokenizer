@@ -47,14 +47,13 @@ class Backbone(torch.nn.Module):
                 embeddings_path = config_embeddings.get("path", None)
                 if embeddings_path is not None:
                     ckpt = torch.load(embeddings_path, map_location="cpu")
-                    new_tokens = ckpt["tokens"]
+                    new_tokens = ckpt["special_tokens"]
+                    new_input_emb = ckpt["input_embeddings"]
                     assert new_tokens == self.special_tokens
                     assert len(new_tokens) == self.new_vocab_size - self.original_vocab_size
-                    new_input_emb = ckpt["input_embeddings"]
                     ### insert tokens
                     with torch.no_grad():
                         self.llm_model.get_input_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_input_emb)
-#not needed since tied                        self.llm_model.get_output_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_output_emb)
                     logger.info(f"Loaded special_tokens embeddings with config: {config_embeddings}")
                 else:
                     logger.info(f"Initialized special_tokens embeddings with config: {config_embeddings}")
