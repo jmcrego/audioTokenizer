@@ -30,6 +30,7 @@ code2lang={
     "zh-CN": "Chinese"
 }
 
+
 def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, downsample_ratio=160):
     """
     Estimate number of tokens produced from an audio file
@@ -141,7 +142,7 @@ def build_template(
     elif type == "declarative":
         if task == "asr":
             prompt = (
-                f"{bos_token}<|task:ASR|><|src_lang:{src_lang}|>\n" 
+                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n" 
                 f"<|speech|>\n" 
                 f"{audio_token}\n" 
                 f"<|transcription|>\n"
@@ -150,7 +151,7 @@ def build_template(
 
         elif task == "stt":
             prompt = (
-                f"{bos_token}<|task:STT|><|src_lang:{src_lang}|><|tgt_lang:{tgt_lang}|>\n"
+                f"{bos_token}<|task:stt|><|src_lang:{src_lang}|><|tgt_lang:{tgt_lang}|>\n"
                 f"<|speech|>\n"
                 f"{audio_token}\n"
                 f"<|translation|>\n"
@@ -159,12 +160,12 @@ def build_template(
 
         elif task == "2stt":
             prompt = (
-                f"{bos_token}<|task:ASR|><|src_lang:{src_lang}|>\n"
+                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
                 f"<|speech|>\n"
                 f"{audio_token}\n"
                 f"<|transcription|>\n"
                 f"{asr_text}\n"
-                f"<|task:STT|><|tgt_lang:{tgt_lang}|>\n"
+                f"<|task:stt|><|tgt_lang:{tgt_lang}|>\n"
                 f"<|translation|>\n"
             )
             target = stt_text + eos_token if stt_text is not None else None
