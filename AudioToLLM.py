@@ -26,7 +26,7 @@ class AudioToLLM(torch.nn.Module):
         # 1. Modules
         # ====================================================
         self.audio_embedder = Embedder(config['audio'])
-        self.backbone = Backbone(config['llm'], config['lora'])
+        self.backbone = Backbone(config['llm'], config['lora'], config['embeddings'])
         self.llm_model = self.backbone.llm_model
         self.tokenizer = self.backbone.tokenizer
 
