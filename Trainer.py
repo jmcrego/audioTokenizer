@@ -415,6 +415,7 @@ class Trainer:
                 audio_files=audio_paths,
                 prompt_ids=prompt_ids,
                 max_new_tokens=max_new_tokens,
+                do_sample=(temperature>0.0)
                 temperature=temperature,
                 top_p=top_p,
                 no_repeat_ngram_size = no_repeat_ngram_size,

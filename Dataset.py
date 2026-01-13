@@ -26,7 +26,8 @@ code2lang={
     "en": "English",
     "ru": "Russian",
     "it": "Italian",
-    "pt": "Portuguese"
+    "pt": "Portuguese",
+    "zh-CN": "Chinese"
 }
 
 def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, downsample_ratio=160):
@@ -50,76 +51,125 @@ def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, down
 
     return n_tokens
 
-
-def build_prompt(audio_token="<extra_id_0>", src_lang=None, tgt_lang=None, asr=None):
+def build_template(
+        type="instruct", task="asr", 
+        audio_token="<audio>", bos_token="<bos>", eos_token="<eos>", 
+        src_lang=None, tgt_lang=None, 
+        asr_text=None, stt_text=None
+    ):
     """
-    Build a chat-style prompt for speech processing tasks.
+    Build a prompt/target string for speech processing tasks.
 
-    Supports:
-    - ASR: transcribing speech into text.
-    - STT: transcribing speech and translating it into a target language.
+    Types supported:
+    - Instruct: chat-base template, instructing in natural lanugage
+    - Declarative: defines a formal interface, declaring constraints and roles (<|task:ASR|>, <|src_lang|>, <|speech|>)
+
+    Tasks supported:
+    - asr: transcribing speech into text.
+    - stt: transcribing speech and translating it into a target language.
+    - 2stt : translating speech using also an available transcription
 
     Args:
         audio_token (str): Placeholder token representing the audio input.
-        src_lang (str): Source language of the speech (required).
-        tgt_lang (str, optional): Target language for translation.
-        asr (str, optional): Transcription text, required if tgt_lang is provided.
+        bos_token, eos_token: tokenizer tokens used for BOS/EOS.
+        src_lang (str): Source language of the speech.
+        tgt_lang (str): Target language for translation.
+        asr: Transcription text.
+        stt: Translation text.
 
     Returns:
-        str: Formatted prompt compatible with chat-based LLMs.
-
-    Raises:
-        ValueError: If src_lang is not provided, or if tgt_lang is provided without asr.
-    """    
-    if src_lang is None:
-        raise ValueError("Source language must be provided")
-
-    # ASR: first step
-    prompt = (
-        f"<|im_start|>system\n"
-        f"You are a professional {src_lang} interpreter.\n"
-        f"<|im_end|>\n"
-        f"<|im_start|>user\n"
-        f"Transcribe the following speech:\n"
-        f"{audio_token}\n"
-        f"<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-
-    if tgt_lang is not None:
-        # STT: second step
-        if asr is None:
-            raise ValueError("asr must be provided")
-        prompt += (
-            f"{asr}\n"
-            f"Translate into {tgt_lang}:\n"
-        )
-
-    return prompt
-
-
-def build_target(asr=None, stt=None):
+        prompt, target: Formatted prompt/target strings.
     """
-    Build the training target corresponding to an ASR or STT prompt.
+    if type not in {'instruct', 'declarative'}:
+        raise ValueError("unknown type template: use 'instruct' OR 'declarative'")
 
-    If a translation (stt) is provided, it is used as the target.
-    Otherwise, the transcription (asr) is used.
+    if task not in {'asr', 'stt', '2stt'}:
+        raise ValueError("unknown type template: use 'asr' OR 'stt' OR '2stt'")
 
-    Args:
-        asr (str, optional): Transcription of the audio.
-        stt (str, optional): Translation of the transcription.
+    ####################################################################
+    ### instruct prompt ################################################
+    ####################################################################
+    if type == "instruct":
+        if task == "asr":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Transcribe the following speech:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+            target = f"{asr_text}<|im_end|>"
 
-    Returns:
-        str: Target text terminated with an end-of-turn token.
+        elif task == "stt":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Translate the following speech into {tgt_lang}:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+            target = f"{stt_text}<|im_end|>"
 
-    Raises:
-        ValueError: If neither asr nor stt is provided.
-    """
-    if stt is not None:
-        return f"{stt.strip()}\n<|im_end|>"
-    if asr is not None:
-        return f"{asr.strip()}\n<|im_end|>"
-    raise ValueError("Either asr or stt must be provided")
+        elif task == "2stt":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Transcribe the following speech:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+                f"{asr_text}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Translate into {tgt_lang}:\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+            target = f"{stt_text}<|im_end|>"
+
+    ####################################################################
+    ### declarative prompt #############################################
+    ####################################################################
+    elif type == "declarative":
+        if task == "asr":
+            prompt = (
+                f"{bos_token}<|task:ASR|><|src_lang:{src_lang}|>\n" 
+                f"<|speech|>\n" 
+                f"{audio_token}\n" 
+                f"<|transcription|>\n"
+            )
+            target = asr_text + eos_token if asr_text is not None else None
+
+        elif task == "stt":
+            prompt = (
+                f"{bos_token}<|task:STT|><|src_lang:{src_lang}|><|tgt_lang:{tgt_lang}|>\n"
+                f"<|speech|>\n"
+                f"{audio_token}\n"
+                f"<|translation|>\n"
+            )
+            target = stt_text + eos_token if stt_text is not None else None
+
+        elif task == "2stt":
+            prompt = (
+                f"{bos_token}<|task:ASR|><|src_lang:{src_lang}|>\n"
+                f"<|speech|>\n"
+                f"{audio_token}\n"
+                f"<|transcription|>\n"
+                f"{asr_text}\n"
+                f"<|task:STT|><|tgt_lang:{tgt_lang}|>\n"
+                f"<|translation|>\n"
+            )
+            target = stt_text + eos_token if stt_text is not None else None
+
+    return prompt, target
 
 
 def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
