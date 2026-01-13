@@ -80,6 +80,11 @@ class Projector(nn.Module):
         logger.info(f"Initialized AudioProjector with {total_params/1e6:.2f}M params")
 
 
+    def save(self, ckpt_path):
+        torch.save(self.state_dict(), ckpt_path + ".proj.pt")
+        logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
+
+
     def forward(self, x):
         """
         x: [B, T, D_audio]
@@ -91,13 +96,13 @@ class Projector(nn.Module):
         assert D == self.audio_embedding_dim, f"Expected D={self.audio_embedding_dim}, got {D}"
 
         # --- Convolutions ---
-        x = self.ln_pre(x)  # [B, T, D_audio]
-        x = x.transpose(1, 2)  # [B, D_audio, T]
-        x = self.dw_conv(x)  # [B, D_audio, T_out]
-        x = self.pw_conv(x)  # [B, D_audio, T_out]
-        x = x.transpose(1, 2)  # [B, T_out, D_audio]
+        x = self.ln_pre(x)    # [B, T, D_audio]
+        x = x.transpose(1, 2) # [B, D_audio, T]
+        x = self.dw_conv(x)   # [B, D_audio, T_out]
+        x = self.pw_conv(x)   # [B, D_audio, T_out]
+        x = x.transpose(1, 2) # [B, T_out, D_audio]
         # --- Linear + Activation ---
-        x = self.linear(x)  # [B, T_out, D_llm]
+        x = self.linear(x)    # [B, T_out, D_llm]
         x = self.act(x)
         # --- Post RMSNorm ---
         x = self.ln_post(x)

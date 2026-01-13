@@ -18,6 +18,8 @@ class Backbone(torch.nn.Module):
 
         llm_path = config["path"]
 
+        #self.llm_model.tie_weights()
+
         ###### Tokenizer ##################################################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         self.original_vocab_size = len(self.tokenizer)
@@ -94,3 +96,12 @@ class Backbone(torch.nn.Module):
         return [p for n, p in self.llm_model.named_parameters() if "lora" in n.lower() and p.requires_grad]
 
 
+    def save(self, ckpt_path):
+        self.llm_model.save_pretrained(ckpt_path + ".lora")
+        logger.info(f"Saved LoRA adapters to {ckpt_path}.lora")
+
+        torch.save({
+            "special_tokens": self.special_tokens, 
+            "input_embeddings": self.llm_model.get_input_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
+        }, ckpt_path + ".embs.pt")
+        logger.info(f"Saved special_tokens embeddings to {ckpt_path}.embs.pt")

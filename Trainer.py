@@ -19,7 +19,6 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
-#from torch.optim.lr_scheduler import LambdaLR
 from transformers import get_linear_schedule_with_warmup
 
 from Dataset import BatchedLengthSampler
@@ -150,18 +149,20 @@ class Trainer:
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
 
         # Save Projector
-        torch.save(self.model.projector.state_dict(), ckpt_path + ".proj.pt")
-        logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
+        self.model.projector.save(ckpt_path)
+        # torch.save(self.model.projector.state_dict(), ckpt_path + ".proj.pt")
+        # logger.info(f"Saved Projector to {ckpt_path}.proj.pt")
 
         # Save model LoRa adapters (PEFT)
-        self.model.llm_model.save_pretrained(ckpt_path + ".lora")
-        logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
+        self.model.llm_model.save(ckpt_path)
+        # self.model.llm_model.save_pretrained(ckpt_path + ".lora")
+        # logger.info(f"Saved LoRa adapters to {ckpt_path}.lora")
 
-        # Save special_token Embeddings
-        torch.save({
-            "special_tokens": self.model.llm_model.special_tokens, 
-            "input_embeddings": self.model.llm_model.get_input_embeddings().weight[self.model.llm_model.original_vocab_size : ].detach().cpu().clone()
-        }, os.path.join(ckpt_path + ".embs.pt"))
+        # # Save special_token Embeddings
+        # torch.save({
+        #     "special_tokens": self.model.llm_model.special_tokens, 
+        #     "input_embeddings": self.model.llm_model.get_input_embeddings().weight[self.model.llm_model.original_vocab_size : ].detach().cpu().clone()
+        # }, os.path.join(ckpt_path + ".embs.pt"))
 
         # save optimizer state (ckpt_path.optim.pt)
         state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
@@ -169,8 +170,8 @@ class Trainer:
         print(f"Saved checkpoint to {ckpt_path}")
 
         # Save config file after updating lora path
-        self.config['lora']['path'] = ckpt_path + ".lora"
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
+        self.config['lora']['path'] = ckpt_path + ".lora"
         self.config['embedding']['path'] = ckpt_path + ".embs.pt"
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
@@ -518,7 +519,6 @@ class Trainer:
         #wandb.log(log_dict)
 
 
-
 # x: [B, T, D] embeddings (B=batch size, T=time steps, D=embedding dim)
 def batch_embedding_norm(x, mask=None):
     # Compute norm per vector along last dim
@@ -529,6 +529,7 @@ def batch_embedding_norm(x, mask=None):
 
     # Return average over batch and sequence
     return norm.sum() / (mask.sum() if mask is not None else x.numel() / x.size(-1))
+
 
 def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
     if step is None:
