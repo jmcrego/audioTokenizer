@@ -164,7 +164,6 @@ def build_audio_cache(
                 "pt_path": s["pt_path"],
                 "offset": s["offset"],
                 "duration": s.get("duration"),
-                #not used: "n_audio_embs": s["n_audio_embs"],
                 "src_lang": s.get("src_lang"),
                 "asr": s.get("asr"),
                 "tgt_lang": s.get("tgt_lang"),
@@ -201,6 +200,6 @@ if __name__ == "__main__":
         args.task,
         args.device, 
         args.dtype,
-        args.batch_size, 
+        args.batch_size,
         args.bucket_size,
     )
