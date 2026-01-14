@@ -138,7 +138,7 @@ class Backbone(torch.nn.Module):
         self.llm_model.save_pretrained(ckpt_path + ".lora")
         logger.info(f"Saved LoRA adapters to {ckpt_path}.lora")
 
-        input_embs = self.llm_model.get_input_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
-        output_embs = self.llm_model.get_output_embeddings().weight[self.llm_model.original_vocab_size : ].detach().cpu().clone()
+        input_embs = self.llm_model.get_input_embeddings().weight[self.original_vocab_size : ].detach().cpu().clone()
+        output_embs = self.llm_model.get_output_embeddings().weight[self.original_vocab_size : ].detach().cpu().clone()
         torch.save({"special_tokens": self.special_tokens, "input_embeddings": input_embs, "output_embeddings": output_embs}, ckpt_path + ".embs.pt")
         logger.info(f"Saved special_tokens embeddings to {ckpt_path}.embs.pt")
