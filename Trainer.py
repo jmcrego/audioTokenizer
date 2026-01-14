@@ -415,9 +415,9 @@ class Trainer:
             )
 
             # Decode prompt text (for logging only)
-            prompt_texts = self.tokenizer.batch_decode(prompt_ids, skip_special_tokens=True)
+            prompt_texts = self.tokenizer.batch_decode(prompt_ids, skip_special_tokens=False)
             # Decode targets (ground truth)
-            target_texts = self.tokenizer.batch_decode(target_ids, skip_special_tokens=True)
+            target_texts = self.tokenizer.batch_decode(target_ids, skip_special_tokens=False)
 
             predictions.extend(gen_texts)
             references.extend(target_texts)
