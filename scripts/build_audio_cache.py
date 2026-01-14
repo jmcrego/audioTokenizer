@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Dataset import read_samples_from_tsv, build_prompt, build_target
+from Dataset import read_samples_from_tsv, build_template #build_prompt, build_target
 from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
@@ -64,10 +64,12 @@ def build_audio_cache(
         embedder_path, 
         tokenizer_path, 
         audio_token,
+        template,
+        task,
         device, 
         dtype, 
         batch_size, 
-        bucket_size
+        bucket_size,
     ):
     os.makedirs(cache_dir, exist_ok=True)
     torch_dtype = getattr(torch, dtype)
@@ -85,8 +87,13 @@ def build_audio_cache(
 
     # Build prompts, targets, and tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
-        prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr") if s.get("tgt_lang") else None)
-        target = build_target(asr=s.get("asr"), stt=s.get("stt"))
+        prompt, target = build_template(type=template, task=task, 
+            audio_token=audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
+            src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), 
+            asr_text=s.get("asr"), stt_text=s.get("stt"),
+        )
+        # prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr") if s.get("tgt_lang") else None)
+        # target = build_target(asr=s.get("asr"), stt=s.get("stt"))
         s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
     
     # Sort samples by tokenized length (shortest → longest)
@@ -174,6 +181,8 @@ if __name__ == "__main__":
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
+    parser.add_argument("--template", type=str, default="declarative", help="declarative OR instruct")
+    parser.add_argument("--task", type=str, default="asr", help="asr OR stt OR 2stt")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
@@ -188,8 +197,10 @@ if __name__ == "__main__":
         args.embedder_path,
         args.tokenizer_path, 
         args.audio_token,
+        args.template,
+        args.task,
         args.device, 
         args.dtype,
         args.batch_size, 
-        args.bucket_size
+        args.bucket_size,
     )

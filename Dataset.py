@@ -63,7 +63,7 @@ def build_template(
 
     Types supported:
     - Instruct: chat-base template, instructing in natural lanugage
-    - Declarative: defines a formal interface, declaring constraints and roles (<|task:ASR|>, <|src_lang|>, <|speech|>)
+    - Declarative: defines a formal interface, declaring constraints and roles (<|task:asr|>, <|src_lang|>, <|speech|>)
 
     Tasks supported:
     - asr: transcribing speech into text.
@@ -142,7 +142,7 @@ def build_template(
     elif type == "declarative":
         if task == "asr":
             prompt = (
-                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n" 
+                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
                 f"<|speech|>\n" 
                 f"{audio_token}\n" 
                 f"<|transcription|>\n"
@@ -218,7 +218,7 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
                 logger.warning(f"{path}:{line_no} failed to read audio: {e}")
                 continue                
 
-            src_lang = code2lang.get(fields[1], "")
+            src_lang = fields[1] #code2lang.get(fields[1], "")
             if not src_lang:
                 logger.warning(f"{path}:{line_no} bad src_lang: {fields[1]}")
                 continue
@@ -230,7 +230,7 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
                 continue
 
             if len(fields) == 5: #STT 
-                tgt_lang = code2lang.get(fields[3], "")
+                tgt_lang = fields[3] #code2lang.get(fields[3], "")
                 stt = fields[4].strip()
                 if not tgt_lang or not stt:
                     logger.warning(f"{path}:{line_no} bad tgt_lang or empty asr")
