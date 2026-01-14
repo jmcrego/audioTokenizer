@@ -103,6 +103,7 @@ class AudioToLLM(torch.nn.Module):
         logger.info("=" * 100)
         
         # Show trainable parameter names for each component
+        logger.info("-" * 100)
         logger.info("TRAINABLE PARAMETERS:")
         logger.info("-" * 100)
         
