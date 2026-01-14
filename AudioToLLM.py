@@ -64,8 +64,8 @@ class AudioToLLM(torch.nn.Module):
         self.summary()
 
     def save(self, ckpt_path):
-        self.backbone.projector.save(ckpt_path)
-        self.backbone.llm_model.save(ckpt_path)
+        self.projector.save(ckpt_path)
+        self.backbone.save(ckpt_path)
 
 
     def summary(self):
