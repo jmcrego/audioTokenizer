@@ -134,7 +134,7 @@ class AudioToLLM(torch.nn.Module):
         else:
             logger.info("LLM: (none - all frozen)")
         
-        logger.info("=" * 100)
+        logger.info("-" * 100)
 
 
     # ========================================================
