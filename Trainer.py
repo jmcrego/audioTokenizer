@@ -296,7 +296,7 @@ class Trainer:
                         # self.evaluate()
                         self.evaluate_with_generation(
                             max_gen_samples=0, #0 for all
-                            max_new_tokens=256,
+                            max_new_tokens=64,
                             temperature=0.0,
                             no_repeat_ngram_size = 0,
                             repetition_penalty = 1.1,
@@ -404,7 +404,7 @@ class Trainer:
 
             # Run generation
             gen_texts = self.model.generate(
-                audio_files=audio_paths,
+                audio_paths=audio_paths,
                 prompt_ids=prompt_ids,
                 max_new_tokens=max_new_tokens,
                 #do_sample=(temperature>0.0),

@@ -155,7 +155,7 @@ if __name__ == "__main__":
             # 2) Run generation
             # ----------------------------
             genera_texts = model.generate(
-                audio_files=audio_paths,
+                audio_paths=audio_paths,
                 prompt_ids=prompt_ids,
                 max_new_tokens=args.max_new_tokens,
                 temperature=args.temperature,
