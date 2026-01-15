@@ -26,7 +26,7 @@ config = {
             "<|task:2stt|>", 
             "<|speech|>", 
             "<|transcription|>", 
-            "<|translation|>"
+            "<|translation|>",
             "<|src_lang:en|>", 
             "<|src_lang:fr|>", 
             "<|src_lang:de|>", 
