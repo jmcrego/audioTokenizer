@@ -224,7 +224,6 @@ def format_batch(self, audio_paths, prompt_ids, target_ids=None, pt_paths=None, 
     # 8) Insert prompt tokens after <extra_id_0>
     after_mask = range_T > audio_pos.unsqueeze(1)                 # [B, T_prompt]
     b_p, t_p = torch.nonzero(after_mask, as_tuple=True)
-    # Corrected off-by-one: subtract replaced token
     after_offset = audio_lens[b_p] + audio_pos[b_p]
     dest_pos = after_offset + (t_p - (audio_pos[b_p] + 1))
     inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
