@@ -142,10 +142,6 @@ class AudioToLLM(torch.nn.Module):
     # Forward (training)
     # ========================================================
     def forward(self, audio_paths, prompt_ids, target_ids, pt_paths, offsets):
-        """
-        audio + prompt(with <extra_id_0>) + target → LLM
-        <extra_id_0> is REPLACED by audio embeddings
-        """
 
         device = self.backbone.llm_model.device
         llm_dtype = next(self.backbone.llm_model.parameters()).dtype
@@ -177,8 +173,7 @@ class AudioToLLM(torch.nn.Module):
         # 2) PROMPT EMBEDDINGS
         # ============================================================
         prompt_ids = prompt_ids.to(device)
-        with torch.no_grad():
-            prompt_embs = self.backbone.llm_model.get_input_embeddings()(prompt_ids)
+        prompt_embs = self.backbone.llm_model.get_input_embeddings()(prompt_ids)
 
         prompt_mask = prompt_ids != self.backbone.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)     # [B]
@@ -193,8 +188,7 @@ class AudioToLLM(torch.nn.Module):
         # 3) TARGET EMBEDDINGS
         # ============================================================
         target_ids = target_ids.to(device)
-        with torch.no_grad():
-            target_embs = self.backbone.llm_model.get_input_embeddings()(target_ids)
+        target_embs = self.backbone.llm_model.get_input_embeddings()(target_ids)
 
         target_mask = target_ids != self.backbone.tokenizer.pad_token_id
         target_lens = target_mask.sum(dim=1)
@@ -314,54 +308,6 @@ class AudioToLLM(torch.nn.Module):
             "text_norm": text_norm,
             "target_norm": target_norm,
         }
-
-    def read_cache_embs(self, pt_paths, offsets):
-        """
-        Reads the batch embeddings cached in disk as indicated by pt_paths and offsets
-        Args:
-            pt_paths (List[str]): bucket filenames
-            offsets (List[int] or Tensor): index inside each bucket
-
-        Returns:
-            audio_embs: Tensor [B, T, D] (on CPU)
-        """
-
-        if not hasattr(self, "_bucket_cache"):
-            self._bucket_cache = OrderedDict()
-
-        if isinstance(offsets, torch.Tensor):
-            offsets = offsets.tolist()
-
-        assert len(pt_paths) == len(offsets)
-
-        # Group batch positions by pt_path
-        path_to_items = {}
-        for batch_idx, (pt_path, offset) in enumerate(zip(pt_paths, offsets)):
-            path_to_items.setdefault(pt_path, []).append((batch_idx, offset))
-
-        batch_embs = [None] * len(pt_paths)
-
-        for pt_path, items in path_to_items.items():
-            # ---- Load or reuse bucket ----
-            if pt_path in self._bucket_cache:
-                bucket = self._bucket_cache.pop(pt_path)  # mark as recently used
-            else:
-                bucket = torch.load(pt_path, map_location="cpu")
-                # Enforce buffer size (LRU eviction)
-                if len(self._bucket_cache) >= self.buffer_size:
-                    self._bucket_cache.popitem(last=False)
-
-            self._bucket_cache[pt_path] = bucket
-            bucket_embs = bucket["audio_embs"]  # [B_bucket, T, D]
-
-            # ---- Extract needed embeddings ----
-            for batch_idx, offset in items:
-                batch_embs[batch_idx] = bucket_embs[offset]
-
-        # Stack in original batch order
-        audio_embs = torch.stack(batch_embs, dim=0)
-
-        return audio_embs
 
     # ========================================================
     # Generate (inference)
@@ -538,6 +484,56 @@ class AudioToLLM(torch.nn.Module):
 
         return self.backbone.tokenizer.batch_decode(outputs, skip_special_tokens=True)
     
+
+    def read_cache_embs(self, pt_paths, offsets):
+        """
+        Reads the batch embeddings cached in disk as indicated by pt_paths and offsets
+        Args:
+            pt_paths (List[str]): bucket filenames
+            offsets (List[int] or Tensor): index inside each bucket
+
+        Returns:
+            audio_embs: Tensor [B, T, D] (on CPU)
+        """
+
+        if not hasattr(self, "_bucket_cache"):
+            self._bucket_cache = OrderedDict()
+
+        if isinstance(offsets, torch.Tensor):
+            offsets = offsets.tolist()
+
+        assert len(pt_paths) == len(offsets)
+
+        # Group batch positions by pt_path
+        path_to_items = {}
+        for batch_idx, (pt_path, offset) in enumerate(zip(pt_paths, offsets)):
+            path_to_items.setdefault(pt_path, []).append((batch_idx, offset))
+
+        batch_embs = [None] * len(pt_paths)
+
+        for pt_path, items in path_to_items.items():
+            # ---- Load or reuse bucket ----
+            if pt_path in self._bucket_cache:
+                bucket = self._bucket_cache.pop(pt_path)  # mark as recently used
+            else:
+                bucket = torch.load(pt_path, map_location="cpu")
+                # Enforce buffer size (LRU eviction)
+                if len(self._bucket_cache) >= self.buffer_size:
+                    self._bucket_cache.popitem(last=False)
+
+            self._bucket_cache[pt_path] = bucket
+            bucket_embs = bucket["audio_embs"]  # [B_bucket, T, D]
+
+            # ---- Extract needed embeddings ----
+            for batch_idx, offset in items:
+                batch_embs[batch_idx] = bucket_embs[offset]
+
+        # Stack in original batch order
+        audio_embs = torch.stack(batch_embs, dim=0)
+
+        return audio_embs
+
+
 class StopOnEOSFirst(StoppingCriteria):
     def __init__(self, eos_token_id):
         self.eos_token_id = eos_token_id
@@ -546,6 +542,7 @@ class StopOnEOSFirst(StoppingCriteria):
         # first sequence in batch emits eos
         return input_ids[0, -1] == self.eos_token_id 
     
+
 class StopOnEOSAll(StoppingCriteria):
     def __init__(self, eos_token_id):
         self.eos_token_id = eos_token_id
