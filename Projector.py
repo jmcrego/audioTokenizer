@@ -48,7 +48,7 @@ class Projector(nn.Module):
         self.linear = nn.Linear(audio_embedding_dim, llm_embedding_dim, bias=False)
 
         # Activation
-        self.act = nn.SiLU() if act == 'silu' else nn.GELU() if act == 'gelu' else nn.ReLU() if act == 'relu' else nn.Identity()
+        self.act = nn.Identity() if act is None else nn.SiLU() if act == 'silu' else nn.GELU() if act == 'gelu' else nn.ReLU() if act == 'relu' else nn.Identity()
 
         # Post-linear RMSNorm
         self.ln_post = nn.RMSNorm(llm_embedding_dim) if rmsnorm_pos else nn.Identity()
