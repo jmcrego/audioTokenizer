@@ -226,7 +226,7 @@ class AudioToLLM(torch.nn.Module):
         after_mask = range_T > audio_pos.unsqueeze(1)
         b_p, t_p = torch.nonzero(after_mask, as_tuple=True)
         after_offset = audio_lens[b_p] + audio_pos[b_p]
-        dest_pos = (t_p - audio_pos[b_p] - 1) + after_offset
+        dest_pos = (t_p - audio_pos[b_p] + 1) + after_offset
 
         inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
         attention_mask[b_p, dest_pos] = 1
