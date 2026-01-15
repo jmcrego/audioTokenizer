@@ -138,147 +138,141 @@ class AudioToLLM(torch.nn.Module):
         logger.info("-" * 100)
 
 
-    def format_batch(self, audio_paths, prompt_ids, target_ids=None, pt_paths=None, offsets=None):
+def format_batch(self, audio_paths, prompt_ids, target_ids=None, pt_paths=None, offsets=None):
+    """
+    Formats a batch by combining prompt, audio, and (optionally) target embeddings.
 
-        device = self.backbone.llm_model.device
-        llm_dtype = next(self.backbone.llm_model.parameters()).dtype
+    Args:
+        audio_paths: list of audio file paths
+        prompt_ids: [B, T_prompt] input token IDs
+        target_ids: [B, T_target] target token IDs (optional)
+        pt_paths / offsets: for cached audio embeddings
 
-        # 1) EMBED AUDIO SIGNAL
-        if pt_paths is None and offsets is None:
-            with torch.no_grad():
-                audio_embs, _ = self.audio_embedder(audio_paths) # audio_mask are not used
-        else:
-            audio_embs = self.read_cache_embs(pt_paths, offsets)
+    Returns:
+        dict with:
+            inputs_embeds: [B, L_max, D] final embeddings
+            attention_mask: [B, L_max] attention mask
+            labels: [B, L_max] (if target_ids provided)
+            audio_norm, text_norm, target_norm: for logging
+    """
+    device = self.backbone.llm_model.device
+    llm_dtype = next(self.backbone.llm_model.parameters()).dtype
+    B = prompt_ids.size(0)
 
-        audio_embs = audio_embs.to(device)
+    # 1) Embed audio
+    if pt_paths is None and offsets is None:
+        with torch.no_grad():
+            audio_embs, _ = self.audio_embedder(audio_paths)  # [B, T_audio, D_audio]
+    else:
+        audio_embs = self.read_cache_embs(pt_paths, offsets)
 
-        # 2) PROJECT AUDIO EMBEDDINGS
+    audio_embs = audio_embs.to(device)
 
-        proj_embs, proj_mask = self.projector(audio_embs) #i should pass also audio_mask if using other than whisper
-        proj_mask = proj_mask.bool() ### all should be True for whisper
-        B, S_max, D = proj_embs.shape
-        audio_lens = proj_mask.sum(dim=1)        # [B]
+    # 2) Project audio embeddings
+    proj_embs, proj_mask = self.projector(audio_embs)      # [B, S_max, D_llm], [B, S_max]
+    proj_mask = proj_mask.bool()
+    B, S_max, D = proj_embs.shape
+    audio_lens = proj_mask.sum(dim=1)                      # [B]
 
-        # 3) PROMPT EMBEDDINGS
+    # 3) Embed prompt
+    prompt_ids = prompt_ids.to(device)
+    prompt_embs = self.backbone.llm_model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
+    prompt_mask = prompt_ids != self.backbone.tokenizer.pad_token_id
+    prompt_lens = prompt_mask.sum(dim=1)                   # [B]
+    T_prompt = prompt_ids.size(1)
 
-        prompt_ids = prompt_ids.to(device)
-        prompt_embs = self.backbone.llm_model.get_input_embeddings()(prompt_ids)
-        prompt_mask = prompt_ids != self.backbone.tokenizer.pad_token_id
-        prompt_lens = prompt_mask.sum(dim=1)     # [B]
-        T_prompt = prompt_ids.size(1)            # scalar with max_prompt_lens 
+    # 3bis) Embed target if provided
+    if target_ids is not None:
+        target_ids = target_ids.to(device)
+        target_embs = self.backbone.llm_model.get_input_embeddings()(target_ids)  # [B, T_target, D]
+        target_mask = target_ids != self.backbone.tokenizer.pad_token_id
+        target_lens = target_mask.sum(dim=1)          # [B]
+        T_target = target_ids.size(1)
 
-        if target_ids is not None:
+    # 4) Locate <extra_id_0> in prompt
+    audio_token_mask = prompt_ids == self.audio_token_id
+    assert (audio_token_mask.sum(dim=1) == 1).all(), "Each sample must have exactly one <extra_id_0>"
+    audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
 
-            # 3bis) TARGET EMBEDDINGS
+    # 5) Allocate final batch
+    if target_ids is not None:
+        total_lens = (prompt_lens - 1) + audio_lens + target_lens  # [B]
+    else:
+        total_lens = (prompt_lens - 1) + audio_lens
 
-            target_ids = target_ids.to(device)
-            target_embs = self.backbone.llm_model.get_input_embeddings()(target_ids)
-            target_mask = target_ids != self.backbone.tokenizer.pad_token_id
-            target_lens = target_mask.sum(dim=1) # [B]
-            T_target = target_ids.size(1)        # scalar with max_target_lens 
+    max_len = total_lens.max().item()
+    inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
+    attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
+    if target_ids is not None:
+        labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
 
-        # 4) LOCATE <extra_id_0>
+    # 6) Insert prompt tokens before <extra_id_0>
+    range_T = torch.arange(T_prompt, device=device).unsqueeze(0)  # [1, T_prompt]
+    before_mask = range_T < audio_pos.unsqueeze(1)                # [B, T_prompt]
+    b_idx, t_idx = torch.nonzero(before_mask, as_tuple=True)
+    inputs_embeds[b_idx, t_idx] = prompt_embs[b_idx, t_idx]
+    attention_mask[b_idx, t_idx] = 1
 
-        audio_token_mask = (prompt_ids == self.audio_token_id) 
-        assert (audio_token_mask.sum(dim=1) == 1).all() # only one token per sample
-        audio_pos = audio_token_mask.float().argmax(dim=1)  # [B] position on each batch of audio_token
+    # 7) Insert audio embeddings
+    range_S = torch.arange(S_max, device=device).unsqueeze(0)     # [1, S_max]
+    valid_audio = range_S < audio_lens.unsqueeze(1)               # [B, S_max]
+    audio_dest = audio_pos.unsqueeze(1) + range_S                 # [B, S_max]
+    b_a, s_a = torch.nonzero(valid_audio, as_tuple=True)
+    inputs_embeds[b_a, audio_dest[b_a, s_a]] = proj_embs[b_a, s_a]
+    attention_mask[b_a, audio_dest[b_a, s_a]] = 1
 
-        # 5) ALLOCATE FINAL BATCH (REPLACE <extra_id_0> BY AUDIO_EMBEDDINGS)
+    # 8) Insert prompt tokens after <extra_id_0>
+    after_mask = range_T > audio_pos.unsqueeze(1)                 # [B, T_prompt]
+    b_p, t_p = torch.nonzero(after_mask, as_tuple=True)
+    # Corrected off-by-one: subtract replaced token
+    after_offset = audio_lens[b_p] + audio_pos[b_p]
+    dest_pos = after_offset + (t_p - (audio_pos[b_p] + 1))
+    inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
+    attention_mask[b_p, dest_pos] = 1
 
-        if target_ids is not None: #is teacher forcing (learning)
+    # 9) Insert target if provided
+    if target_ids is not None:
+        range_L = torch.arange(T_target, device=device).unsqueeze(0)   # [1, T_target]
+        valid_target = range_L < target_lens.unsqueeze(1)               # [B, T_target]
+        target_offset = (prompt_lens - 1 + audio_lens).unsqueeze(1)    # [B,1]
+        target_dest = target_offset + range_L                           # [B, T_target]
+        b_t, l_t = torch.nonzero(valid_target, as_tuple=True)
+        inputs_embeds[b_t, target_dest[b_t, l_t]] = target_embs[b_t, l_t]
+        labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
+        attention_mask[b_t, target_dest[b_t, l_t]] = 1
 
-            total_lens = (prompt_lens - 1) + audio_lens + target_lens
-            max_len = total_lens.max().item()
+    # 10) Sanity check
+    attn_sum = attention_mask.sum(dim=1)
+    if not torch.all(attn_sum == total_lens):
+        raise RuntimeError(f"Attention mismatch:\nattn_sum={attn_sum}\ntotal_lens={total_lens}")
 
-            inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype) #[B, max_len, D] zeros
-            attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)  #[B, max_len] zeros
-            labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)     #[B, max_len] -100
+    # 11) Norms for logging
+    output = {
+        "inputs_embeds": inputs_embeds,
+        "attention_mask": attention_mask,
+    }
 
-        else: # is inference
-
-            total_lens = (prompt_lens - 1) + audio_lens
-            max_len = total_lens.max().item()
-
-            inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype) #[B, max_len, D] zeros
-            attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long) #[B, max_len] -100
-
-        # 6) PROMPT BEFORE AUDIO INSERTION
-
-        range_T = torch.arange(T_prompt, device=device).unsqueeze(0)
-        before_mask = range_T < audio_pos.unsqueeze(1)
-        b_idx, t_idx = torch.nonzero(before_mask, as_tuple=True)
-
-        inputs_embeds[b_idx, t_idx] = prompt_embs[b_idx, t_idx]
-        attention_mask[b_idx, t_idx] = 1
-
-        # 7) AUDIO INSERTION
-
-        range_S = torch.arange(S_max, device=device).unsqueeze(0)      # [1, S_max]
-        valid_audio = range_S < audio_lens.unsqueeze(1)                # [B, S_max]
-        audio_dest = audio_pos.unsqueeze(1) + range_S                  # [B, S_max]
-        b_a, s_a = torch.nonzero(valid_audio, as_tuple=True)
-
-        inputs_embeds[b_a, audio_dest[b_a, s_a]] = proj_embs[b_a, s_a]
-        attention_mask[b_a, audio_dest[b_a, s_a]] = 1
-
-        # 8) PROMPT AFTER AUDIO INSERTION
-
-        after_mask = range_T > audio_pos.unsqueeze(1)
-        b_p, t_p = torch.nonzero(after_mask, as_tuple=True)
-        after_offset = audio_lens[b_p] + audio_pos[b_p]
-        dest_pos = (t_p - audio_pos[b_p] + 1) + after_offset
-
-        inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
-        attention_mask[b_p, dest_pos] = 1
-
-        attn_sum = attention_mask.sum(dim=1)
-        if not torch.all(attn_sum == total_lens):
-            raise RuntimeError(
-                f"Attention mismatch:\n"
-                f"attn_sum={attn_sum}\n"
-                f"total_lens={total_lens}"
-            )
-
-        output = {
-            "inputs_embeds": inputs_embeds,
-            "attention_mask": attention_mask,
-        }
-
-        if target_ids is not None:
-
-            # 9) TARGET INSERTION + LABELS
-
-            range_L = torch.arange(T_target, device=device).unsqueeze(0)
-            valid_target = range_L < target_lens.unsqueeze(1)
-            target_offset = (prompt_lens - 1 + audio_lens).unsqueeze(1)
-            target_dest = target_offset + range_L
-            b_t, l_t = torch.nonzero(valid_target, as_tuple=True)
-
-            inputs_embeds[b_t, target_dest[b_t, l_t]] = target_embs[b_t, l_t]
-            labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
-            attention_mask[b_t, target_dest[b_t, l_t]] = 1
-
-            # 10) NORMS FOR LOGGING
-
-            # Audio norm
-            flat_audio_embs = proj_embs[valid_audio]
-            audio_norm = flat_audio_embs.norm(dim=-1).mean() if flat_audio_embs.numel() > 0 else torch.tensor(0.0, device=device)
-
-            # Prompt norm (excluding <extra_id_0>)
-            prompt_no_audio_mask = prompt_mask & ~audio_token_mask
-            flat_prompt_embs = prompt_embs[prompt_no_audio_mask]
-            text_norm = flat_prompt_embs.norm(dim=-1).mean() if flat_prompt_embs.numel() > 0 else torch.tensor(0.0, device=device)
-
-            # Target norm
-            flat_target_embs = target_embs[valid_target]
-            target_norm = flat_target_embs.norm(dim=-1).mean() if flat_target_embs.numel() > 0 else torch.tensor(0.0, device=device)
-
-            output["labels"] = labels
-            output["audio_norm"] = audio_norm
-            output["text_norm"] = text_norm
-            output["target_norm"] = target_norm
-
+    if target_ids is None:
         return output
+    
+    flat_audio_embs = proj_embs[valid_audio]
+    audio_norm = flat_audio_embs.norm(dim=-1).mean() if flat_audio_embs.numel() > 0 else torch.tensor(0.0, device=device)
+
+    prompt_no_audio_mask = prompt_mask & ~audio_token_mask
+    flat_prompt_embs = prompt_embs[prompt_no_audio_mask]
+    text_norm = flat_prompt_embs.norm(dim=-1).mean() if flat_prompt_embs.numel() > 0 else torch.tensor(0.0, device=device)
+
+    flat_target_embs = target_embs[valid_target]
+    target_norm = flat_target_embs.norm(dim=-1).mean() if flat_target_embs.numel() > 0 else torch.tensor(0.0, device=device)
+
+    output.update({
+        "labels": labels,
+        "audio_norm": audio_norm,
+        "text_norm": text_norm,
+        "target_norm": target_norm
+    })
+
+    return output
 
 
     # ========================================================
