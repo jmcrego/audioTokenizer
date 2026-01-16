@@ -317,13 +317,9 @@ class AudioToLLM(torch.nn.Module):
         # 0 = padding embedding (zero vector)
         # - = label ignore (-100)
 
-        position_ids = attention_mask.cumsum(dim=1) - 1
-        position_ids.masked_fill_(attention_mask == 0, 0)
-
         outputs = self.llm.model(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
-#kk            position_ids=position_ids,
             labels=labels,
             return_dict=True,
         )
@@ -367,15 +363,11 @@ class AudioToLLM(torch.nn.Module):
         # A = audio embedding
         # 0 = padding embedding (zero vector)
 
-        position_ids = attention_mask.cumsum(dim=1) - 1
-        position_ids.masked_fill_(attention_mask == 0, 0)
-
         stopping_criteria = StoppingCriteriaList([StopOnEOSFirst(self.llm.tokenizer.eos_token_id)])
 
         outputs = self.llm.model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
-#kk            position_ids=position_ids,
             max_new_tokens=max_new_tokens,
             stopping_criteria=stopping_criteria,
             do_sample=(temperature > 0),
