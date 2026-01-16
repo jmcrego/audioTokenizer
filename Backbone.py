@@ -29,7 +29,7 @@ class Backbone(torch.nn.Module):
         logger.info(f"<|im_end|> = {self.tokenizer.convert_tokens_to_ids("<|im_end|>")}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-            logger.info(f"Set pad_token to eos_token: {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
+        logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
 
         ###### LLM  ############################
         self.llm_model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
