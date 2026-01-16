@@ -9,7 +9,7 @@ from transformers import StoppingCriteria
 
 from Embedder import Embedder
 from Projector import Projector
-from Backbone import Backbone
+from LLM import LLM
 
 logger = logging.getLogger("AudioToLLM")
 
@@ -26,10 +26,10 @@ class AudioToLLM(torch.nn.Module):
         # 1. Modules
         # ====================================================
         self.audio_embedder = Embedder(config['audio'])
-        self.backbone = Backbone(config['llm'], config['lora'], config['embeddings'])
+        self.llm = LLM(config['llm'], config['lora'], config['embeddings'])
 
         self.audio_token = config["llm"]["audio_token"]
-        self.audio_token_id = self.backbone.tokenizer.convert_tokens_to_ids(self.audio_token)
+        self.audio_token_id = self.llm.tokenizer.convert_tokens_to_ids(self.audio_token)
         assert self.audio_token_id is not None, "audio_token_id is None"
         assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
         logger.info(f"Audio token: '{self.audio_token}' -> ID: {self.audio_token_id}")
@@ -37,7 +37,7 @@ class AudioToLLM(torch.nn.Module):
         self.projector = Projector(
             config['projector'], 
             audio_embedding_dim=self.audio_embedder.embedding_dim, 
-            llm_embedding_dim=self.backbone.llm_model.config.hidden_size
+            llm_embedding_dim=self.llm.model.config.hidden_size
         )
 
         # ====================================================
@@ -46,26 +46,26 @@ class AudioToLLM(torch.nn.Module):
         logger.info(f"Moving models to device={device}, dtype={dtype}")
         self.audio_embedder.to(device=device, dtype=dtype) #use float32 if numerical issues
         self.projector.to(device=device, dtype=dtype)      #use float32 to ensure stability during early training of projector
-        self.backbone.llm_model.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
+        self.llm.model.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
 
         self.audio_embedder.freeze()
 
         if is_infer:
             self.projector.freeze()
-            self.backbone.freeze()
+            self.llm.freeze()
         else:
             self.projector.unfreeze()
-            self.backbone.unfreeze()      
+            self.llm.unfreeze()      
 
         logger.info(f"Audio embedder: {next(self.audio_embedder.parameters()).dtype} on {next(self.audio_embedder.parameters()).device}")
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
-        logger.info(f"LLM: {next(self.backbone.llm_model.parameters()).dtype} on {next(self.backbone.llm_model.parameters()).device}")
+        logger.info(f"LLM: {next(self.llm.model.parameters()).dtype} on {next(self.llm.model.parameters()).device}")
 
         self.summary()
 
     def save(self, ckpt_path):
         self.projector.save(ckpt_path)
-        self.backbone.save(ckpt_path)
+        self.llm.save(ckpt_path)
 
 
     def summary(self):
@@ -82,9 +82,9 @@ class AudioToLLM(torch.nn.Module):
         projector_trainable_names = [n for n, p in self.projector.named_parameters() if p.requires_grad]
         
         # LLM
-        llm_total = sum(p.numel() for p in self.backbone.llm_model.parameters())
-        llm_trainable = sum(p.numel() for p in self.backbone.llm_model.parameters() if p.requires_grad)
-        llm_trainable_names = [n for n, p in self.backbone.llm_model.named_parameters() if p.requires_grad]
+        llm_total = sum(p.numel() for p in self.llm.model.parameters())
+        llm_trainable = sum(p.numel() for p in self.llm.model.parameters() if p.requires_grad)
+        llm_trainable_names = [n for n, p in self.llm.model.named_parameters() if p.requires_grad]
         
         # Total
         total = embedder_total + projector_total + llm_total
@@ -155,8 +155,8 @@ class AudioToLLM(torch.nn.Module):
                 labels: [B, L_max] (if target_ids provided)
                 audio_norm, text_norm, target_norm: for logging
         """
-        device = self.backbone.llm_model.device
-        llm_dtype = next(self.backbone.llm_model.parameters()).dtype
+        device = self.llm.model.device
+        llm_dtype = next(self.llm.model.parameters()).dtype
         B = prompt_ids.size(0)
 
         # 1) Embed audio
@@ -176,16 +176,16 @@ class AudioToLLM(torch.nn.Module):
 
         # 3) Embed prompt
         prompt_ids = prompt_ids.to(device)
-        prompt_embs = self.backbone.llm_model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
-        prompt_mask = prompt_ids != self.backbone.tokenizer.pad_token_id
+        prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
+        prompt_mask = prompt_ids != self.llm.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)                   # [B]
         T_prompt = prompt_ids.size(1)
 
         # 3bis) Embed target if provided
         if target_ids is not None:
             target_ids = target_ids.to(device)
-            target_embs = self.backbone.llm_model.get_input_embeddings()(target_ids)  # [B, T_target, D]
-            target_mask = target_ids != self.backbone.tokenizer.pad_token_id
+            target_embs = self.llm.model.get_input_embeddings()(target_ids)  # [B, T_target, D]
+            target_mask = target_ids != self.llm.tokenizer.pad_token_id
             target_lens = target_mask.sum(dim=1)          # [B]
             T_target = target_ids.size(1)
 
@@ -305,7 +305,7 @@ class AudioToLLM(torch.nn.Module):
         position_ids = attention_mask.cumsum(dim=1) - 1
         position_ids.masked_fill_(attention_mask == 0, 0)
 
-        outputs = self.backbone.llm_model(
+        outputs = self.llm.model(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -355,9 +355,9 @@ class AudioToLLM(torch.nn.Module):
         position_ids = attention_mask.cumsum(dim=1) - 1
         position_ids.masked_fill_(attention_mask == 0, 0)
 
-        stopping_criteria = StoppingCriteriaList([StopOnEOSFirst(self.backbone.tokenizer.eos_token_id)])
+        stopping_criteria = StoppingCriteriaList([StopOnEOSFirst(self.llm.tokenizer.eos_token_id)])
 
-        outputs = self.backbone.llm_model.generate(
+        outputs = self.llm.model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -368,16 +368,16 @@ class AudioToLLM(torch.nn.Module):
             top_p=top_p if temperature > 0 else None,
             no_repeat_ngram_size = no_repeat_ngram_size, 
             repetition_penalty = repetition_penalty,
-            pad_token_id = self.backbone.tokenizer.pad_token_id,
-            eos_token_id = self.backbone.tokenizer.eos_token_id,
+            pad_token_id = self.llm.tokenizer.pad_token_id,
+            eos_token_id = self.llm.tokenizer.eos_token_id,
             use_cache=True,
         )
 
         logits = outputs.logits  # [B, T, V]
-        eos_prob = logits.softmax(-1)[..., self.backbone.tokenizer.eos_token_id].mean()
+        eos_prob = logits.softmax(-1)[..., self.llm.tokenizer.eos_token_id].mean()
         logger.info(f"Mean EOS prob: {eos_prob:.4f}")
 
-        return self.backbone.tokenizer.batch_decode(outputs, skip_special_tokens=False) #skip_special_tokens should be set to True when working
+        return self.llm.tokenizer.batch_decode(outputs, skip_special_tokens=False) #skip_special_tokens should be set to True when working
 
 
 
