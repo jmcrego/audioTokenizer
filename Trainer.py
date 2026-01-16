@@ -208,7 +208,7 @@ class Trainer:
         accum_audio_norm = 0.0
         accum_text_norm = 0.0
         total_pads = 0
-        total_toks = 0
+        total_samples = 0
 
         scaler = torch.amp.GradScaler()  # initialize GradScaler
 
@@ -221,11 +221,10 @@ class Trainer:
                 # Move tensors to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
-                # Number of tokens in the batch (all positions, not values)
-                total_toks += batch["prompt_ids"].numel()  
-
-                # Number of pad tokens in the batch
+                # Number of pad tokens in the batch (for logging pad)
                 total_pads += (batch["prompt_ids"] == self.tokenizer.pad_token_id).sum().item()
+                # Number of samples (for logging pad)
+                total_samples += batch["prompt_ids"].size(0)
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
@@ -294,8 +293,10 @@ class Trainer:
                             proj_grad_norm=proj_grad_norm.item(),
                             lora_grad_norm=lora_grad_norm.item(),
                             total_pads=total_pads,
-                            total_toks=total_toks,
+                            total_samples=total_samples,
                         )
+                        total_pads = 0
+                        total_samples = 0
 
                     accum_loss = 0.0
                     accum_audio_norm = 0.0
@@ -464,13 +465,15 @@ class Trainer:
     # Logging helper
     # -----------------------
 
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, total_pads=None, total_toks=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, total_pads=0, total_samples=0):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
         tag = "eval_" if is_eval else "train_"
+
+        pads_per_sample = total_pads / total_samples if total_samples else None
 
         if total_pads is not None and total_toks is not None:
             perc_pads = 100*total_pads/total_toks if total_toks else -1
@@ -512,9 +515,9 @@ class Trainer:
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
             log_dict[f"{tag}wer_score"] = wer
-        if perc_pads is not None:
-            log_str += f"%pad={perc_pads:.2f} | "
-            log_dict[f"{tag}%pad="] = perc_pads
+        if pads_per_sample is not None:
+            log_str += f"pads/sample={pads_per_sample:.2f} | "
+            log_dict[f"{tag}pads/sample="] = pads_per_sample
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
 
