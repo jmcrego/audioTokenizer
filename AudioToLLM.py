@@ -375,7 +375,7 @@ class AudioToLLM(torch.nn.Module):
         outputs = self.llm.model.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
-            position_ids=position_ids,
+#kk            position_ids=position_ids,
             max_new_tokens=max_new_tokens,
             stopping_criteria=stopping_criteria,
             do_sample=(temperature > 0),
