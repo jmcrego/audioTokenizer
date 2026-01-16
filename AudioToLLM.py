@@ -167,44 +167,59 @@ class AudioToLLM(torch.nn.Module):
             audio_embs = self.read_cache_embs(pt_paths, offsets)
 
         audio_embs = audio_embs.to(device)
+        logger.info(f"audio_embs.shape {audio_embs.shape}")
 
         # 2) Project audio embeddings
         proj_embs, proj_mask = self.projector(audio_embs)      # [B, S_max, D_llm], [B, S_max]
+        logger.info(f"proj_embs.shape {proj_embs.shape}")
         proj_mask = proj_mask.bool()
         B, S_max, D = proj_embs.shape
         audio_lens = proj_mask.sum(dim=1)                      # [B]
 
         # 3) Embed prompt
         prompt_ids = prompt_ids.to(device)
+        logger.info(f"prompt_ids.shape {prompt_ids.shape}")
         prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
+        logger.info(f"prompt_embs.shape {prompt_embs.shape}")
         prompt_mask = prompt_ids != self.llm.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)                   # [B]
+        logger.info(f"prompt_lens {prompt_lens}")
         T_prompt = prompt_ids.size(1)
 
         # 3bis) Embed target if provided
         if target_ids is not None:
             target_ids = target_ids.to(device)
+            logger.info(f"target_ids.shape {target_ids.shape}")
             target_embs = self.llm.model.get_input_embeddings()(target_ids)  # [B, T_target, D]
+            logger.info(f"target_embs.shape {target_embs.shape}")
             target_mask = target_ids != self.llm.tokenizer.pad_token_id
             target_lens = target_mask.sum(dim=1)          # [B]
+            logger.info(f"target_lens {target_lens}")
             T_target = target_ids.size(1)
 
         # 4) Locate <extra_id_0> in prompt
         audio_token_mask = prompt_ids == self.audio_token_id
         assert (audio_token_mask.sum(dim=1) == 1).all(), "Each sample must have exactly one <extra_id_0>"
         audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
+        logger.info(f"audio_pos {audio_pos}")
 
         # 5) Allocate final batch
         if target_ids is not None:
             total_lens = (prompt_lens - 1) + audio_lens + target_lens  # [B]
         else:
             total_lens = (prompt_lens - 1) + audio_lens
+        logger.info(f"total_lens {total_lens}")
 
         max_len = total_lens.max().item()
         inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
+        logger.info(f"inputs_embeds.shape {inputs_embeds.shape}")
         attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
+        logger.info(f"attention_mask.shape {attention_mask.shape}")
         if target_ids is not None:
             labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
+            logger.info(f"labels.shape {labels.shape}")
+
+        kk
 
         # 6) Insert prompt tokens before <extra_id_0>
         range_T = torch.arange(T_prompt, device=device).unsqueeze(0)  # [1, T_prompt]
@@ -380,7 +395,7 @@ class AudioToLLM(torch.nn.Module):
         eos_probs = []
         for step_scores in outputs.scores:
             probs = step_scores.softmax(dim=-1)
-            eos_probs.append(probs[:, self.llm.tokenizer.eos_token_id])
+            eos_probs.append(probs[:, self.llm.tokenizer.eos_token_id]) # [B, i]
         eos_probs = torch.stack(eos_probs, dim=1)  # [B, T_new]
         mean_eos_prob = eos_probs.mean()
         max_eos_prob = eos_probs.max()

@@ -383,8 +383,6 @@ class Dataset(Dataset):
                 src_lang=sample['src_lang'], tgt_lang=sample['tgt_lang'], 
                 asr_text=sample["asr"], stt_text=sample['stt']
             )
-            # prompt = build_prompt(audio_token=audio_token, src_lang=sample['src_lang'], tgt_lang=sample['tgt_lang'], asr=sample["asr"] if sample.get("tgt_lang") else None)
-            # target = build_target(asr=sample['asr'], stt=sample['stt'])
 
             prompt_ids = tokenizer(prompt, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["prompt_ids"] = prompt_ids
