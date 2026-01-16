@@ -67,10 +67,10 @@ class Trainer:
         self.log_every = log_every
         self.accum_steps = accum_steps
         self.output_dir = output_dir
-        self.tokenizer = self.model.backbone.tokenizer
+        self.tokenizer = self.model.llm.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
-        param = next(self.model.backbone.llm_model.parameters())
+        param = next(self.model.llm.model.parameters())
         self.device = param.device
         self.dtype = param.dtype
 
@@ -109,7 +109,7 @@ class Trainer:
 
         self.optimizer = torch.optim.AdamW([
             {"params": self.model.projector.parameters(), "lr": lr_proj},
-            {"params": [p for n, p in self.model.backbone.llm_model.named_parameters() if p.requires_grad], "lr": lr_lora},
+            {"params": [p for n, p in self.model.llm.model.named_parameters() if p.requires_grad], "lr": lr_lora},
         ])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
 
@@ -256,7 +256,7 @@ class Trainer:
                         return total_norm
 
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
-                    lora_grad_norm = compute_grad_norm(self.model.backbone.lora_parameters())
+                    lora_grad_norm = compute_grad_norm(self.model.llm.lora_parameters())
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
                         scale_val = scale_val.item()

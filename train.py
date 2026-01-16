@@ -103,10 +103,10 @@ if __name__ == "__main__":
 
     train_dataset = Dataset(
         file_path=args.train,
-        tokenizer=model.backbone.tokenizer,
+        tokenizer=model.llm.tokenizer,
         audio_token=config['llm']['audio_token'],
-        bos_token=model.backbone.tokenizer.bos_token or "",
-        eos_token=model.backbone.tokenizer.eos_token or "",
+        bos_token=model.llm.tokenizer.bos_token or "",
+        eos_token=model.llm.tokenizer.eos_token or "",
         # sample_rate=model.audio_embedder.sample_rate,
         # downsample_ratio=model.audio_embedder.downsample_ratio,
         # conv_stride=config["projector"]["conv_stride"],
@@ -115,10 +115,10 @@ if __name__ == "__main__":
 
     eval_dataset = Dataset(
         file_path=args.eval,
-        tokenizer=model.backbone.tokenizer,
+        tokenizer=model.llm.tokenizer,
         audio_token=config['llm']['audio_token'],
-        bos_token=model.backbone.tokenizer.bos_token or "",
-        eos_token=model.backbone.tokenizer.eos_token or "",
+        bos_token=model.llm.tokenizer.bos_token or "",
+        eos_token=model.llm.tokenizer.eos_token or "",
         # sample_rate=model.audio_embedder.sample_rate,
         # downsample_ratio=model.audio_embedder.downsample_ratio,
         # conv_stride=config["projector"]["conv_stride"],
