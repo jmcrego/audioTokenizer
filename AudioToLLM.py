@@ -373,6 +373,10 @@ class AudioToLLM(torch.nn.Module):
             use_cache=True,
         )
 
+        logits = outputs.logits  # [B, T, V]
+        eos_prob = logits.softmax(-1)[..., self.backbone.tokenizer.eos_token_id].mean()
+        logger.info(f"Mean EOS prob: {eos_prob:.4f}")
+
         return self.backbone.tokenizer.batch_decode(outputs, skip_special_tokens=False) #skip_special_tokens should be set to True when working
 
 

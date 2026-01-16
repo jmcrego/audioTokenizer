@@ -26,7 +26,7 @@ class Backbone(torch.nn.Module):
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
         logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
-        logger.info(f"<|im_end|> = {self.tokenizer.convert_tokens_to_ids("<|im_end|>")}")
+        # logger.info(f"<|im_end|> = {self.tokenizer.convert_tokens_to_ids("<|im_end|>")}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
@@ -66,7 +66,6 @@ class Backbone(torch.nn.Module):
                         self.llm_model.get_input_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_input_emb)
                         self.llm_model.get_output_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_output_emb)
                     logger.info(f"Loaded special_tokens embeddings with config: {config_embeddings}")
-
                 else:
                     logger.info(f"Initialized special_tokens embeddings with config: {config_embeddings}")
         else:
