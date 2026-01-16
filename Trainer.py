@@ -438,7 +438,7 @@ class Trainer:
         logger.info(f"len predictions = {len(predictions)}")
         logger.info(f"len references = {len(references)}")
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-        wer_score = wer(references, predictions)
+        wer_score = 100 * wer(references, predictions)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
