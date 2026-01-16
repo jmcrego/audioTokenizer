@@ -373,7 +373,7 @@ class AudioToLLM(torch.nn.Module):
             use_cache=True,
         )
 
-        return self.backbone.tokenizer.batch_decode(outputs, skip_special_tokens=False)
+        return self.backbone.tokenizer.batch_decode(outputs, skip_special_tokens=False) #skip_special_tokens should be set to True when working
 
 
 
