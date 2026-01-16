@@ -217,7 +217,7 @@ class AudioToLLM(torch.nn.Module):
 #        logger.info(f"attention_mask.shape {attention_mask.shape}")
         if target_ids is not None:
             labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
-            logger.info(f"labels.shape {labels.shape}")
+#            logger.info(f"labels.shape {labels.shape}")
 
         #kk
 
