@@ -15,7 +15,7 @@ config = {
         "use_bias": False,
     },
     "llm": {
-        "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
+        "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B",
         "audio_token": "<extra_id_0>", 
     },
     "embeddings": {
