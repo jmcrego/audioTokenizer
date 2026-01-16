@@ -368,7 +368,7 @@ class AudioToLLM(torch.nn.Module):
             top_p=top_p if temperature > 0 else None,
             no_repeat_ngram_size = no_repeat_ngram_size, 
             repetition_penalty = repetition_penalty,
-            pad_token_id = self.backbone.tokenizer.eos_token_id,
+            pad_token_id = self.backbone.tokenizer.pad_token_id,
             eos_token_id = self.backbone.tokenizer.eos_token_id,
             use_cache=True,
         )
