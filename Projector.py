@@ -126,7 +126,7 @@ class Projector(nn.Module):
         if self.bias is not None:
             x = x + self.bias
         T_out = x.size(1)
-        # Mask: all frames valid
+        # Mask: all frames are valid
         mask = torch.ones(B, T_out, dtype=torch.bool, device=x.device)
 
         return x, mask
