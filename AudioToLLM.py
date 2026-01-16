@@ -384,15 +384,14 @@ class AudioToLLM(torch.nn.Module):
 
         # outputs = {"sequences": LongTensor [B, T], "scores": Tuple[LongTensor [B, V]], ...
 
-        eos_probs = []
-        for step_scores in outputs.scores:
-            probs = step_scores.softmax(dim=-1)
-            eos_probs.append(probs[:, self.llm.tokenizer.eos_token_id]) # [B, i]
-        eos_probs = torch.stack(eos_probs, dim=1)  # [B, T_new]
-        mean_eos_prob = eos_probs.mean()
-        max_eos_prob = eos_probs.max()
-        logger.info(f"Mean EOS prob: {mean_eos_prob.item():.6f} Max EOS prob: {max_eos_prob.item():.6f}")
-
+        # eos_probs = []
+        # for step_scores in outputs.scores:
+        #     probs = step_scores.softmax(dim=-1)
+        #     eos_probs.append(probs[:, self.llm.tokenizer.eos_token_id]) # [B, i]
+        # eos_probs = torch.stack(eos_probs, dim=1)  # [B, T_new]
+        # mean_eos_prob = eos_probs.mean()
+        # max_eos_prob = eos_probs.max()
+        # logger.info(f"Mean EOS prob: {mean_eos_prob.item():.6f} Max EOS prob: {max_eos_prob.item():.6f}")
 
         return self.llm.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False) #skip_special_tokens should be set to True when working
 
