@@ -25,7 +25,8 @@ class Backbone(torch.nn.Module):
         self.original_vocab_size = len(self.tokenizer)
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
-        logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_idd")
+        logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
+        logger.info(f"<|im_end|> = {self.tokenizer.convert_tokens_to_ids("<|im_end|>")}")
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             logger.info(f"Set pad_token to eos_token: {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
