@@ -441,8 +441,6 @@ class Trainer:
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
-        pads_per_sample = total_pads / total_samples if total_samples else None
-
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
@@ -464,8 +462,8 @@ class Trainer:
             log_str += f"bleu={bleu:.2f} | "
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
-        if pads_per_sample is not None:
-            log_str += f"pads/sample={total_pads}/{total_samples}={pads_per_sample:.6f} | "
+        if total_samples:
+            log_str += f"pads/samples={total_pads}/{total_samples} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
