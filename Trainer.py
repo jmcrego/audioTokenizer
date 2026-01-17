@@ -463,7 +463,7 @@ class Trainer:
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
         if total_samples:
-            log_str += f"pads_per_sample={total_pads}/{total_samples:.3f} | "
+            log_str += f"pads_per_sample={total_pads/total_samples:.3f} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
