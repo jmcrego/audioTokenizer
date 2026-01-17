@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
-    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
     parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
     parser.add_argument("--template", type=str, default="oneline", help="declarative OR instruct OR oneline")
     parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
