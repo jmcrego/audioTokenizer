@@ -54,43 +54,57 @@ def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, down
 
 def build_template(
         type="instruct", task="asr", 
-        audio_token="<audio>", bos_token="<bos>", eos_token="<eos>", 
+        audio_token="<audio>", bos_token="<s>", eos_token="</s>", 
         src_lang=None, tgt_lang=None, 
         asr_text=None, stt_text=None
     ):
-    """
-    Build a prompt/target string for speech processing tasks.
+    if type not in {'instruct', 'declarative', 'oneline'}:
+        raise ValueError("unknown type template: use 'instruct' OR 'declarative' OR 'oneline'")
 
-    Types supported:
-    - Instruct: chat-base template, instructing in natural lanugage
-    - Declarative: defines a formal interface, declaring constraints and roles (<|task:asr|>, <|src_lang|>, <|speech|>)
+    if task not in {'asr', 'ast', 'stt'}:
+        raise ValueError("unknown task template: use 'asr' OR 'ast' OR 'stt'")
 
-    Tasks supported:
-    - asr: transcribing speech into text.
-    - stt: transcribing speech and translating it into a target language.
-    - 2stt : translating speech using also an available transcription
+    ####################################################################
+    ### oneline prompt #################################################
+    ####################################################################
+    if type == "oneline":
+        # Automatic Speech Recognition
+        if task == "asr":
+            prompt=f"{audio_token}<|{task}|>" 
+            target=f"<|{src_lang}|>{asr_text}" if src_lang is not None and asr_text is not None else None
 
-    Args:
-        audio_token (str): Placeholder token representing the audio input.
-        bos_token, eos_token: tokenizer tokens used for BOS/EOS.
-        src_lang (str): Source language of the speech.
-        tgt_lang (str): Target language for translation.
-        asr: Transcription text.
-        stt: Translation text.
+        # Automatic Speech Translation
+        elif task == "ast":
+            if tgt_lang is None:
+                raise ValueError("tgt_lang must exist for ast task")
+            
+            prompt=f"{audio_token}<|{task}|><|{tgt_lang}|>" 
+            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
 
-    Returns:
-        prompt, target: Formatted prompt/target strings.
-    """
-    if type not in {'instruct', 'declarative'}:
-        raise ValueError("unknown type template: use 'instruct' OR 'declarative'")
+        # Speech Transcription and Translation
+        elif task == "stt":
+            if src_lang is None or tgt_lang is None:
+                raise ValueError("src_lang/tgt_lang must exist for stt task")
+            if asr_text is None:
+                raise ValueError("asr_text must exist for stt task")
+            
+            prompt=f"{audio_token}<|{task}-asr|><|{src_lang}|>{asr_text}<|{task}|><|{tgt_lang}|>" 
+            target=f"{stt_text}" if stt_text is not None else None
 
-    if task not in {'asr', 'stt', '2stt'}:
-        raise ValueError("unknown type template: use 'asr' OR 'stt' OR '2stt'")
+        # Text to Text Translation (No audio involved)
+        elif task == "ttt":
+            if tgt_lang is None:
+                raise ValueError("tgt_lang must exist for ast task")
+            
+            prompt=f"{asr_text}<|{task}|><|{tgt_lang}|>"
+            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
+
+        return bos_token+prompt, target+eos_token if target is not None else None
 
     ####################################################################
     ### instruct prompt ################################################
     ####################################################################
-    if type == "instruct":
+    elif type == "instruct":
         if task == "asr":
             prompt = (
                 f"<|im_start|>system\n"
@@ -102,7 +116,6 @@ def build_template(
                 f"<|im_end|>\n"
                 f"<|im_start|>assistant\n"
             )
-            target = f"{asr_text}<|im_end|>"
 
         elif task == "stt":
             prompt = (
@@ -135,6 +148,7 @@ def build_template(
                 f"<|im_start|>assistant\n"
             )
             target = f"{stt_text}<|im_end|>"
+        return prompt, target
 
     ####################################################################
     ### declarative prompt #############################################
@@ -170,7 +184,8 @@ def build_template(
             )
             target = stt_text + eos_token if stt_text is not None else None
 
-    return prompt, target
+        return prompt, target
+
 
 
 def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):

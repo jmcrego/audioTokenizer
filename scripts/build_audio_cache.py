@@ -26,7 +26,9 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
 
     with torch.no_grad():
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
-            audio_embs, _ = audio_embedder(audio_paths)  # Whisper: ignore mask
+            audio_res = audio_embedder(audio_paths)  # Whisper: ignore mask
+
+        audio_embs = audio_res[0] if isinstance(audio_res, tuple) else audio_res
 
     return audio_embs.cpu().contiguous()
 
@@ -57,48 +59,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         samples[idx]["offset"] = i
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
-
-def build_audio_cache(
-        tsv_path, 
-        cache_dir, 
-        embedder_path, 
-        tokenizer_path, 
-        audio_token,
-        template,
-        task,
-        device, 
-        dtype, 
-        batch_size, 
-        bucket_size,
-    ):
-    os.makedirs(cache_dir, exist_ok=True)
-    torch_dtype = getattr(torch, dtype)
-
-    # Initialize embedder
-    audio_embedder = Embedder(config={'path': embedder_path})
-    audio_embedder.to(device, dtype=torch_dtype)
-    audio_embedder.eval()
-
-    # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
-
-    # Read TSV samples
-    samples = read_samples_from_tsv(tsv_path)
-
-    # Build prompts, targets, and tokenized lengths
-    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
-        prompt, target = build_template(type=template, task=task, 
-            audio_token=audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
-            src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), 
-            asr_text=s.get("asr"), stt_text=s.get("stt"),
-        )
-        # prompt = build_prompt(audio_token=audio_token, src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), asr=s.get("asr") if s.get("tgt_lang") else None)
-        # target = build_target(asr=s.get("asr"), stt=s.get("stt"))
-        s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
-    
-    # Sort samples by tokenized length (shortest → longest)
-    samples.sort(key=lambda x: x["seq_len"])
-
+def save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_dir, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
@@ -144,7 +105,49 @@ def build_audio_cache(
     logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
-    # Save meta.json including prompts and targets
+
+def build_audio_cache(
+        tsv_path, 
+        cache_dir, 
+        embedder_path, 
+        tokenizer_path, 
+        audio_token,
+        template,
+        task,
+        device, 
+        dtype, 
+        batch_size, 
+        bucket_size,
+    ):
+    os.makedirs(cache_dir, exist_ok=True)
+    torch_dtype = getattr(torch, dtype)
+
+    # Initialize embedder
+    audio_embedder = Embedder(config={'path': embedder_path})
+    audio_embedder.to(device, dtype=torch_dtype)
+    audio_embedder.eval()
+
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
+
+    # Read TSV samples
+    samples = read_samples_from_tsv(tsv_path)
+
+    # Compute tokenized lengths
+    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
+        prompt, target = build_template(type=template, task=task, 
+            audio_token=audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
+            src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), 
+            asr_text=s.get("asr"), stt_text=s.get("stt"),
+        )
+        s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
+    
+    # Sort samples by tokenized length (shortest → longest)
+    samples.sort(key=lambda x: x["seq_len"])
+
+    save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_dir, device, torch_dtype)
+
+    # Save meta.json
     meta_path = os.path.join(cache_dir, "meta.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({
@@ -153,10 +156,7 @@ def build_audio_cache(
                 "cache_dir": cache_dir, 
                 "embedder_path": embedder_path,
                 "tokenizer_path": tokenizer_path,
-                "audio_token": audio_token,
-                "device": str(device),
                 "dtype": dtype,
-                "batch_size": batch_size, 
                 "bucket_size": bucket_size,
             },
             "samples": [{
@@ -180,8 +180,8 @@ if __name__ == "__main__":
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
-    parser.add_argument("--template", type=str, default="declarative", help="declarative OR instruct")
-    parser.add_argument("--task", type=str, default="asr", help="asr OR stt OR 2stt")
+    parser.add_argument("--template", type=str, default="oneline", help="declarative OR instruct OR oneline")
+    parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         args.tsv_path, 
         args.cache_dir, 
         args.embedder_path,
-        args.tokenizer_path, 
+        args.tokenizer_path,
         args.audio_token,
         args.template,
         args.task,
