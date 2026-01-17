@@ -443,7 +443,7 @@ class Trainer:
 
         pads_per_sample = total_pads / total_samples if total_samples else None
 
-        log_str =  f"{'Evaluation ' if is_eval else 'Training'} | "
+        log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.4f} | "
