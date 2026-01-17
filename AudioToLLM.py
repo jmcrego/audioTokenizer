@@ -4,8 +4,6 @@ import os
 import torch
 import logging
 from collections import OrderedDict
-from transformers import StoppingCriteriaList
-from transformers import StoppingCriteria
 
 from Embedder import Embedder
 from Projector import Projector

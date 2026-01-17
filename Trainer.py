@@ -221,7 +221,7 @@ class Trainer:
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
                 # Number of pad tokens in the batch (for logging pad)
-                total_pads += (batch["prompt_ids"] == self.tokenizer.pad_token_id).sum().item()
+                total_pads += (batch["prompt_ids"] == self.tokenizer.pad_token_id).sum().item() + (batch["target_ids"] == self.tokenizer.pad_token_id).sum().item()
                 # Number of samples (for logging pad)
                 total_samples += batch["prompt_ids"].size(0)
 
@@ -463,7 +463,7 @@ class Trainer:
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
         if total_samples:
-            log_str += f"pads/samples={total_pads}/{total_samples} | "
+            log_str += f"pads_per_sample={total_pads}/{total_samples:.3f} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
