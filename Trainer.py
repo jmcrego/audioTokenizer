@@ -4,7 +4,6 @@ import os
 import re
 import glob
 import json
-#import wandb
 import torch
 import shutil
 import random
@@ -304,10 +303,8 @@ class Trainer:
 
                     # Evaluation + checkpoint
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
-                        # self.evaluate()
-                        self.evaluate_with_generation(
-                            max_gen_samples=0, #0 for all
-                            max_new_tokens=64,
+                        self.evaluate(
+                            max_new_tokens=256,
                             temperature=0.0,
                             no_repeat_ngram_size = 0,
                             repetition_penalty = 1.1,
@@ -336,30 +333,8 @@ class Trainer:
     # Evaluation
     # -----------------------
     @torch.no_grad()
-    def evaluate(self):
-        self.model.eval()
-        total_loss = 0.0
-        n_batches = 0
-        for batch in self.eval_loader:
-            batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k,v in batch.items()}
-
-            # Use autocast for mixed precision
-            with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
-                outputs = self.model(**batch)
-
-            total_loss += outputs["loss"].item()
-            n_batches += 1
-
-        avg_loss = total_loss / max(1, n_batches)
-        self.log_fn(avg_loss, is_eval=True)
-
-        self.model.train()
-        return avg_loss
-
-    @torch.no_grad()
-    def evaluate_with_generation(
+    def evaluate(
         self,
-        max_gen_samples=0,
         max_new_tokens=256,
         temperature=0.0,
         top_p=1.0,
@@ -418,7 +393,6 @@ class Trainer:
                 audio_paths=audio_paths,
                 prompt_ids=prompt_ids,
                 max_new_tokens=max_new_tokens,
-                #do_sample=(temperature>0.0),
                 temperature=temperature,
                 top_p=top_p,
                 no_repeat_ngram_size = no_repeat_ngram_size,
@@ -434,9 +408,6 @@ class Trainer:
             references.extend(target_texts)
 
             for i in range(len(audio_paths)):
-                if max_gen_samples and logged_samples >= max_gen_samples:
-                    break
-
                 logger.info(f"[EVAL SAMPLE {logged_samples}]")
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
@@ -471,21 +442,7 @@ class Trainer:
         m = int((elapsed % 3600) // 60)
         s = int(elapsed % 60)
 
-        tag = "eval_" if is_eval else "train_"
-
         pads_per_sample = total_pads / total_samples if total_samples else None
-
-        if total_pads is not None and total_toks is not None:
-            perc_pads = 100*total_pads/total_toks if total_toks else -1
-        else:
-            perc_pads = None
-
-        log_dict = {
-            "step": self.step,
-            f"{tag}loss": loss,
-            f"{tag}lr_proj": self.optimizer.param_groups[0]["lr"],
-            f"{tag}lr_lora": self.optimizer.param_groups[1]["lr"],
-        }
 
         log_str =  f"{'Evaluation ' if is_eval else 'Training'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
@@ -496,33 +453,23 @@ class Trainer:
 
         if proj_grad_norm is not None:
             log_str += f"proj_grad_norm={proj_grad_norm:.2f} | "
-            log_dict[f"{tag}proj_grad_norm"] = proj_grad_norm
         if lora_grad_norm is not None:
             log_str += f"lora_grad_norm={lora_grad_norm:.2f} | "
-            log_dict[f"{tag}lora_grad_norm"] = lora_grad_norm
         if scale_val is not None:
             log_str += f"scale={scale_val:.2f} | "
-            log_dict[f"{tag}scale"] = scale_val
         if audio_norm is not None:
             log_str += f"audio_norm={audio_norm:.2f} | "
-            log_dict[f"{tag}audio_norm"] = audio_norm
         if text_norm is not None:
             log_str += f"text_norm={text_norm:.2f} | "
-            log_dict[f"{tag}text_norm"] = text_norm
         if bleu is not None:
             log_str += f"bleu={bleu:.2f} | "
-            log_dict[f"{tag}bleu_score"] = bleu
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
-            log_dict[f"{tag}wer_score"] = wer
         if pads_per_sample is not None:
             log_str += f"pads/sample={pads_per_sample:.2f} | "
-            log_dict[f"{tag}pads/sample="] = pads_per_sample
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
-
         logger.info(log_str)
-        #wandb.log(log_dict)
 
 
 # x: [B, T, D] embeddings (B=batch size, T=time steps, D=embedding dim)
