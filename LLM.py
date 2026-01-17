@@ -26,9 +26,19 @@ class LLM(torch.nn.Module):
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
         logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
-        # logger.info(f"<|im_end|> = {self.tokenizer.convert_tokens_to_ids("<|im_end|>")}")
         if self.tokenizer.pad_token is None or self.tokenizer.pad_token == self.tokenizer.eos_token:
-            self.tokenizer.pad_token = self.tokenizer.unk_token
+            pad_token = config['pad_token']
+
+            pad_token_id = self.tokenizer.convert_tokens_to_ids(pad_token)
+            assert isinstance(pad_token_id, int), f"PAD token '{pad_token}' does not map to a single token id: {pad_token_id}"
+            assert pad_token_id != self.tokenizer.unk_token_id, f"PAD token '{pad_token}' is mapped to <unk>"
+
+            ids = self.tokenizer.encode(pad_token, add_special_tokens=False)
+            assert len(ids) == 1, f"PAD token '{pad_token}' is not atomic, got ids={ids}"
+            assert ids[0] == pad_token_id
+
+            self.tokenizer.pad_token = pad_token
+
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
 
         ###### LLM  ############################
