@@ -217,8 +217,6 @@ class AudioToLLM(torch.nn.Module):
             labels = torch.full((B, max_len), -100, device=device, dtype=torch.long)
 #            logger.info(f"labels.shape {labels.shape}")
 
-        #kk
-
         # 6) Insert prompt tokens before <extra_id_0>
         range_T = torch.arange(T_prompt, device=device).unsqueeze(0)  # [1, T_prompt]
         before_mask = range_T < audio_pos.unsqueeze(1)                # [B, T_prompt]
