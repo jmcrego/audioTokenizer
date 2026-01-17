@@ -351,10 +351,6 @@ class Dataset(Dataset):
         audio_token="<extra_id_0>",
         bos_token="<bos>",
         eos_token="<eos>",
-        # sample_rate=16000,
-        # downsample_ratio=320,
-        # conv_stride=30,
-        # max_seq_len=1000,
         seed=42,
     ):
         """
@@ -393,7 +389,7 @@ class Dataset(Dataset):
             sample = self.data[idx]
 
             prompt, target = build_template(
-                type="declarative", task="asr", 
+                type="oneline", task="asr", 
                 audio_token=audio_token, bos_token=bos_token, eos_token=eos_token, 
                 src_lang=sample['src_lang'], tgt_lang=sample['tgt_lang'], 
                 asr_text=sample["asr"], stt_text=sample['stt']
