@@ -431,11 +431,9 @@ class Trainer:
         self.model.train()
         return avg_loss
 
-
     # -----------------------
-    # Logging helper
+    # Logging 
     # -----------------------
-
     def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, total_pads=0, total_samples=0):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
