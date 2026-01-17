@@ -306,6 +306,7 @@ class Trainer:
                         self.evaluate(
                             max_new_tokens=256,
                             temperature=0.0,
+                            top_p=1.0,
                             no_repeat_ngram_size = 0,
                             repetition_penalty = 1.1,
                         )
@@ -464,7 +465,7 @@ class Trainer:
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
         if pads_per_sample is not None:
-            log_str += f"pads/sample={pads_per_sample:.2f} | "
+            log_str += f"pads/sample={total_pads}/{total_samples}={pads_per_sample:.6f} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
