@@ -481,4 +481,4 @@ class AudioToLLM(torch.nn.Module):
         )
         logger.info(f"Trainable %    : {100 * trainable_params / total_params:.2f}%")
         logger.info("=" * 100)
-
+        kk
