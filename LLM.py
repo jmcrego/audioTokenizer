@@ -18,37 +18,36 @@ class LLM(torch.nn.Module):
 
         llm_path = config["path"]
 
-        #self.model.tie_weights()
-
         ###### Tokenizer ##################################################
         self.tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
         self.original_vocab_size = len(self.tokenizer)
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
         logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
-        if self.tokenizer.pad_token is None or self.tokenizer.pad_token == self.tokenizer.eos_token:
-            pad_token = config['pad_token']
-
-            pad_token_id = self.tokenizer.convert_tokens_to_ids(pad_token)
-            assert isinstance(pad_token_id, int), f"PAD token '{pad_token}' does not map to a single token id: {pad_token_id}"
-            assert pad_token_id != self.tokenizer.unk_token_id, f"PAD token '{pad_token}' is mapped to <unk>"
-
-            ids = self.tokenizer.encode(pad_token, add_special_tokens=False)
-            assert len(ids) == 1, f"PAD token '{pad_token}' is not atomic, got ids={ids}"
-            assert ids[0] == pad_token_id
-
-            self.tokenizer.pad_token = pad_token
-
+        # Set PAD token (id is automatically inferred)
+        self.tokenizer.pad_token = config['pad_token']
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
+
+        ### verify tokens
+        tokens_to_verify = config_embeddings["special_tokens"] + [config['pad_token'], config['audio_token']]
+        for token in tokens_to_verify:
+            token_id = self.tokenizer.convert_tokens_to_ids(token)
+            assert isinstance(token_id, int), f"Token '{token}' does not map to a single token_id: {token_id}"
+            assert token_id != self.tokenizer.unk_token_id, f"Token '{token}' is mapped to <unk>"
+            ids = self.tokenizer.encode(token, add_special_tokens=False)
+            assert len(ids) == 1, f"Token '{token}' does not map to a single token_id when encoded: {ids}"
+            assert ids[0] == token_id, f"Token '{token}' does not map to same token_id when encoded '{ids[0]}' than token_to_id '{token_id}'"
+            logger.info(f"{token}: {token_id}")
+
 
         ###### LLM  ############################
         self.model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
-        self.tied_embeddings = self.model.get_input_embeddings().weight.data_ptr() == self.model.get_output_embeddings().weight.data_ptr()
 
         original_input_embeddings_size = self.model.get_input_embeddings().weight.shape[0]
         original_output_embeddings_size = self.model.get_output_embeddings().weight.shape[0]
         logger.info(f"Loaded LLM model from {llm_path} with embeddings size={original_input_embeddings_size}/{original_output_embeddings_size}")
         assert self.original_vocab_size == original_input_embeddings_size
+        assert self.original_vocab_size == original_output_embeddings_size
 
         # special embeddings
         if config_embeddings is not None:
@@ -76,8 +75,13 @@ class LLM(torch.nn.Module):
                         self.model.get_input_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_input_emb)
                         self.model.get_output_embeddings().weight[self.original_vocab_size : self.new_vocab_size].copy_(new_output_emb)
                     logger.info(f"Loaded special_tokens embeddings with config: {config_embeddings}")
+                    assert self.tokenizer.convert_tokens_to_ids(self.special_tokens[0]) == self.original_vocab_size
+
                 else:
+                    with torch.no_grad():
+                        self.model.get_input_embeddings().weight[self.original_vocab_size:].normal_(mean=0.0, std=0.02)
                     logger.info(f"Initialized special_tokens embeddings with config: {config_embeddings}")
+
         else:
             self.new_vocab_size = None
             logger.warning("No embeddings config provided - all LLM embedding parameters are frozen!")
