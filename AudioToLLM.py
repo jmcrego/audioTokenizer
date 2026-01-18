@@ -66,75 +66,6 @@ class AudioToLLM(torch.nn.Module):
         self.llm.save(ckpt_path)
 
 
-    # def summary(self):
-    #     """Log AudioToLLM model parameter summary"""      
-          
-    #     # Embedder
-    #     embedder_total = sum(p.numel() for p in self.audio_embedder.parameters())
-    #     embedder_trainable = sum(p.numel() for p in self.audio_embedder.parameters() if p.requires_grad)
-    #     embedder_trainable_names = [n for n, p in self.audio_embedder.named_parameters() if p.requires_grad]
-        
-    #     # Projector
-    #     projector_total = sum(p.numel() for p in self.projector.parameters())
-    #     projector_trainable = sum(p.numel() for p in self.projector.parameters() if p.requires_grad)
-    #     projector_trainable_names = [n for n, p in self.projector.named_parameters() if p.requires_grad]
-        
-    #     # LLM
-    #     llm_total = sum(p.numel() for p in self.llm.model.parameters())
-    #     llm_trainable = sum(p.numel() for p in self.llm.model.parameters() if p.requires_grad)
-    #     llm_trainable_names = [n for n, p in self.llm.model.named_parameters() if p.requires_grad]
-        
-    #     # Total
-    #     total = embedder_total + projector_total + llm_total
-    #     trainable = embedder_trainable + projector_trainable + llm_trainable
-    #     frozen = total - trainable
-        
-    #     logger.info("=" * 100)
-    #     logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
-    #     logger.info("=" * 100)
-    #     logger.info(f"Audio Embedder : {embedder_total:>15,} total | {embedder_trainable:>15,} trainable | {embedder_total - embedder_trainable:>15,} frozen")
-    #     logger.info(f"Projector      : {projector_total:>15,} total | {projector_trainable:>15,} trainable | {projector_total - projector_trainable:>15,} frozen")
-    #     logger.info(f"LLM (LoRA/Emb) : {llm_total:>15,} total | {llm_trainable:>15,} trainable | {llm_total - llm_trainable:>15,} frozen")
-    #     logger.info("-" * 100)
-    #     logger.info(f"TOTAL          : {total:>15,} total | {trainable:>15,} trainable | {frozen:>15,} frozen")
-    #     logger.info(f"Trainable %    : {100 * trainable / total:.2f}%")
-    #     logger.info("=" * 100)
-        
-    #     # Show trainable parameter names for each component
-    #     logger.info("-" * 100)
-    #     logger.info("TRAINABLE PARAMETERS:")
-    #     logger.info("-" * 100)
-        
-    #     # Audio Embedder
-    #     if embedder_trainable_names:
-    #         logger.info(f"Audio Embedder ({len(embedder_trainable_names)} params):")
-    #         for name in embedder_trainable_names[:20]:  # Show first 20
-    #             logger.info(f"  - {name}")
-    #         if len(embedder_trainable_names) > 20:
-    #             logger.info(f"  ... and {len(embedder_trainable_names) - 20} more")
-    #     else:
-    #         logger.info("Audio Embedder: (none - all frozen)")
-        
-    #     # Projector
-    #     if projector_trainable_names:
-    #         logger.info(f"Projector ({len(projector_trainable_names)} params):")
-    #         for name in projector_trainable_names:
-    #             logger.info(f"  - {name}")
-    #     else:
-    #         logger.info("Projector: (none - all frozen)")
-        
-    #     # LLM
-    #     if llm_trainable_names:
-    #         logger.info(f"LLM ({len(llm_trainable_names)} params):")
-    #         for name in llm_trainable_names[:20]:  # Show first 20
-    #             logger.info(f"  - {name}")
-    #         if len(llm_trainable_names) > 20:
-    #             logger.info(f"  ... and {len(llm_trainable_names) - 20} more")
-    #     else:
-    #         logger.info("LLM: (none - all frozen)")
-        
-    #     logger.info("-" * 100)
-
 
     def format_batch(self, audio_paths, prompt_ids, target_ids=None, pt_paths=None, offsets=None):
         """
@@ -250,12 +181,13 @@ class AudioToLLM(torch.nn.Module):
 
             inputs_embeds[b_t, target_dest[b_t, l_t]] = target_embs[b_t, l_t]
             attention_mask[b_t, target_dest[b_t, l_t]] = 1
-            #FIX BELOW: labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
+            #FIX BELOW: 
+            labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
 
             # SHIFT LABELS LEFT BY ONE
-            prev_pos = target_dest[b_t, l_t] - 1
-            valid_prev = prev_pos >= 0
-            labels[b_t[valid_prev], prev_pos[valid_prev]] = target_ids[b_t[valid_prev], l_t[valid_prev]]
+            # prev_pos = target_dest[b_t, l_t] - 1
+            # valid_prev = prev_pos >= 0
+            # labels[b_t[valid_prev], prev_pos[valid_prev]] = target_ids[b_t[valid_prev], l_t[valid_prev]]
 
 
         attn_sum = attention_mask.sum(dim=1)
