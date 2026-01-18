@@ -175,6 +175,11 @@ class LLM(torch.nn.Module):
             else:
                 param.requires_grad = False
 
+        for n, p in self.model.named_parameters():
+            if p.requires_grad:
+                logger.info(f"TRAINABLE: {n} {tuple(p.shape)}")
+
+
         logger.info("llm_model unfrozen: LoRA adapters + special-token input/output embeddings trainable")
 
 
