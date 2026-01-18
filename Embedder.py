@@ -111,7 +111,6 @@ class Embedder(nn.Module):
             self.embedder = whisper.encoder
             del whisper.decoder  # free decoder weights
             torch.cuda.empty_cache()  # optional
-            #self.embedder = WhisperEncoderModel.from_pretrained(self.path).encoder
             self.embedding_dim = self.embedder.config.d_model
 
         else:
