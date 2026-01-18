@@ -107,7 +107,7 @@ class Embedder(nn.Module):
             logger.debug(f"Loading whisper")
             from transformers import WhisperFeatureExtractor, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
-            whisper = WhisperModel.from_pretrained(self.path).encoder
+            whisper = WhisperModel.from_pretrained(self.path)
             self.embedder = whisper.encoder
             del whisper.decoder  # free decoder weights
             torch.cuda.empty_cache()  # optional
