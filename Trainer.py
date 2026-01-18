@@ -442,9 +442,9 @@ class Trainer:
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
-        log_str += f"loss={loss:.4f} | "
-        log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.6e} | "
-        log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.6e} | "
+        log_str += f"loss={loss:.3f} | "
+        log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
+        log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
             log_str += f"proj_grad_norm={proj_grad_norm:.2f} | "
@@ -461,7 +461,7 @@ class Trainer:
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
         if total_samples:
-            log_str += f"pads_per_sample={total_pads/total_samples:.3f} | "
+            log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
