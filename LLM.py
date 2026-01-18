@@ -122,30 +122,6 @@ class LLM(torch.nn.Module):
         logger.info("llm_model frozen (eval mode)")
 
 
-    # def unfreeze(self):
-    #     self.model.train()
-        
-    #     def freeze_old_embeddings(grad):
-    #         grad[:self.original_vocab_size] = 0
-    #         return grad
-        
-    #     for n, p in self.model.named_parameters():
-    #         # LoRA trainable
-    #         if "lora" in n.lower():
-    #             p.requires_grad = True
-    #         # Embeddings: enable grads globally (old rows frozen below)
-    #         elif n in ["model.embed_tokens.weight", "lm_head.weight"]:
-    #             p.requires_grad = True
-    #             # Register hook immediately after enabling gradients
-    #             if n == "model.embed_tokens.weight" and not hasattr(self, "_embedding_hook_registered"):
-    #                 p.register_hook(freeze_old_embeddings)
-    #                 self._embedding_hook_registered = True
-    #         # Everything else → frozen
-    #         else:
-    #             p.requires_grad = False
-
-    #     logger.info("llm_model (LoRA, special_tokens i/o embeddings) unfrozen (train mode)")
-
     def unfreeze(self):
         """
         Unfreezes model parameters for training:
@@ -197,12 +173,11 @@ class LLM(torch.nn.Module):
         # -----------------------------
         # Logging
         # -----------------------------
-        for n, p in self.model.named_parameters():
-            if p.requires_grad:
-                logger.info(f"TRAINABLE: {n} {tuple(p.shape)}")
+        # for n, p in self.model.named_parameters():
+        #     if p.requires_grad:
+        #         logger.info(f"TRAINABLE: {n} {tuple(p.shape)}")
 
         logger.info("llm_model unfrozen: LoRA adapters + special-token input/output embeddings trainable")
-
 
 
     def lora_parameters(self):
