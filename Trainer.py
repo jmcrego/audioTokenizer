@@ -10,6 +10,7 @@ import random
 import logging
 import sacrebleu
 from jiwer import wer
+from jiwer import Compose, ToLowerCase, RemovePunctuation, RemoveMultipleSpaces, Strip
 import numpy as np
 from datetime import datetime
 import time
@@ -23,6 +24,13 @@ from transformers import get_linear_schedule_with_warmup
 from Dataset import BatchedLengthSampler
 
 logger = logging.getLogger("Trainer")
+
+wer_transform = Compose([
+    ToLowerCase(),
+    RemovePunctuation(),
+    RemoveMultipleSpaces(),
+    Strip(),
+])
 
 class Trainer:
     def __init__(
@@ -419,7 +427,7 @@ class Trainer:
                 logged_samples += 1
 
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-        wer_score = 100 * wer(references, predictions)
+        wer_score = 100 * wer(references, predictions, truth_transform=wer_transform, hypothesis_transform=wer_transform)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
