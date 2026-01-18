@@ -160,3 +160,22 @@ class LLM(torch.nn.Module):
         output_embs = self.model.get_output_embeddings().weight[self.original_vocab_size : ].detach().cpu().clone()
         torch.save({"special_tokens": self.special_tokens, "input_embeddings": input_embs, "output_embeddings": output_embs}, ckpt_path + ".embs.pt")
         logger.info(f"Saved special_tokens embeddings to {ckpt_path}.embs.pt")
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    import sys
+
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    parser = argparse.ArgumentParser(description="Instantiate LLM backbone")
+    parser.add_argument("--config", type=str, required=True, help="Path to JSON config file")
+    args = parser.parse_args()
+
+    # Load JSON config
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    llm = LLM(config['llm'], config['lora'], config['embeddings'])
+    logger.info("LLM successfully initialized")
