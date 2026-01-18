@@ -105,9 +105,10 @@ class Embedder(nn.Module):
 
         elif "whisper" in self.path.lower():
             logger.debug(f"Loading whisper")
-            from transformers import WhisperFeatureExtractor, WhisperModel
+            from transformers import WhisperFeatureExtractor, WhisperEncoderModel #, WhisperModel
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
-            self.embedder = WhisperModel.from_pretrained(self.path).encoder
+            # self.embedder = WhisperModel.from_pretrained(self.path).encoder
+            self.embedder = WhisperEncoderModel.from_pretrained(self.path).encoder
             self.embedding_dim = self.embedder.config.d_model
 
         else:
