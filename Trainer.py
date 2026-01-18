@@ -409,7 +409,7 @@ class Trainer:
             references.extend(target_texts)
 
             for i in range(len(audio_paths)):
-                logger.info(f"[EVAL SAMPLE {logged_samples}]")
+                logger.info(f"[Eval sample {logged_samples}]")
                 logger.info(f"AUDIO: {audio_paths[i]}")
                 logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
                 logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
