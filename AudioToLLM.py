@@ -250,12 +250,12 @@ class AudioToLLM(torch.nn.Module):
 
             inputs_embeds[b_t, target_dest[b_t, l_t]] = target_embs[b_t, l_t]
             attention_mask[b_t, target_dest[b_t, l_t]] = 1
-            labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
+            #FIX BELOW: labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
 
             # SHIFT LABELS LEFT BY ONE
-            # prev_pos = target_dest[b_t, l_t] - 1
-            # valid_prev = prev_pos >= 0
-            # labels[b_t[valid_prev], prev_pos[valid_prev]] = target_ids[b_t[valid_prev], l_t[valid_prev]]
+            prev_pos = target_dest[b_t, l_t] - 1
+            valid_prev = prev_pos >= 0
+            labels[b_t[valid_prev], prev_pos[valid_prev]] = target_ids[b_t[valid_prev], l_t[valid_prev]]
 
 
         attn_sum = attention_mask.sum(dim=1)
