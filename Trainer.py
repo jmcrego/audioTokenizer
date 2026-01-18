@@ -10,7 +10,9 @@ import random
 import logging
 import sacrebleu
 from jiwer import wer
-from jiwer import Compose, ToLowerCase, RemovePunctuation, RemoveMultipleSpaces, Strip
+import unicodedata
+from jiwer import Compose, ToLowerCase, RemovePunctuation, RemoveMultipleSpaces, Strip, ReduceToListOfListOfChars
+from jiwer import AbstractTransform
 import numpy as np
 from datetime import datetime
 import time
@@ -25,7 +27,28 @@ from Dataset import BatchedLengthSampler
 
 logger = logging.getLogger("Trainer")
 
+
+class UnicodeNormalize(AbstractTransform):
+    def process_string(self, s: str):
+        return unicodedata.normalize("NFKC", s)
+
+class RemoveTags(AbstractTransform):
+    def process_string(self, s: str):
+        return re.sub(r"\<(.*?)\>|\[(.*?)\]", "", s)
+
+cer_transform = Compose([
+    UnicodeNormalize(),
+    RemoveTags(),
+    ToLowerCase(),
+    RemovePunctuation(),        # optional but common
+    RemoveMultipleSpaces(),
+    Strip(),
+    ReduceToListOfListOfChars(),
+])
+
 wer_transform = Compose([
+    UnicodeNormalize(),
+    RemoveTags(),
     ToLowerCase(),
     RemovePunctuation(),
     RemoveMultipleSpaces(),
@@ -428,10 +451,11 @@ class Trainer:
 
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
         wer_score = 100 * wer(references, predictions, truth_transform=wer_transform, hypothesis_transform=wer_transform)
+        cer_score = 100 * wer(references, predictions, truth_transform=cer_transform, hypothesis_transform=cer_transform)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
-        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score)
+        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score)
 
         logger.info(f"Generation took {time.time()-tic:.2f}s for {len(predictions)} samples")
 
@@ -441,7 +465,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, total_pads=0, total_samples=0):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -468,6 +492,8 @@ class Trainer:
             log_str += f"bleu={bleu:.2f} | "
         if wer is not None:
             log_str += f"wer={wer:.2f} | "
+        if cer is not None:
+            log_str += f"cer={cer:.2f} | "
         if total_samples:
             log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
