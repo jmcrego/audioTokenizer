@@ -28,8 +28,15 @@ class LLM(torch.nn.Module):
         self.tokenizer.pad_token = config['pad_token']
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
 
-        ### verify tokens
-        tokens_to_verify = config_embeddings["special_tokens"] + [config['pad_token'], config['audio_token']]
+        ### ADD SPECIAL TOKENS
+        self.special_tokens = config_embeddings.get("special_tokens", [])
+        additional_tokens = {"additional_special_tokens": self.special_tokens}
+        num_added = self.tokenizer.add_special_tokens(additional_tokens)
+        self.new_vocab_size = len(self.tokenizer)
+        logger.info(f"Added {num_added} special tokens, new vocab size is {self.new_vocab_size}")
+
+        ### VERIFY TOKENS
+        tokens_to_verify = self.special_tokens + [config['pad_token'], config['audio_token']]
         for token in tokens_to_verify:
             token_id = self.tokenizer.convert_tokens_to_ids(token)
             assert isinstance(token_id, int), f"Token '{token}' does not map to a single token_id: {token_id}"
@@ -51,15 +58,8 @@ class LLM(torch.nn.Module):
 
         # special embeddings
         if config_embeddings is not None:
-            self.special_tokens = config_embeddings.get("special_tokens", None)
-            embeddings_path = config_embeddings.get("path", None)
-
-            if self.special_tokens is not None:
-
-                self.tokenizer.add_special_tokens({"additional_special_tokens": self.special_tokens})
-                self.new_vocab_size = len(self.tokenizer)
-                logger.info(f"Extended tokenizer ({self.new_vocab_size})")
-
+            if len(self.special_tokens):
+                embeddings_path = config_embeddings.get("path", None)
                 self.model.resize_token_embeddings(len(self.tokenizer))
                 logger.info(f"Extended LLM embeddings ({self.new_vocab_size}) accordingly")
 
