@@ -146,40 +146,36 @@ class LLM(torch.nn.Module):
 
     #     logger.info("llm_model (LoRA, special_tokens i/o embeddings) unfrozen (train mode)")
 
-def unfreeze(self):
-    self.model.train()
+    def unfreeze(self):
+        self.model.train()
 
-    # Gradient hook to freeze old vocabulary rows (input embeddings only)
-    def freeze_old_embeddings(grad):
-        grad[:self.original_vocab_size] = 0
-        return grad
+        # Gradient hook to freeze old vocabulary rows (input embeddings only)
+        def freeze_old_embeddings(grad):
+            grad[:self.original_vocab_size] = 0
+            return grad
 
-    embedding_hook_registered = False
+        embedding_hook_registered = False
 
-    for name, param in self.model.named_parameters():
+        for name, param in self.model.named_parameters():
 
-        # LoRA adapters → trainable
-        if "lora" in name.lower():
-            param.requires_grad = True
+            # LoRA adapters → trainable
+            if "lora" in name.lower():
+                param.requires_grad = True
 
-        # Input / output embeddings → trainable
-        elif "embed_tokens" in name or "lm_head" in name:
-            param.requires_grad = True
+            # Input / output embeddings → trainable
+            elif "embed_tokens" in name or "lm_head" in name:
+                param.requires_grad = True
 
-            # Register hook only on INPUT embeddings
-            if ( "embed_tokens" in name and not hasattr(self, "_embedding_hook_registered") ):
-                param.register_hook(freeze_old_embeddings)
-                self._embedding_hook_registered = True
+                # Register hook only on INPUT embeddings
+                if ( "embed_tokens" in name and not hasattr(self, "_embedding_hook_registered") ):
+                    param.register_hook(freeze_old_embeddings)
+                    self._embedding_hook_registered = True
 
-        # --------------------------------------------------
-        # Everything else → frozen
-        # --------------------------------------------------
-        else:
-            param.requires_grad = False
+            # Everything else → frozen
+            else:
+                param.requires_grad = False
 
-    logger.info(
-        "llm_model unfrozen: LoRA adapters + special-token input/output embeddings trainable"
-    )
+        logger.info("llm_model unfrozen: LoRA adapters + special-token input/output embeddings trainable")
 
 
     def lora_parameters(self):
