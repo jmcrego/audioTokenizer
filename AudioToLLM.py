@@ -446,7 +446,7 @@ class AudioToLLM(torch.nn.Module):
         # Logging
         # -----------------------------
         logger.info("=" * 100)
-        logger.info("AudioToLLM PARS            TOTAL |       TRAINABLE |       FROZEN")
+        logger.info("AudioToLLM PARS             TOTAL |       TRAINABLE |          FROZEN")
         logger.info("=" * 100)
         logger.info(
             f"Audio Embedder  : {embedder_total:>15,} | "
@@ -479,6 +479,6 @@ class AudioToLLM(torch.nn.Module):
             f"{trainable_params:>15,} | "
             f"{frozen_params:>15,}"
         )
-        logger.info(f"Trainable %    : {100 * trainable_params / total_params:.2f}%")
+        logger.info(f"Trainable %     : {100 * trainable_params / total_params:.2f}%")
         logger.info("=" * 100)
         kk
