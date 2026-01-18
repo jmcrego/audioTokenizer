@@ -240,16 +240,23 @@ class AudioToLLM(torch.nn.Module):
         inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
         attention_mask[b_p, dest_pos] = 1
 
-        # 9) Insert target if provided
+        # 9) Insert target if provided, compute labels
         if target_ids is not None:
             range_L = torch.arange(T_target, device=device).unsqueeze(0)   # [1, T_target]
             valid_target = range_L < target_lens.unsqueeze(1)               # [B, T_target]
             target_offset = (prompt_lens - 1 + audio_lens).unsqueeze(1)    # [B,1]
             target_dest = target_offset + range_L                           # [B, T_target]
             b_t, l_t = torch.nonzero(valid_target, as_tuple=True)
+
             inputs_embeds[b_t, target_dest[b_t, l_t]] = target_embs[b_t, l_t]
-            labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
             attention_mask[b_t, target_dest[b_t, l_t]] = 1
+            #FIX BELOW: labels[b_t, target_dest[b_t, l_t]] = target_ids[b_t, l_t]
+
+            # SHIFT LABELS LEFT BY ONE
+            prev_pos = target_dest[b_t, l_t] - 1
+            valid_prev = prev_pos >= 0
+            labels[b_t[valid_prev], prev_pos[valid_prev]] = target_ids[b_t[valid_prev], l_t[valid_prev]]
+
 
         attn_sum = attention_mask.sum(dim=1)
         if not torch.all(attn_sum == total_lens):
