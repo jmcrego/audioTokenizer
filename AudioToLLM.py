@@ -378,145 +378,107 @@ class AudioToLLM(torch.nn.Module):
 
 
     def summary(self):
-        """Log AudioToLLM model parameter summary with LoRA / Embedding split"""
-
-        # ============================================================
+        """
+        Logs a clean summary of model parameters, separating:
+        - Audio embedder
+        - Projector
+        - LLM (LoRA adapters)
+        - LLM (special-token embeddings)
+        - LLM backbone
+        - TOTAL parameters
+        Accurately accounts for frozen and trainable embeddings.
+        """
+        # -----------------------------
         # Audio Embedder
-        # ============================================================
-        embedder_params = list(self.audio_embedder.named_parameters())
-        embedder_total = sum(p.numel() for _, p in embedder_params)
-        embedder_trainable = sum(p.numel() for _, p in embedder_params if p.requires_grad)
-        embedder_trainable_names = [n for n, p in embedder_params if p.requires_grad]
-
-        # ============================================================
+        # -----------------------------
+        embedder_total = sum(p.numel() for p in self.audio_embedder.parameters())
+        embedder_trainable = sum(p.numel() for p in self.audio_embedder.parameters() if p.requires_grad)
+        
+        # -----------------------------
         # Projector
-        # ============================================================
-        projector_params = list(self.projector.named_parameters())
-        projector_total = sum(p.numel() for _, p in projector_params)
-        projector_trainable = sum(p.numel() for _, p in projector_params if p.requires_grad)
-        projector_trainable_names = [n for n, p in projector_params if p.requires_grad]
+        # -----------------------------
+        projector_total = sum(p.numel() for p in self.projector.parameters())
+        projector_trainable = sum(p.numel() for p in self.projector.parameters() if p.requires_grad)
 
-        # ============================================================
-        # LLM: split into LoRA / Embeddings / Backbone
-        # ============================================================
-        llm_named_params = list(self.llm.model.named_parameters())
-
-        llm_lora_params = [
-            (n, p) for n, p in llm_named_params
-            if "lora" in n.lower()
-        ]
-
-        llm_emb_params = [
-            (n, p) for n, p in llm_named_params
-            if n in ["model.embed_tokens.weight", "lm_head.weight"]
-        ]
-
-        llm_backbone_params = [
-            (n, p) for n, p in llm_named_params
-            if (n, p) not in llm_lora_params and (n, p) not in llm_emb_params
-        ]
-
-        # --- counts ---
-        llm_lora_total = sum(p.numel() for _, p in llm_lora_params)
-        llm_lora_trainable = sum(p.numel() for _, p in llm_lora_params if p.requires_grad)
-        llm_lora_names = [n for n, p in llm_lora_params if p.requires_grad]
-
-        llm_emb_total = sum(p.numel() for _, p in llm_emb_params)
-        llm_emb_trainable = sum(p.numel() for _, p in llm_emb_params if p.requires_grad)
-        llm_emb_names = [n for n, p in llm_emb_params if p.requires_grad]
-
-        llm_backbone_total = sum(p.numel() for _, p in llm_backbone_params)
-
-        # ============================================================
-        # Totals
-        # ============================================================
-        total_params = (
-            embedder_total
-            + projector_total
-            + llm_lora_total
-            + llm_emb_total
-            + llm_backbone_total
+        # -----------------------------
+        # LLM LoRA
+        # -----------------------------
+        llm_lora_total = sum(
+            p.numel() for n, p in self.llm.model.named_parameters() if "lora" in n.lower()
+        )
+        llm_lora_trainable = sum(
+            p.numel() for n, p in self.llm.model.named_parameters() if "lora" in n.lower() and p.requires_grad
         )
 
-        trainable_params = (
-            embedder_trainable
-            + projector_trainable
-            + llm_lora_trainable
-            + llm_emb_trainable
-        )
+        # -----------------------------
+        # LLM Embeddings (special tokens)
+        # -----------------------------
+        if getattr(self.llm, "new_vocab_size", None) is not None:
+            V_old = self.llm.original_vocab_size
+            V_new = self.llm.new_vocab_size
+            D = self.llm.model.get_input_embeddings().weight.shape[1]
 
+            llm_emb_total = 2 * V_new * D  # input + output embeddings
+            llm_emb_trainable = 2 * (V_new - V_old) * D
+            llm_emb_frozen = llm_emb_total - llm_emb_trainable
+        else:
+            llm_emb_total = llm_emb_trainable = llm_emb_frozen = 0
+
+        # -----------------------------
+        # LLM Backbone (rest)
+        # -----------------------------
+        llm_total = sum(p.numel() for p in self.llm.model.parameters())
+        llm_frozen = sum(p.numel() for p in self.llm.model.parameters() if not p.requires_grad)
+
+        # Backbone = LLM total - LoRA - embeddings
+        llm_backbone_total = llm_total - llm_lora_total - llm_emb_total
+        llm_backbone_trainable = 0  # LoRA + embeddings are counted separately
+        llm_backbone_frozen = llm_backbone_total
+
+        # -----------------------------
+        # TOTAL
+        # -----------------------------
+        total_params = embedder_total + projector_total + llm_total
+        trainable_params = embedder_trainable + projector_trainable + llm_lora_trainable + llm_emb_trainable
         frozen_params = total_params - trainable_params
 
-        # ============================================================
-        # Summary table
-        # ============================================================
+        # -----------------------------
+        # Logging
+        # -----------------------------
         logger.info("=" * 100)
         logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
         logger.info("=" * 100)
-
         logger.info(
             f"Audio Embedder : {embedder_total:>15,} total | "
             f"{embedder_trainable:>15,} trainable | "
             f"{embedder_total - embedder_trainable:>15,} frozen"
         )
-
         logger.info(
             f"Projector      : {projector_total:>15,} total | "
             f"{projector_trainable:>15,} trainable | "
             f"{projector_total - projector_trainable:>15,} frozen"
         )
-
         logger.info(
             f"LLM (LoRA)     : {llm_lora_total:>15,} total | "
             f"{llm_lora_trainable:>15,} trainable | "
             f"{llm_lora_total - llm_lora_trainable:>15,} frozen"
         )
-
         logger.info(
-            f"LLM (Embeddings): {llm_emb_total:>14,} total | "
+            f"LLM (Embeddings): {llm_emb_total:>15,} total | "
             f"{llm_emb_trainable:>15,} trainable | "
-            f"{llm_emb_total - llm_emb_trainable:>15,} frozen"
+            f"{llm_emb_frozen:>15,} frozen"
         )
-
         logger.info(
             f"LLM (Backbone) : {llm_backbone_total:>15,} total | "
-            f"{0:>15,} trainable | "
-            f"{llm_backbone_total:>15,} frozen"
+            f"{llm_backbone_trainable:>15,} trainable | "
+            f"{llm_backbone_frozen:>15,} frozen"
         )
-
         logger.info("-" * 100)
-
         logger.info(
             f"TOTAL          : {total_params:>15,} total | "
             f"{trainable_params:>15,} trainable | "
             f"{frozen_params:>15,} frozen"
         )
-
         logger.info(f"Trainable %    : {100 * trainable_params / total_params:.2f}%")
         logger.info("=" * 100)
-
-        # ============================================================
-        # Trainable parameter names
-        # ============================================================
-        logger.info("-" * 100)
-        logger.info("TRAINABLE PARAMETERS")
-        logger.info("-" * 100)
-
-        def log_names(title, names, max_show=20):
-            if not names:
-                logger.info(f"{title}: (none)")
-                return
-            logger.info(f"{title} ({len(names)} params):")
-            for n in names[:max_show]:
-                logger.info(f"  - {n}")
-            if len(names) > max_show:
-                logger.info(f"  ... and {len(names) - max_show} more")
-
-        log_names("Audio Embedder", embedder_trainable_names)
-        log_names("Projector", projector_trainable_names)
-        log_names("LLM (LoRA)", llm_lora_names)
-        log_names("LLM (Embeddings)", llm_emb_names)
-
-        logger.info("-" * 100)
-
 
