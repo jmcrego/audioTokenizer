@@ -446,38 +446,38 @@ class AudioToLLM(torch.nn.Module):
         # Logging
         # -----------------------------
         logger.info("=" * 100)
-        logger.info("AudioToLLM MODEL PARAMETER SUMMARY")
+        logger.info("AudioToLLM PARAMETERS      TOTAL |       TRAINABLE |       FROZEN")
         logger.info("=" * 100)
         logger.info(
-            f"Audio Embedder  : {embedder_total:>15,} total | "
-            f"{embedder_trainable:>15,} trainable | "
-            f"{embedder_total - embedder_trainable:>15,} frozen"
+            f"Audio Embedder  : {embedder_total:>15,} | "
+            f"{embedder_trainable:>15,} | "
+            f"{embedder_total - embedder_trainable:>15,}"
         )
         logger.info(
-            f"Projector       : {projector_total:>15,} total | "
-            f"{projector_trainable:>15,} trainable | "
-            f"{projector_total - projector_trainable:>15,} frozen"
+            f"Projector       : {projector_total:>15,} | "
+            f"{projector_trainable:>15,} | "
+            f"{projector_total - projector_trainable:>15,}"
         )
         logger.info(
-            f"LLM (LoRA)      : {llm_lora_total:>15,} total | "
-            f"{llm_lora_trainable:>15,} trainable | "
-            f"{llm_lora_total - llm_lora_trainable:>15,} frozen"
+            f"LLM (LoRA)      : {llm_lora_total:>15,} | "
+            f"{llm_lora_trainable:>15,} | "
+            f"{llm_lora_total - llm_lora_trainable:>15,}"
         )
         logger.info(
-            f"LLM (Embeddings): {llm_emb_total:>15,} total | "
-            f"{llm_emb_trainable:>15,} trainable | "
-            f"{llm_emb_frozen:>15,} frozen"
+            f"LLM (Embeddings): {llm_emb_total:>15,} | "
+            f"{llm_emb_trainable:>15,} | "
+            f"{llm_emb_frozen:>15,}"
         )
         logger.info(
-            f"LLM (Backbone)  : {llm_backbone_total:>15,} total | "
-            f"{llm_backbone_trainable:>15,} trainable | "
-            f"{llm_backbone_frozen:>15,} frozen"
+            f"LLM (Backbone)  : {llm_backbone_total:>15,} | "
+            f"{llm_backbone_trainable:>15,} | "
+            f"{llm_backbone_frozen:>15,}"
         )
         logger.info("-" * 100)
         logger.info(
-            f"TOTAL           : {total_params:>15,} total | "
-            f"{trainable_params:>15,} trainable | "
-            f"{frozen_params:>15,} frozen"
+            f"TOTAL           : {total_params:>15,} | "
+            f"{trainable_params:>15,} | "
+            f"{frozen_params:>15,}"
         )
         logger.info(f"Trainable %    : {100 * trainable_params / total_params:.2f}%")
         logger.info("=" * 100)
