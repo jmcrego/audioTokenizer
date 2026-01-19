@@ -444,6 +444,8 @@ class Trainer:
                 logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
                 logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
                 logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
+                logger.info(f"REF: {wer_transform(target_texts[-1]).replace("\n","↵")}")
+                logger.info(f"HYP: {wer_transform(gen_texts[-1]).replace("\n","↵")}")
                 w = 100 * wer(wer_transform(target_texts[-1]), wer_transform(gen_texts[-1]))
                 c = 100 * wer(cer_transform(target_texts[-1]), cer_transform(gen_texts[-1]))
                 logger.info(f"WER: {w:.2f}")
