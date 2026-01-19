@@ -27,7 +27,6 @@ from Dataset import BatchedLengthSampler
 
 logger = logging.getLogger("Trainer")
 
-
 class UnicodeNormalize(AbstractTransform):
     def process_string(self, s: str):
         return unicodedata.normalize("NFKC", s)
@@ -450,8 +449,8 @@ class Trainer:
                 logged_samples += 1
 
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-        wer_score = 100 * wer(references, predictions, truth_transform=wer_transform, hypothesis_transform=wer_transform)
-        cer_score = 100 * wer(references, predictions, truth_transform=cer_transform, hypothesis_transform=cer_transform)
+        wer_score = 100 * wer(references, predictions, transformation=wer_transform)
+        cer_score = 100 * wer(references, predictions, transformation=cer_transform)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
