@@ -541,14 +541,28 @@ def eval_test_set(references, predictions, eos_token):
     references = [x.replace(eos_token, "").strip() for x in references]
 
     # remove initial lang tag
-    predictions = [re.sub(r"^(<[^>]+>)\s*", "", x) for x in predictions]
-    references = [re.sub(r"^(<[^>]+>)\s*", "", x) for x in references]
+    predictions = [re.sub(r"^<[^>]+>\s*", "", x) for x in predictions]
+    references = [re.sub(r"^<[^>]+>\s*", "", x) for x in references]
 
     bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
 
-    # Pre-transform both                                                                                                                                                                                                                                                                          
-    refs_transformed = transform(references)
-    hyps_transformed = transform(predictions)
+    # Pre-transform both
+    # refs_transformed = transform(references)
+    # hyps_transformed = transform(predictions)
+    refs_transformed = [ transform(x) or "EMPTY" for x in references]
+    hyps_transformed = [ transform(x) or "EMPTY" for x in predictions]
+
+    # def transform_one(x):
+    #     out = transform([x])
+    #     return out[0] if out else "EMPTY"
+
+    # refs_transformed = [ transform_one(x) for x in references ]
+    # hyps_transformed = [ transform_one(x) for x in predictions ]
+
+    if len(refs_transformed) != len(hyps_transformed):
+        logger.info(f"Reference / hypothesis length mismatch after transform {len(refs_transformed)} != {len(hyps_transformed)}")
+        return bleu_score, 0., 0., 0.
+
 
     # Word-level metrics                                                                                                                                                                                                                                                                          
     word_output = jiwer.process_words(refs_transformed, hyps_transformed)
