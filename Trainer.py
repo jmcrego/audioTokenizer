@@ -444,13 +444,17 @@ class Trainer:
                 logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
                 logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
                 logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
+                w = 100 * wer(wer_transform(target_texts[-1]), wer_transform(gen_texts[-1]))
+                c = 100 * wer(cer_transform(target_texts[-1]), cer_transform(gen_texts[-1]))
+                logger.info(f"WER: {w:.2f}")
+                logger.info(f"CER: {c:.2f}")
                 logger.info("=" * 80)
 
                 logged_samples += 1
 
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-        wer_score = 100 * wer(references, predictions, transformation=wer_transform)
-        cer_score = 100 * wer(references, predictions, transformation=cer_transform)
+        wer_score = 100 * wer(wer_transform(references), wer_transform(predictions))
+        cer_score = 100 * wer(cer_transform(references), cer_transform(predictions))
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
