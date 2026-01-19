@@ -9,10 +9,8 @@ import shutil
 import random
 import logging
 import sacrebleu
-from jiwer import wer, cer
+import jiwer
 import unicodedata
-from jiwer import Compose, ToLowerCase, RemovePunctuation, RemoveMultipleSpaces, Strip, ReduceToListOfListOfChars
-from jiwer import AbstractTransform
 import numpy as np
 from datetime import datetime
 import time
@@ -22,26 +20,31 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import get_linear_schedule_with_warmup
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 from Dataset import BatchedLengthSampler
 
 logger = logging.getLogger("Trainer")
 
-class UnicodeNormalize(AbstractTransform):
+class UnicodeNormalize(jiwer.AbstractTransform):
     def process_string(self, s: str):
         return unicodedata.normalize("NFKC", s)
 
-class RemoveTags(AbstractTransform):
+class RemoveTags(jiwer.AbstractTransform):
     def process_string(self, s: str):
-        return re.sub(r"\<(.*?)\>|\[(.*?)\]", "", s)
+        # More robust: handles nested brackets, empty tags                                                                                                                                                                                                                                    
+        s = re.sub(r"\<[^>]*\>", "", s)  # Remove <anything>                                                                                                                                                                                                                                  
+        s = re.sub(r"\[[^\]]*\]", "", s)  # Remove [anything]                                                                                                                                                                                                                                 
+        return s
 
-wer_transform = Compose([
-    UnicodeNormalize(),
-    RemoveTags(),
-    ToLowerCase(),
-    RemovePunctuation(),
-    RemoveMultipleSpaces(),
-    Strip(),
+transform = jiwer.Compose([ 
+    UnicodeNormalize(), 
+    RemoveTags(), 
+    jiwer.ToLowerCase(), 
+    jiwer.RemovePunctuation(), 
+    jiwer.RemoveWhiteSpace(replace_by_space=True), 
+    jiwer.Strip(), 
+    jiwer.RemoveEmptyStrings() 
 ])
 
 class Trainer:
@@ -434,23 +437,15 @@ class Trainer:
                 logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
                 logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
                 logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
-                logger.info(f"REF: {wer_transform(target_texts[i]).replace("\n","↵")}")
-                logger.info(f"HYP: {wer_transform(gen_texts[i]).replace("\n","↵")}")
-                w = 100 * wer(wer_transform(target_texts[i]), wer_transform(gen_texts[i]))
-                c = 100 * cer(wer_transform(target_texts[i]), wer_transform(gen_texts[i]))
-                logger.info(f"WER: {w:.2f}")
-                logger.info(f"CER: {c:.2f}")
                 logger.info("=" * 80)
 
                 logged_samples += 1
 
-        bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-        wer_score = 100 * wer(wer_transform(references), wer_transform(predictions))
-        cer_score = 100 * cer(wer_transform(references), wer_transform(predictions))
+        bleu_score, wer_score, cer_score, acc = eval_test_set(references, predictions, self.tokenizer.eos_token)
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
-        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score)
+        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc)
 
         logger.info(f"Generation took {time.time()-tic:.2f}s for {len(predictions)} samples")
 
@@ -460,7 +455,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -489,6 +484,8 @@ class Trainer:
             log_str += f"wer={wer:.2f} | "
         if cer is not None:
             log_str += f"cer={cer:.2f} | "
+        if acc is not None: #lang tag accuracy
+            log_str += f"acc={acc:.2f} | "
         if total_samples:
             log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
@@ -532,3 +529,100 @@ def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
                     os.remove(path)
         except Exception as e:
             print(f"Error removing old checkpoint {old_ckpt_path}: {e}")
+
+
+def eval_test_set(references, predictions, eos_token):
+    # get initial lang tag
+    hyp_lang = [re.match(r"^(<[^>]+>)", x).group(1) if re.match(r"^(<[^>]+>)", x) else None for x in predictions]
+    ref_lang = [re.match(r"^(<[^>]+>)", x).group(1) if re.match(r"^(<[^>]+>)", x) else None for x in references]
+
+    # remove ending </s>
+    predictions = [x.replace(eos_token, "").strip() for x in predictions]
+    references = [x.replace(eos_token, "").strip() for x in references]
+
+    # remove initial lang tag
+    predictions = [re.sub(r"^(<[^>]+>)\s*", "", x) for x in predictions]
+    references = [re.sub(r"^(<[^>]+>)\s*", "", x) for x in references]
+
+    bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
+
+    # Pre-transform both                                                                                                                                                                                                                                                                          
+    refs_transformed = transform(references)
+    hyps_transformed = transform(predictions)
+
+    # Word-level metrics                                                                                                                                                                                                                                                                          
+    word_output = jiwer.process_words(refs_transformed, hyps_transformed)
+    print(jiwer.visualize_alignment(word_output, show_measures=True))
+    print(f"WER: {word_output.wer:.4f}")
+
+    # Character-level metrics                                                                                                                                                                                                                                                                     
+    char_output = jiwer.process_characters(refs_transformed, hyps_transformed)
+    print(f"CER: {char_output.cer:.4f}")
+
+    lang_acc = evaluate_lang_tags(hyp_lang, ref_lang)
+
+    return bleu_score, 100*word_output.wer, 100*char_output.cer, lang_acc
+
+
+def evaluate_lang_tags(hyp_lang, ref_lang):
+    """
+    Evaluate language tag predictions
+    
+    Args:
+        hyp_lang: List of predicted language tags (can contain None)
+        ref_lang: List of reference language tags (can contain None)
+    """
+    # Filter out None values
+    valid_pairs = [(h, r) for h, r in zip(hyp_lang, ref_lang) if h is not None and r is not None]
+    
+    if not valid_pairs:
+        print("=" * 70)
+        print("LANGUAGE TAG EVALUATION")
+        print("=" * 70)
+        print(f"Total samples: {len(hyp_lang)}")
+        print(f"Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
+        print(f"Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
+        print("ERROR: No valid language tag pairs found")
+        print("=" * 70)
+        return
+    
+    hyp_valid = [h for h, r in valid_pairs]
+    ref_valid = [r for h, r in valid_pairs]
+    
+    # Calculate accuracy
+    accuracy = accuracy_score(ref_valid, hyp_valid)
+    
+    # Get unique labels
+    labels = sorted(list(set(ref_valid + hyp_valid)))
+    
+    # Confusion matrix
+    cm = confusion_matrix(ref_valid, hyp_valid, labels=labels)
+    
+    # Print report
+    print("=" * 70)
+    print("LANGUAGE TAG EVALUATION")
+    print("=" * 70)
+    print(f"\nDataset Statistics:")
+    print(f"  Total samples: {len(hyp_lang)}")
+    print(f"  Valid pairs: {len(valid_pairs)}")
+    print(f"  Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
+    print(f"  Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
+    
+    print(f"\nOverall Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+    
+    print(f"\nDetailed Classification Report:")
+    print(classification_report(ref_valid, hyp_valid, labels=labels, zero_division=0))
+    
+    print(f"Confusion Matrix:")
+    print(f"{'':>10}", end='')
+    for label in labels:
+        print(f"{label:>10}", end='')
+    print()
+    print("-" * (10 + 10 * len(labels)))
+    for i, label in enumerate(labels):
+        print(f"{label:>10}", end='')
+        for j in range(len(labels)):
+            print(f"{cm[i][j]:>10}", end='')
+        print()
+    print("=" * 70)
+    return accuracy
