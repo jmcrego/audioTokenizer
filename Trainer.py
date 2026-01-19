@@ -552,12 +552,12 @@ def eval_test_set(references, predictions, eos_token):
 
     # Word-level metrics                                                                                                                                                                                                                                                                          
     word_output = jiwer.process_words(refs_transformed, hyps_transformed)
-    print(jiwer.visualize_alignment(word_output, show_measures=True))
-    print(f"WER: {word_output.wer:.4f}")
+    logger.info("\n" + jiwer.visualize_alignment(word_output, show_measures=True))
+    logger.info(f"WER: {word_output.wer:.4f}")
 
     # Character-level metrics                                                                                                                                                                                                                                                                     
     char_output = jiwer.process_characters(refs_transformed, hyps_transformed)
-    print(f"CER: {char_output.cer:.4f}")
+    logger.info(f"CER: {char_output.cer:.4f}")
 
     lang_acc = evaluate_lang_tags(hyp_lang, ref_lang)
 
@@ -576,14 +576,14 @@ def evaluate_lang_tags(hyp_lang, ref_lang):
     valid_pairs = [(h, r) for h, r in zip(hyp_lang, ref_lang) if h is not None and r is not None]
     
     if not valid_pairs:
-        print("=" * 70)
-        print("LANGUAGE TAG EVALUATION")
-        print("=" * 70)
-        print(f"Total samples: {len(hyp_lang)}")
-        print(f"Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
-        print(f"Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
-        print("ERROR: No valid language tag pairs found")
-        print("=" * 70)
+        logger.info("=" * 70)
+        logger.info("LANGUAGE TAG EVALUATION")
+        logger.info("=" * 70)
+        logger.info(f"Total samples: {len(hyp_lang)}")
+        logger.info(f"Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
+        logger.info(f"Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
+        logger.info("ERROR: No valid language tag pairs found")
+        logger.info("=" * 70)
         return
     
     hyp_valid = [h for h, r in valid_pairs]
@@ -599,30 +599,30 @@ def evaluate_lang_tags(hyp_lang, ref_lang):
     cm = confusion_matrix(ref_valid, hyp_valid, labels=labels)
     
     # Print report
-    print("=" * 70)
-    print("LANGUAGE TAG EVALUATION")
-    print("=" * 70)
-    print(f"\nDataset Statistics:")
-    print(f"  Total samples: {len(hyp_lang)}")
-    print(f"  Valid pairs: {len(valid_pairs)}")
-    print(f"  Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
-    print(f"  Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
+    logger.info("=" * 70)
+    logger.info("LANGUAGE TAG EVALUATION")
+    logger.info("=" * 70)
+    logger.info(f"\nDataset Statistics:")
+    logger.info(f"  Total samples: {len(hyp_lang)}")
+    logger.info(f"  Valid pairs: {len(valid_pairs)}")
+    logger.info(f"  Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
+    logger.info(f"  Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
     
-    print(f"\nOverall Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+    logger.info(f"\nOverall Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
     
-    print(f"\nDetailed Classification Report:")
-    print(classification_report(ref_valid, hyp_valid, labels=labels, zero_division=0))
+    logger.info(f"\nDetailed Classification Report:")
+    logger.info("\n" + classification_report(ref_valid, hyp_valid, labels=labels, zero_division=0))
     
-    print(f"Confusion Matrix:")
-    print(f"{'':>10}", end='')
+    logger.info(f"Confusion Matrix:")
+    logger.info(f"{'':>10}", end='')
     for label in labels:
-        print(f"{label:>10}", end='')
-    print()
-    print("-" * (10 + 10 * len(labels)))
+        logger.info(f"{label:>10}", end='')
+    logger.info()
+    logger.info("-" * (10 + 10 * len(labels)))
     for i, label in enumerate(labels):
-        print(f"{label:>10}", end='')
+        logger.info(f"{label:>10}", end='')
         for j in range(len(labels)):
-            print(f"{cm[i][j]:>10}", end='')
-        print()
-    print("=" * 70)
+            logger.info(f"{cm[i][j]:>10}", end='')
+        logger.info()
+    logger.info("=" * 70)
     return accuracy
