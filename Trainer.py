@@ -9,7 +9,7 @@ import shutil
 import random
 import logging
 import sacrebleu
-from jiwer import wer
+from jiwer import wer, cer
 import unicodedata
 from jiwer import Compose, ToLowerCase, RemovePunctuation, RemoveMultipleSpaces, Strip, ReduceToListOfListOfChars
 from jiwer import AbstractTransform
@@ -447,7 +447,7 @@ class Trainer:
                 logger.info(f"REF: {wer_transform(target_texts[-1]).replace("\n","↵")}")
                 logger.info(f"HYP: {wer_transform(gen_texts[-1]).replace("\n","↵")}")
                 w = 100 * wer(wer_transform(target_texts[-1]), wer_transform(gen_texts[-1]))
-                c = 100 * wer(cer_transform(target_texts[-1]), cer_transform(gen_texts[-1]))
+                c = 100 * cer(wer_transform(target_texts[-1]), wer_transform(gen_texts[-1]))
                 logger.info(f"WER: {w:.2f}")
                 logger.info(f"CER: {c:.2f}")
                 logger.info("=" * 80)
@@ -456,7 +456,7 @@ class Trainer:
 
         bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
         wer_score = 100 * wer(wer_transform(references), wer_transform(predictions))
-        cer_score = 100 * wer(cer_transform(references), cer_transform(predictions))
+        cer_score = 100 * cer(wer_transform(references), wer_transform(predictions))
         avg_loss = total_loss / max(1, n_batches)
 
         # Log summary
