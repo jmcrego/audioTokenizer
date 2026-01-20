@@ -80,14 +80,6 @@ if __name__ == "__main__":
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
     logger.info("=" * 80)
 
-    logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
-
-    logger.info(f"CUDA available: {torch.cuda.is_available()}")
-    logger.info(f"Device count: {torch.cuda.device_count()}")
-
-    device, dtype = get_device_dtype()
-    logger.info(f"device: {device}, dtype: {dtype}")
-
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
@@ -97,6 +89,14 @@ if __name__ == "__main__":
         json.dumps(config, indent=2) +
         "\n" + "=" * 80
     )
+
+    logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
+
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    logger.info(f"Device count: {torch.cuda.device_count()}")
+
+    device, dtype = get_device_dtype()
+    logger.info(f"device: {device}, dtype: {dtype}")
 
     # -----------------------------
     # Load model wrapper
