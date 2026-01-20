@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def plot_logs(jsonl_path, output_file=None, show_plot=False):
     # Read JSONL into a dict
     logs = {"train": {"steps": [], "loss": []},
-            "eval": {"steps": [], "loss": [], "wer": [], "cer": [], "bleu": [], "lang_acc": []}}
+            "eval": {"steps": [], "loss": [], "wer": [], "cer": [], "bleu": [], "acc": []}}
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -16,11 +16,11 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
                 logs["train"]["loss"].append(entry["loss"])
             elif entry["type"] == "eval":
                 logs["eval"]["steps"].append(step)
-                logs["eval"]["loss"].append(entry["eval_loss"])
+                logs["eval"]["loss"].append(entry["loss"])
                 logs["eval"]["wer"].append(entry["wer"])
                 logs["eval"]["cer"].append(entry["cer"])
                 logs["eval"]["bleu"].append(entry["bleu"])
-                logs["eval"]["lang_acc"].append(entry["lang_acc"])
+                logs["eval"]["acc"].append(entry["acc"])
 
     fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
@@ -44,7 +44,7 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
     ax1.set_ylabel("WER / CER (%)")
     ax2.set_ylabel("BLEU (%)")
     axs[1].set_xlabel("Step")
-    axs[1].set_title(f"Evaluation Metrics (Final Lang Acc: {logs['eval']['lang_acc'][-1]:.2f})")
+    axs[1].set_title(f"Evaluation Metrics (Final Lang Acc: {logs['eval']['acc'][-1]:.2f})")
 
     ax1.grid(True)
     axs[1].set_xlim(left=0)
