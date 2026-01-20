@@ -80,7 +80,6 @@ if __name__ == "__main__":
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
     logger.info("=" * 80)
 
-
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
@@ -91,6 +90,13 @@ if __name__ == "__main__":
 
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
+
+    logger.info(
+        "\n" + "=" * 80 +
+        f"\nCONFIG FILE: {args.config}\n" +
+        json.dumps(config, indent=2) +
+        "\n" + "=" * 80
+    )
 
     # -----------------------------
     # Load model wrapper
