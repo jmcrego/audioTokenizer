@@ -475,21 +475,21 @@ class Trainer:
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
-        log_str += f"epoch={self.sample/len(self.train_dataset):.4g}/{self.max_epochs} | "
+        log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
         log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
-            log_str += f"proj_grad_norm={proj_grad_norm:.3g} | "
+            log_str += f"proj_grad_norm={proj_grad_norm:.2f} | "
         if lora_grad_norm is not None:
-            log_str += f"lora_grad_norm={lora_grad_norm:.3g} | "
+            log_str += f"lora_grad_norm={lora_grad_norm:.2f} | "
         if scale_val is not None:
-            log_str += f"scale={scale_val:.3g} | "
+            log_str += f"scale={scale_val:.2f} | "
         if audio_norm is not None:
-            log_str += f"audio_norm={audio_norm:.3g} | "
+            log_str += f"audio_norm={audio_norm:.2f} | "
         if text_norm is not None:
-            log_str += f"text_norm={text_norm:.3g} | "
+            log_str += f"text_norm={text_norm:.2f} | "
         if bleu is not None:
             log_str += f"bleu={bleu:.2f} | "
         if wer is not None:
@@ -499,7 +499,7 @@ class Trainer:
         if acc is not None:
             log_str += f"acc={acc:.2f} | " #lang tag accuracy
         if total_samples:
-            log_str += f"pads_per_sample={total_pads/total_samples:.3g} | "
+            log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
