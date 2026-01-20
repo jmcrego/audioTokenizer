@@ -13,6 +13,7 @@ import jiwer
 import unicodedata
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 import time
 
 import torch.nn as nn
@@ -46,6 +47,16 @@ transform = jiwer.Compose([
     jiwer.Strip(), 
     jiwer.RemoveEmptyStrings() 
 ])
+
+class JSONMetricsLogger:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log(self, **data):
+        data["timestamp"] = datetime..now(datetime.strftime('%Y%m%d_%H%M%S'))
+        with self.path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
 class Trainer:
     def __init__(
@@ -91,6 +102,8 @@ class Trainer:
         self.output_dir = output_dir
         self.tokenizer = self.model.llm.tokenizer
         os.makedirs(output_dir, exist_ok=True)
+
+        self.json_logger = JSONMetricsLogger(os.path.join(output_dir, "metrics.jsonl"))
 
         param = next(self.model.llm.model.parameters())
         self.device = param.device
@@ -307,7 +320,7 @@ class Trainer:
                         avg_loss = accum_loss / self.accum_steps
                         avg_audio_norm = accum_audio_norm / self.accum_steps
                         avg_text_norm = accum_text_norm / self.accum_steps
-                        self.log_fn(
+                        self.log_fn( #training log
                             avg_loss.item(),
                             audio_norm=avg_audio_norm.item(),
                             text_norm=avg_text_norm.item(),
@@ -317,6 +330,14 @@ class Trainer:
                             total_pads=total_pads,
                             total_samples=total_samples,
                         )
+                        self.json_logger.log(
+                            type="train", step=self.step, loss=avg_loss.item(), 
+                            audio_norm=avg_audio_norm.item(), text_norm=avg_text_norm.item(),
+                            scale_val=scale_val,
+                            proj_grad_norm=proj_grad_norm.item(), lora_grad_norm=lora_grad_norm.item(),
+                            total_pads=total_pads, total_samples=total_samples,
+                        )
+
                         total_pads = 0
                         total_samples = 0
 
@@ -444,8 +465,9 @@ class Trainer:
         bleu_score, wer_score, cer_score, acc = eval_test_set(references, predictions, self.tokenizer.eos_token)
         avg_loss = total_loss / max(1, n_batches)
 
-        # Log summary
-        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc)
+        # valid log
+        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc) 
+        self.json_logger.log(type="eval", step=self.step, loss=avg_loss, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc)                        
 
         logger.info(f"Generation took {time.time()-tic:.2f}s for {len(predictions)} samples")
 

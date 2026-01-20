@@ -75,6 +75,7 @@ if __name__ == "__main__":
             logging.StreamHandler()  # and log to console
         ]
     )
+    
     logger = logging.getLogger(__name__)
     logger.info("=" * 80)
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
