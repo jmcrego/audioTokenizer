@@ -481,15 +481,15 @@ class Trainer:
         log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
-            log_str += f"proj_grad_norm={proj_grad_norm:.4g} | "
+            log_str += f"proj_grad_norm={proj_grad_norm:.3g} | "
         if lora_grad_norm is not None:
-            log_str += f"lora_grad_norm={lora_grad_norm:.4g} | "
+            log_str += f"lora_grad_norm={lora_grad_norm:.3g} | "
         if scale_val is not None:
             log_str += f"scale={scale_val:.3g} | "
         if audio_norm is not None:
-            log_str += f"audio_norm={audio_norm:.4g} | "
+            log_str += f"audio_norm={audio_norm:.3g} | "
         if text_norm is not None:
-            log_str += f"text_norm={text_norm:.4g} | "
+            log_str += f"text_norm={text_norm:.3g} | "
         if bleu is not None:
             log_str += f"bleu={bleu:.2f} | "
         if wer is not None:
