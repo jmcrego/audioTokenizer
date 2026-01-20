@@ -71,10 +71,15 @@ if __name__ == "__main__":
     log_filename = os.path.join(args.output_dir, f"train.log") #_{datetime.now().strftime('%Y%m%d_%H%M%S')}
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
-            logging.FileHandler(log_filename, mode='w', encoding='utf-8'),  # save to file
-            logging.StreamHandler()  # and print to console
+            logging.FileHandler(log_filename, mode='a', encoding='utf-8'),  # log to file (append mode)
+            logging.StreamHandler()  # and log to console
         ]
     )
+    logger = logging.getLogger(__name__)
+    logger.info("=" * 80)
+    logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
+    logger.info("=" * 80)
+
 
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
