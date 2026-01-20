@@ -113,7 +113,7 @@ def main():
         with open(args.meta, "r", encoding="utf-8") as f:
             meta = json.load(f)
         samples = meta['samples']
-        file_path_dir = Path(args.dataset).parent       
+        file_path_dir = Path(args.meta).parent       
         print(f"Transcribing {len(samples)} files")
 
         hyps = []
