@@ -58,59 +58,29 @@ def load_audio(path, sr=16000):
 @torch.no_grad()
 def transcribe_file(model, processor, audio_path, args):
     audio = load_audio(audio_path)
-
-    inputs = processor(
-        audio,
-        sampling_rate=16000,
-        return_tensors="pt"
-    )
-
+    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
     input_features = inputs.input_features.to(args.device)
-
-    generated_ids = model.generate(
-        input_features,
-        language=args.language,
-        task="transcribe",
-        max_new_tokens=256,
-    )
-
-    text = processor.batch_decode(
-        generated_ids,
-        skip_special_tokens=True
-    )[0]
-
+    generated_ids = model.generate(input_features, language=args.language, task="transcribe", max_new_tokens=256)
+    text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return text.strip()
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run ASR using HuggingFace Whisper",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument("--model", default="openai/whisper-large-v3", help="HF Whisper model")
-    parser.add_argument("--meta", type=str, help="json file (meta.json) with samples containing: audio files/transcriptions[/translations]")
+    parser = argparse.ArgumentParser(description="Run ASR using HuggingFace Whisper", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--model", default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="HF Whisper model")
+    parser.add_argument("--meta", type=str, help="json file (meta.json) with samples containing: audio files/transcriptions")
     parser.add_argument("--dataset", type=str, help="Text file with audio paths (one per line)")
     parser.add_argument("--file_path", type=str, help="Single audio file")
     parser.add_argument("--language", default=None, help="Force language (e.g. en, fr, de)")
     parser.add_argument("--fp16", action="store_true", help="Use FP16")
     parser.add_argument("--output", type=str, default=None, help="Save transcripts")
     parser.add_argument("--device", default="cuda", help="cuda or cpu")
-
     args = parser.parse_args()
 
-    if not args.dataset and not args.file_path:
-        raise ValueError("You must provide --dataset or --file_path")
-
-    if args.dataset:
-        with open(args.dataset, "r", encoding="utf-8") as f:
-            meta = json.load(f)
-        info = meta['info']
-        samples = meta['samples']
-        file_path_dir = Path(args.dataset).parent
-        
-
     dtype = torch.float16 if args.fp16 and args.device == "cuda" else torch.float32
+
+    if not args.dataset and not args.file_path and not args.meta:
+        raise ValueError("You must provide --dataset or --file_path or --meta")
 
     print(f"Loading model: {args.model}")
     processor = WhisperProcessor.from_pretrained(args.model)
@@ -126,7 +96,8 @@ def main():
         print(text)
 
     if args.dataset:
-        audio_files = load_dataset(args.dataset)
+        with open(args.dataset, "r", encoding="utf-8") as f:
+            audio_files = [line.strip() for line in f if line.strip()]
         print(f"Transcribing {len(audio_files)} files")
 
         for audio_path in tqdm(audio_files):
@@ -139,6 +110,10 @@ def main():
             print(f"{audio_path}\t{text}")
 
     if args.meta:
+        with open(args.meta, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        samples = meta['samples']
+        file_path_dir = Path(args.dataset).parent       
         print(f"Transcribing {len(samples)} files")
 
         hyps = []
