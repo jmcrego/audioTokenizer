@@ -628,16 +628,12 @@ def evaluate_lang_tags(hyp_lang, ref_lang):
     logger.info("\n" + classification_report(ref_valid, hyp_valid, labels=labels, zero_division=0))
     
     logger.info("Confusion Matrix:")
-
-    header = " " * 10 + "".join(f"{label:>10}" for label in labels)
+    header = "Ref \ Pred" + "".join(f"{label:>10}" for label in labels)
     logger.info(header)
-
     logger.info("-" * (10 + 10 * len(labels)))
-
     for i, label in enumerate(labels):
         row = f"{label:>10}" + "".join(f"{cm[i][j]:>10}" for j in range(len(labels)))
         logger.info(row)
-
     logger.info("=" * 70)
     return accuracy
 
