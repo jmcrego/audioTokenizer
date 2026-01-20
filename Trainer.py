@@ -473,7 +473,7 @@ class Trainer:
         if lora_grad_norm is not None:
             log_str += f"lora_grad_norm={lora_grad_norm:.4g} | "
         if scale_val is not None:
-            log_str += f"scale={scale_val:.4g} | "
+            log_str += f"scale={scale_val:.3g} | "
         if audio_norm is not None:
             log_str += f"audio_norm={audio_norm:.4g} | "
         if text_norm is not None:
@@ -484,8 +484,8 @@ class Trainer:
             log_str += f"wer={wer:.2f} | "
         if cer is not None:
             log_str += f"cer={cer:.2f} | "
-        if acc is not None: #lang tag accuracy
-            log_str += f"acc={acc:.2f} | "
+        if acc is not None:
+            log_str += f"acc={acc:.2f} | " #lang tag accuracy
         if total_samples:
             log_str += f"pads_per_sample={total_pads/total_samples:.3g} | "
         
