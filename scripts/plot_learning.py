@@ -2,86 +2,70 @@ import argparse
 import json
 import matplotlib.pyplot as plt
 
-def read_jsonl(file_path):
-    train_steps = []
-    train_loss = []
-    eval_steps = []
-    eval_loss = []
-    wer = []
-    cer = []
-    bleu = []
-    lang_acc = []
+def plot_logs(jsonl_path, output_file=None, show_plot=False):
+    # Read JSONL into a dict
+    logs = {"train": {"steps": [], "loss": []},
+            "eval": {"steps": [], "loss": [], "wer": [], "cer": [], "bleu": [], "lang_acc": []}}
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
             entry = json.loads(line)
+            step = entry["step"]
             if entry["type"] == "train":
-                train_steps.append(entry["step"])
-                train_loss.append(entry["loss"])
+                logs["train"]["steps"].append(step)
+                logs["train"]["loss"].append(entry["loss"])
             elif entry["type"] == "eval":
-                eval_steps.append(entry["step"])
-                eval_loss.append(entry.get("eval_loss", None))
-                wer.append(entry.get("wer", None))
-                cer.append(entry.get("cer", None))
-                bleu.append(entry.get("bleu", None))
-                lang_acc.append(entry.get("lang_acc", None))
-    return {
-        "train": {"steps": train_steps, "loss": train_loss},
-        "eval": {"steps": eval_steps, "loss": eval_loss, "wer": wer, "cer": cer, "bleu": bleu, "lang_acc": lang_acc}
-    }
+                logs["eval"]["steps"].append(step)
+                logs["eval"]["loss"].append(entry["eval_loss"])
+                logs["eval"]["wer"].append(entry["wer"])
+                logs["eval"]["cer"].append(entry["cer"])
+                logs["eval"]["bleu"].append(entry["bleu"])
+                logs["eval"]["lang_acc"].append(entry["lang_acc"])
 
-def plot_logs(logs, output_file="training_plot.png", show_plot=True):
-    plt.figure(figsize=(12, 8))
+    fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
-    # --- First subplot: train + eval loss ---
-    plt.subplot(2, 1, 1)
-    plt.plot(logs["train"]["steps"], logs["train"]["loss"], label="train_loss", color="blue")
-    plt.plot(logs["eval"]["steps"], logs["eval"]["loss"], label="eval_loss", color="orange")
-    plt.xlabel("Step")
-    plt.ylabel("Loss")
-    plt.title("Training and Evaluation Loss")
-    plt.legend()
-    plt.grid(True)
+    # --- Top plot: loss ---
+    axs[0].plot(logs["train"]["steps"], logs["train"]["loss"], marker=".", linestyle="None", color="grey", label="train_loss")
+    axs[0].plot(logs["eval"]["steps"], logs["eval"]["loss"], marker="o", linestyle="-", color="black", label="eval_loss")
+    axs[0].set_ylabel("Loss")
+    axs[0].set_title("Training and Evaluation Loss")
+    axs[0].legend()
+    axs[0].grid(True)
+    axs[0].set_xlim(left=0)
 
-    # --- Second subplot: WER, CER, BLEU (dual axis) ---
-    plt.subplot(2, 1, 2)
-    steps = logs["eval"]["steps"]
-    fig, ax1 = plt.gcf(), plt.gca()
-    ax1.plot(steps, logs["eval"]["wer"], label="WER", color="red", marker="o")
-    ax1.plot(steps, logs["eval"]["cer"], label="CER", color="green", marker="x")
-    ax1.set_xlabel("Step")
-    ax1.set_ylabel("WER / CER (%)")
-    ax1.grid(True)
-
+    # --- Bottom plot: wer, cer, bleu ---
+    ax1 = axs[1]
     ax2 = ax1.twinx()
-    ax2.plot(steps, logs["eval"]["bleu"], label="BLEU", color="blue", linestyle="--", marker="s")
-    ax2.set_ylabel("BLEU Score")
-    
-    # --- Combine legends ---
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc="upper left")
 
-    # --- Add final lang_acc label ---
-    final_acc = logs["eval"]["lang_acc"][-1] if logs["eval"]["lang_acc"] else None
-    if final_acc is not None:
-        ax1.text(0.98, 0.95, f"Final lang_acc: {final_acc:.2f}", transform=ax1.transAxes,
-                 horizontalalignment="right", verticalalignment="top", bbox=dict(facecolor="white", alpha=0.5))
+    ax1.plot(logs["eval"]["steps"], logs["eval"]["wer"], marker=".", linestyle="-", color="red", label="WER")
+    ax1.plot(logs["eval"]["steps"], logs["eval"]["cer"], marker="o", linestyle="-", color="orange", label="CER")
+    ax2.plot(logs["eval"]["steps"], logs["eval"]["bleu"], marker="^", linestyle="-", color="blue", label="BLEU")
+
+    ax1.set_ylabel("WER / CER (%)")
+    ax2.set_ylabel("BLEU (%)")
+    axs[1].set_xlabel("Step")
+    axs[1].set_title(f"Evaluation Metrics (Final Lang Acc: {logs['eval']['lang_acc'][-1]:.2f})")
+
+    ax1.grid(True)
+    axs[1].set_xlim(left=0)
+
+    # Combine legends
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    axs[1].legend(lines1 + lines2, labels1 + labels2, loc="best")
 
     plt.tight_layout()
     if output_file is not None:
-        plt.savefig(output_file)
-        print(f"Saved plot as {output_file}")
-
+        plt.savefig("training_eval_metrics.png")
     if show_plot:
         plt.show()
+    plt.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize training/evaluation JSONL logs")
     parser.add_argument("--jsonl_path", type=str, required=True, help="Path to JSONL log file")
-    parser.add_argument("--show_plot", action="store_true", help="Show the plot in a GUI window")
     parser.add_argument("--output_file", type=str, default=None, help="Output PNG file path")
+    parser.add_argument("--show_plot", action="store_true", help="Show the plot in a GUI window")
     args = parser.parse_args()
 
-    logs = read_jsonl(args.jsonl_path)
-    plot_logs(logs, output_file=args.output_file, show_plot=args.show_plot)
+    plot_logs(args.jsonl_path, output_file=args.output_file, show_plot=args.show_plot)
