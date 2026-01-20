@@ -68,7 +68,7 @@ def transcribe_file(model, processor, audio_path, args):
 def main():
     parser = argparse.ArgumentParser(description="Run ASR using HuggingFace Whisper", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model", default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium", help="HF Whisper model")
-    parser.add_argument("--meta", type=str, help="json file (meta.json) with samples containing: audio files/transcriptions")
+    parser.add_argument("--meta", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets/covost2.test7x10.tsv_asr_cache/meta.json", help="json file (meta.json) with samples containing: audio files/transcriptions")
     parser.add_argument("--dataset", type=str, help="Text file with audio paths (one per line)")
     parser.add_argument("--file_path", type=str, help="Single audio file")
     parser.add_argument("--language", default=None, help="Force language (e.g. en, fr, de)")
@@ -95,7 +95,7 @@ def main():
         outputs.append((args.file_path, text))
         print(text)
 
-    if args.dataset:
+    elif args.dataset:
         with open(args.dataset, "r", encoding="utf-8") as f:
             audio_files = [line.strip() for line in f if line.strip()]
         print(f"Transcribing {len(audio_files)} files")
@@ -109,7 +109,7 @@ def main():
             outputs.append((audio_path, text))
             print(f"{audio_path}\t{text}")
 
-    if args.meta:
+    elif args.meta:
         with open(args.meta, "r", encoding="utf-8") as f:
             meta = json.load(f)
         samples = meta['samples']
