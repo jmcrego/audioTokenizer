@@ -6,8 +6,8 @@ config = {
     },
     "projector": {
         "path": None,
-        "conv_kernel": 30,
-        "conv_stride": 30,
+        "conv_kernel": 10,
+        "conv_stride": 10,
         "rmsnorm_pre": True,
         "act": None, #"silu",
         "rmsnorm_pos": True,
