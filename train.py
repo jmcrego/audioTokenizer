@@ -87,7 +87,6 @@ if __name__ == "__main__":
         ]
     )
     
-    logger = logging.getLogger(__name__)
     logger.info("=" * 80)
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
     logger.info("=" * 80)
@@ -106,12 +105,16 @@ if __name__ == "__main__":
     json_logger.log(
         type="run",
         config=config,
-        train_file=args.train,
-        eval_file=args.eval,
+        train=args.train,
+        eval=args.eval,
+        max_steps=args.max_steps,
+        max_epochs=args.max_epochs,
+        warmup_steps=args.warmup_steps,
         batch_size=args.batch_size,
         accum_steps=args.accum_steps,
-        max_steps=args.max_steps,
-        model="whisper+projector+llm",
+        max_seq_len=args.max_seq_len,
+        resume=args.resume,
+        output_dir=args.output_dir,
     )
 
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
