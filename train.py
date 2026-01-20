@@ -23,7 +23,7 @@ class JSONMetricsLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def log(self, **data):
-        data["timestamp"] = datetime.now(datetime.strftime('%Y%m%d_%H%M%S'))
+        data["timestamp"] = datetime.now().isoformat(timespec="seconds")
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
