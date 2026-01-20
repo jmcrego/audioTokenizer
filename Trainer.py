@@ -13,7 +13,6 @@ import jiwer
 import unicodedata
 import numpy as np
 from datetime import datetime
-from pathlib import Path
 import time
 
 import torch.nn as nn
@@ -48,16 +47,6 @@ transform = jiwer.Compose([
     jiwer.RemoveEmptyStrings() 
 ])
 
-class JSONMetricsLogger:
-    def __init__(self, path):
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-
-    def log(self, **data):
-        data["timestamp"] = datetime..now(datetime.strftime('%Y%m%d_%H%M%S'))
-        with self.path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(data, ensure_ascii=False) + "\n")
-
 class Trainer:
     def __init__(
         self,
@@ -76,6 +65,7 @@ class Trainer:
         log_every=50,
         accum_steps=1,
         output_dir="./output_dir",
+        json_logger=None,
         seed=42,
         resume=False,
     ):
@@ -100,10 +90,10 @@ class Trainer:
         self.log_every = log_every
         self.accum_steps = accum_steps
         self.output_dir = output_dir
+        self.json_logger = json_logger
         self.tokenizer = self.model.llm.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
-        self.json_logger = JSONMetricsLogger(os.path.join(output_dir, "metrics.jsonl"))
 
         param = next(self.model.llm.model.parameters())
         self.device = param.device

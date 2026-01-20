@@ -8,6 +8,7 @@ import logging
 import argparse
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 
 from AudioToLLM import AudioToLLM
 from Trainer import Trainer
@@ -15,6 +16,16 @@ from Dataset import Dataset
 
 logger = logging.getLogger("train")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+class JSONMetricsLogger:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log(self, **data):
+        data["timestamp"] = datetime.now(datetime.strftime('%Y%m%d_%H%M%S'))
+        with self.path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
 def get_device_dtype():
     if torch.cuda.is_available():
@@ -91,6 +102,18 @@ if __name__ == "__main__":
         "\n" + "=" * 80
     )
 
+    json_logger = JSONMetricsLogger(os.path.join(args.output_dir, "metrics.jsonl"))
+    json_logger.log(
+        type="run",
+        config=config,
+        train_file=args.train,
+        eval_file=args.eval,
+        batch_size=args.batch_size,
+        accum_steps=args.accum_steps,
+        max_steps=args.max_steps,
+        model="whisper+projector+llm",
+    )
+
     logging.getLogger("transformers.trainer").setLevel(logging.WARNING)
 
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
@@ -149,6 +172,7 @@ if __name__ == "__main__":
         log_every=args.log_every,
         accum_steps=args.accum_steps,
         output_dir=args.output_dir,
+        json_logger=json_logger,
         resume=args.resume,
     )
 
