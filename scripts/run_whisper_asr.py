@@ -61,6 +61,7 @@ def transcribe_file(model, processor, audio_path, args):
     inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
     input_features = inputs.input_features.to(args.device)
     generated_ids = model.generate(input_features, language=args.language, task="transcribe", max_new_tokens=256)
+    #generated_ids = model.generate(input_features, task="transcribe")
     text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return text.strip()
 
@@ -146,6 +147,8 @@ def main():
         with open(args.output, "w", encoding="utf-8") as f:
             for path, text in outputs:
                 f.write(f"{path}\t{text}\n")
+            f.write(f"WER: {word_output.wer:.4f}\n")
+            f.write(f"CER: {char_output.cer:.4f}\n")
 
         print(f"Saved transcripts to {args.output}")
 
