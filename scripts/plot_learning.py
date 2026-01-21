@@ -10,6 +10,9 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
             entry = json.loads(line)
+            type = entry["type"]
+            if type == "run":
+                continue
             step = entry["step"]
             if entry["type"] == "train":
                 logs["train"]["steps"].append(step)

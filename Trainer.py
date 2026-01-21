@@ -32,15 +32,20 @@ class UnicodeNormalize(jiwer.AbstractTransform):
 
 class RemoveTags(jiwer.AbstractTransform):
     def process_string(self, s: str):
-        # More robust: handles nested brackets, empty tags                                                                                                                                                                                                                                    
+        # handles nested brackets, empty tags                                                                                                                                                                                                                                    
         s = re.sub(r"\<[^>]*\>", "", s)  # Remove <anything>                                                                                                                                                                                                                                  
         s = re.sub(r"\[[^\]]*\]", "", s)  # Remove [anything]                                                                                                                                                                                                                                 
         return s
+    
+class NormalizeApostrophes(jiwer.AbstractTransform):
+    def process_string(self, s: str):
+        return re.sub(r"[’']", " ", s) # Handle straight and curly apostrophes (do not delete the space as it does RemovePunctuation)
 
 transform = jiwer.Compose([ 
     UnicodeNormalize(), 
     RemoveTags(), 
     jiwer.ToLowerCase(), 
+    NormalizeApostrophes(),
     jiwer.RemovePunctuation(), 
     jiwer.RemoveWhiteSpace(replace_by_space=True), 
     jiwer.Strip(), 
