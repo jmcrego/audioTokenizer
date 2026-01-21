@@ -11,7 +11,7 @@ config = {
         "rmsnorm_pre": True,
         "act": None, #"silu",
         "rmsnorm_pos": True,
-        "scale": 0.1,
+        "scale": 0.5,
         "use_bias": False,
     },
     "llm": {
