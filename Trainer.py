@@ -467,7 +467,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale_val=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -484,8 +484,8 @@ class Trainer:
             log_str += f"proj_grad_norm={proj_grad_norm:.2f} | "
         if lora_grad_norm is not None:
             log_str += f"lora_grad_norm={lora_grad_norm:.2f} | "
-        if scale_val is not None:
-            log_str += f"scale={scale_val:.2f} | "
+        if scale is not None:
+            log_str += f"scale={scale:.2f} | "
         if audio_norm is not None:
             log_str += f"audio_norm={audio_norm:.2f} | "
         if text_norm is not None:
