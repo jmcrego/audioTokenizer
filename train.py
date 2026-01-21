@@ -13,19 +13,29 @@ from pathlib import Path
 from AudioToLLM import AudioToLLM
 from Trainer import Trainer
 from Dataset import Dataset
+from scripts.plot_learning import plot_logs
 
 logger = logging.getLogger("train")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class JSONMetricsLogger:
-    def __init__(self, path):
+    def __init__(self, path, plot=True):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.plot = plot
 
     def log(self, **data):
         data["timestamp"] = datetime.now().isoformat(timespec="seconds")
+
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
+
+        if self.plot:
+            try:
+                plot_logs(self.path, output_file=str(self.path) + ".png")
+            except Exception as e:
+                logger.warning("Plot generation failed (%s). Training continues.", type(e).__name__)
+
 
 def get_device_dtype():
     if torch.cuda.is_available():
