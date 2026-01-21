@@ -9,9 +9,9 @@ config = {
         "conv_kernel": 15,
         "conv_stride": 15,
         "rmsnorm_pre": True,
-        "act": None, #"silu",
+        "act": "silu", #None
         "rmsnorm_pos": True,
-        "scale": 0.5,
+        "scale": 0.1,
         "use_bias": False,
     },
     "llm": {
