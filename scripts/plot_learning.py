@@ -52,6 +52,9 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
     ax1.grid(True)
     axs[1].set_xlim(left=0)
 
+    ax1.set_ylim(0, 100)
+    ax2.set_ylim(0, 100)
+
     # Combine legends
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
