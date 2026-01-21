@@ -59,7 +59,7 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
 
     plt.tight_layout()
     if output_file is not None:
-        plt.savefig("training_eval_metrics.png")
+        plt.savefig(output_file)
     if show_plot:
         plt.show()
     plt.close()
