@@ -314,7 +314,7 @@ class Trainer:
                             avg_loss.item(),
                             audio_norm=avg_audio_norm.item(),
                             text_norm=avg_text_norm.item(),
-                            scale_val=scale_val,
+                            scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(),
                             lora_grad_norm=lora_grad_norm.item(),
                             total_pads=total_pads,
@@ -323,7 +323,7 @@ class Trainer:
                         self.json_logger.log(
                             type="train", step=self.step, loss=avg_loss.item(), 
                             audio_norm=avg_audio_norm.item(), text_norm=avg_text_norm.item(),
-                            scale_val=scale_val,
+                            scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(), lora_grad_norm=lora_grad_norm.item(),
                             total_pads=total_pads, total_samples=total_samples,
                         )
