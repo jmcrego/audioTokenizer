@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr_lora", type=float, default=1e-4, help="Learning rate for LoRA layers")
     parser.add_argument("--lr_proj", type=float, default=5e-4, help="Learning rate for projector layers")
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
-    parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
+    parser.add_argument("--max_epochs", type=int, default=1, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--warmup_steps", type=int, default=1000, help="Scheduler warmup steps (use ~5%)")
     # train pars
     parser.add_argument("--batch_size", type=int, default=8, help="Number of sampels in a batch")
