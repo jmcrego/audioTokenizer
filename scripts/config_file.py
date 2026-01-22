@@ -50,6 +50,13 @@ config = {
         "bias": "none",
         "task_type": "CAUSAL_LM",
     },
+    "optim": {
+        'best_metric': "wer",
+        'best_score': "min",
+        'scores':[
+            #'checkpoint': score,
+        ]
+    },
 }
 
 with open(f"config.json", "w", encoding="utf-8") as file:
