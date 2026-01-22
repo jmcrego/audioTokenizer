@@ -52,6 +52,20 @@ transform = jiwer.Compose([
     jiwer.RemoveEmptyStrings() 
 ])
 
+def compute_grad_norm(params, eps=1e-6):
+    """
+    Compute total gradient norm of a list of parameters.
+    Skips parameters with no gradient. Returns a tensor on the same device as the first param.
+    """
+    grads = [p.grad.detach() for p in params if p.grad is not None]
+    if len(grads) == 0:
+        return torch.tensor(0.0)
+
+    # stack grads and compute total norm
+    stacked = torch.stack([g.pow(2).sum() for g in grads])
+    total_norm = torch.sqrt(stacked.sum() + eps)
+    return total_norm
+
 class Trainer:
     def __init__(
         self,
@@ -240,7 +254,8 @@ class Trainer:
         total_pads = 0
         total_samples = 0
 
-        scaler = torch.amp.GradScaler()  # initialize GradScaler
+        #scaler = torch.amp.GradScaler()  # initialize GradScaler
+        scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))
 
         while self.max_steps and self.step < self.max_steps:
             self.epoch += 1
@@ -278,20 +293,6 @@ class Trainer:
                     scaler.unscale_(optimizer)
 
                     # --- Compute grad norms ---
-                    def compute_grad_norm(params, eps=1e-6):
-                        """
-                        Compute total gradient norm of a list of parameters.
-                        Skips parameters with no gradient. Returns a tensor on the same device as the first param.
-                        """
-                        grads = [p.grad.detach() for p in params if p.grad is not None]
-                        if len(grads) == 0:
-                            return torch.tensor(0.0)
-
-                        # stack grads and compute total norm
-                        stacked = torch.stack([g.pow(2).sum() for g in grads])
-                        total_norm = torch.sqrt(stacked.sum() + eps)
-                        return total_norm
-
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
                     lora_grad_norm = compute_grad_norm(self.model.llm.lora_parameters())
                     scale_val = getattr(self.model.projector, "scale", None)
@@ -305,7 +306,9 @@ class Trainer:
                     scaler.step(optimizer)
                     scaler.update()
 
-                    optimizer.zero_grad()
+                    # optimizer.zero_grad()
+                    optimizer.zero_grad(set_to_none=True)
+
                     # Scheduler step
                     self.scheduler.step()
 
