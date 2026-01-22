@@ -9,7 +9,6 @@ config = {
         "rmsnorm_pre": True, #False to discard it
         "conv_kernel": 15,
         "conv_stride": 15,
-        "linear": True,
         "act": "silu",       #None to discard it
         "rmsnorm_pos": True, #False to discard it
         "scale": 0,          #0 to discard it
