@@ -442,6 +442,10 @@ class AudioToLLM(torch.nn.Module):
         trainable_params = embedder_trainable + projector_trainable + llm_lora_trainable + llm_emb_trainable
         frozen_params = total_params - trainable_params
 
+        total_params2 = sum(p.numel() for p in self.parameters())
+        trainable_params2 = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        frozen_params2 = total_params - trainable_params2
+
         # -----------------------------
         # Logging
         # -----------------------------
@@ -480,4 +484,10 @@ class AudioToLLM(torch.nn.Module):
             f"{frozen_params:>15,}"
         )
         logger.info(f"Trainable %     : {100 * trainable_params / total_params:.2f}%")
+        logger.info(
+            f"TOTAL2          : {total_params2:>15,} | "
+            f"{trainable_params2:>15,} | "
+            f"{frozen_params2:>15,}"
+        )
+        logger.info(f"Trainable %     : {100 * trainable_params2 / total_params2:.2f}%")
         logger.info("=" * 100)

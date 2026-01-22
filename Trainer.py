@@ -294,6 +294,7 @@ class Trainer:
                     # --- Compute grad norms ---
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
                     lora_grad_norm = compute_grad_norm(self.model.llm.lora_parameters())
+                    
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
                         scale_val = scale_val.item()
