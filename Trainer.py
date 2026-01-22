@@ -254,7 +254,7 @@ class Trainer:
         total_pads = 0
         total_samples = 0
 
-        #scaler = torch.amp.GradScaler()  # initialize GradScaler
+        #scaler = torch.amp.GradScaler()  # initialize GradScaler (jmcc)
         scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))
 
         while self.max_steps and self.step < self.max_steps:
@@ -306,7 +306,7 @@ class Trainer:
                     scaler.step(optimizer)
                     scaler.update()
 
-                    # optimizer.zero_grad()
+                    # optimizer.zero_grad() #jmcc
                     optimizer.zero_grad(set_to_none=True)
 
                     # Scheduler step
