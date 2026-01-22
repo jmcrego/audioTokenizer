@@ -8,20 +8,20 @@ config = {
         "path": None,
         "conv_kernel": 15,
         "conv_stride": 15,
-        "rmsnorm_pre": True,
-        "act": "silu", #None
-        "rmsnorm_pos": True,
-        "scale": 0.1,
-        "use_bias": False,
+        "rmsnorm_pre": True, #False for discard
+        "act": None,         #None for discard
+        "rmsnorm_pos": True, #False for discard
+        "scale": 0,          #0 for discard
+        "use_bias": False,   #False for discard
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B",
-        "audio_token": "<extra_id_0>", 
-        "pad_token" : "<|im_end|>"
+        "audio_token": "<extra_id_0>", #must exist (unused) in vocab
+        "pad_token" : "<|im_end|>"     #must be different to eos token
     },
     "embeddings": {
         "path": None,
-        "special_tokens": [
+        "special_tokens": [  #will be added in tokenizer, learned embeddigns
             "<|asr|>", 
             "<|ast|>", 
             "<|stt|>", 
@@ -39,7 +39,7 @@ config = {
             "<|ko|>", 
             "<|ar|>", 
             "<|zh-CN|>", 
-        ], ### added in the tokenizer, learned embeddigns
+        ], 
     },
     "lora": {
         "path": None,
