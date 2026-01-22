@@ -25,6 +25,9 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
                 logs["eval"]["bleu"].append(entry["bleu"])
                 logs["eval"]["acc"].append(entry["acc"])
 
+    if not logs["eval"]["steps"] or not logs["train"]["steps"]:
+        return
+
     fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
     # --- Top plot: loss ---
@@ -47,7 +50,9 @@ def plot_logs(jsonl_path, output_file=None, show_plot=False):
     ax1.set_ylabel("WER / CER (%)")
     ax2.set_ylabel("BLEU (%)")
     axs[1].set_xlabel("Step")
-    axs[1].set_title(f"Evaluation Metrics (Final Lang Acc: {logs['eval']['acc'][-1]:.2f})")
+
+    final_acc = logs['eval']['acc'][-1] if logs['eval']['acc'] else float('nan')
+    axs[1].set_title(f"Evaluation Metrics (Final Lang Acc: {final_acc:.2f})")
 
     ax1.grid(True)
     axs[1].set_xlim(left=0)
