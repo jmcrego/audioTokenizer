@@ -95,8 +95,7 @@ class Trainer:
         self.log_every = log_every
         self.accum_steps = accum_steps
         self.output_dir = output_dir
-        self.
-        = json_logger
+        self.json_logger = json_logger
         self.tokenizer = self.model.llm.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
