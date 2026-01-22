@@ -6,13 +6,14 @@ config = {
     },
     "projector": {
         "path": None,
+        "rmsnorm_pre": True, #False to discard it
         "conv_kernel": 15,
         "conv_stride": 15,
-        "rmsnorm_pre": True, #False for discard
-        "act": None,         #None for discard
-        "rmsnorm_pos": True, #False for discard
-        "scale": 0,          #0 for discard
-        "use_bias": False,   #False for discard
+        "linear": True,
+        "act": "silu",       #None to discard it
+        "rmsnorm_pos": True, #False to discard it
+        "scale": 0,          #0 to discard it
+        "use_bias": False,   #False to discard it
     },
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B",

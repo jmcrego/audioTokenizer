@@ -28,30 +28,30 @@ class Projector(nn.Module):
         assert 1500 % conv_stride == 0, f"conv_stride={conv_stride} must divide audio frames (1500) or frames will be dropped"
 
        # --- Pre RMSNorm ---
-        self.ln_pre = nn.RMSNorm(audio_embedding_dim) if rmsnorm_pre else nn.Identity()
+        self.ln_pre = nn.RMSNorm(audio_embedding_dim) if rmsnorm_pre else nn.Identity() #(B, T, A) → (B, T, A)
 
         # Depthwise Conv1d
         self.dw_conv = nn.Conv1d(in_channels=audio_embedding_dim, out_channels=audio_embedding_dim,
             kernel_size=conv_kernel,
             stride=conv_stride,
-            groups=audio_embedding_dim,  # depthwise
+            groups=audio_embedding_dim, 
             bias=False
-        )
+        ) #(B, T, A) → (B, A, T) → (B, A, T')    T' = [(T-k)/s] + 1   Groups = A, Each channel is convolved independently. Time dimension changes
 
         # Pointwise conv to mix channels
         self.pw_conv = nn.Conv1d(in_channels=audio_embedding_dim, out_channels=audio_embedding_dim,
             kernel_size=1,
             bias=False
-        )
+        )# (B, A, T') → (B, A, T') → (B, T', A) Conv1d Mixes channels, do not change time length
 
         # Linear projection to LLM embedding
-        self.linear = nn.Linear(audio_embedding_dim, llm_embedding_dim, bias=False)
+        self.linear = nn.Linear(audio_embedding_dim, llm_embedding_dim, bias=False) #(B, T', A) → (B, T', L)
 
         # Activation
         self.act = nn.Identity() if act is None else nn.SiLU() if act == 'silu' else nn.GELU() if act == 'gelu' else nn.ReLU() if act == 'relu' else nn.Identity()
 
         # Post-linear RMSNorm
-        self.ln_post = nn.RMSNorm(llm_embedding_dim) if rmsnorm_pos else nn.Identity()
+        self.ln_post = nn.RMSNorm(llm_embedding_dim) if rmsnorm_pos else nn.Identity() #(B, T', L) → (B, T', L)
 
         # Optional learnable scale and bias
         if scale > 0:
