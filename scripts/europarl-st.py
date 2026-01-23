@@ -99,6 +99,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
     segments.sort(key=lambda s: s["beg"])
     
+    skipped = 0
     results = []
     for seg in segments:
         beg_sample = int(seg["beg"] * sample_rate)
@@ -124,9 +125,11 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             tmp_path = str(ofile_path) + ".tmp"
             write(tmp_path, sample_rate, fragment)
             os.replace(tmp_path, ofile_path)  # atomic on most OSes to avoid mid-write files if crashes when writing
+        else:
+            skipped += 1
 
         results.append((ofile_name, seg))
-    return results
+    return results, skipped
 
 
 def build_segments_dict(segments_path, source_path, target_path):
@@ -180,14 +183,17 @@ def main():
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
+                n_skipped = 0
                 for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
 
                     ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
-                    results = extract_fragments(ifile_path, segments, audio_out_path)
+                    results, skipped = extract_fragments(ifile_path, segments, audio_out_path)
+                    n_skipped += skipped
 
                     for ofile_name, seg in results:
                         f_tsv.write(f"audios/{lp}/{data_set}/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
 
+                print(f"n_skipped={n_skipped}")
 
 if __name__ == "__main__":
     main()
