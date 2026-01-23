@@ -99,8 +99,6 @@ def extract_fragments(ifile_path, segments, audio_out_path):
     skip_audio_reading = True
     for seg in segments:
 
-        beg_sample = int(seg["beg"] * sample_rate)
-        end_sample = int(seg["end"] * sample_rate)
         duration_sec = seg["end"] - seg["beg"]
 
         if duration_sec <= 0:
@@ -128,8 +126,6 @@ def extract_fragments(ifile_path, segments, audio_out_path):
     results = []
     for seg in segments:
 
-        beg_sample = int(seg["beg"] * sample_rate)
-        end_sample = int(seg["end"] * sample_rate)
         duration_sec = seg["end"] - seg["beg"]
 
         if duration_sec <= 0:
@@ -144,6 +140,8 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         ofile_path = audio_out_path / ofile_name
 
         if not ofile_path.exists():
+            beg_sample = int(seg["beg"] * sample_rate)
+            end_sample = int(seg["end"] * sample_rate)
             ofile_path.parent.mkdir(parents=True, exist_ok=True)
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
