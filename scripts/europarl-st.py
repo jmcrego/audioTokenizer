@@ -138,7 +138,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         return []
 
     try:
-        wav, sample_rate = load_audio_pydub(ifile_path)
+        wav, sample_rate = load_audio_ffmpeg(ifile_path)
         #wav, sample_rate = load_audio_pydub(ifile_path)
     except Exception as e:
         print(f"Failed to read {ifile_path}: {e}")
