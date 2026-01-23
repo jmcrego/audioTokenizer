@@ -62,8 +62,8 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         return []
 
     try:
-        #wav, sample_rate = load_audio_ffmpeg(ifile_path)
-        wav, sample_rate = load_audio_pydub(ifile_path)
+        wav, sample_rate = load_audio_ffmpeg(ifile_path)
+        #wav, sample_rate = load_audio_pydub(ifile_path)
     except Exception as e:
         print(f"Failed to read {ifile_path}: {e}")
         return []
@@ -79,6 +79,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         if duration_sec <= 0:
             print(f"Skipping invalid segment {seg} in {ifile_path}")
             continue
+
         if duration_sec > 30.0:
             print(f"Skipping long segment {seg} in {ifile_path}")
             continue
