@@ -181,7 +181,7 @@ def main():
     parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
-    parser.add_argument("--lp", type=str, default="en-fr,en-es,en-de,en-it,en-pt,fr-en,fr-es,fr-de,fr-it,fr-pt,de-en,de-fr,de-es,de-it,de-pt,pt-en,pt-es,pt-de-pt-fr,pt-it,it-en,it-es,it-de,it-fr,it-pt", help="Comma-separated list of language pairs (i.e. en-fr,es-it)")
+    parser.add_argument("--lp", type=str, default="en-fr,en-es,en-de,en-it,en-pt,fr-en,fr-es,fr-de,fr-it,fr-pt,de-en,de-fr,de-es,de-it,de-pt,pt-en,pt-es,pt-de,pt-fr,pt-it,it-en,it-es,it-de,it-fr,it-pt", help="Comma-separated list of language pairs (i.e. en-fr,es-it)")
     parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev")
     args = parser.parse_args()
 
