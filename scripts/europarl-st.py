@@ -96,7 +96,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
     ### check if all output segments are already in place
 
-    skip_audio_reading = True
+    all_segments_exist = True
     for seg in segments:
 
         duration_sec = seg["end"] - seg["beg"]
@@ -112,11 +112,11 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
         ofile_path = audio_out_path / ofile_name
 
-        if ofile_path.exists():
-            skip_aurio_reading = False
+        if not ofile_path.exists():
+            all_segments_exist = False
             break
 
-    if not skip_audio_reading:
+    if not all_segments_exist:
         try:
             wav, sample_rate = load_audio_ffmpeg(ifile_path)
         except Exception as e:
@@ -140,10 +140,10 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         ofile_path = audio_out_path / ofile_name
 
         if not ofile_path.exists():
-            beg_sample = int(seg["beg"] * sample_rate)
-            end_sample = int(seg["end"] * sample_rate)
             ofile_path.parent.mkdir(parents=True, exist_ok=True)
             # Slice waveform in memory
+            beg_sample = int(seg["beg"] * sample_rate)
+            end_sample = int(seg["end"] * sample_rate)
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
             tmp_path = str(ofile_path) + ".tmp"
