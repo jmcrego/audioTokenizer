@@ -9,6 +9,8 @@ import subprocess
 import numpy as np
 import shutil
 import soxr 
+import tempfile
+import os
 from scipy.io.wavfile import write
 
 FFMPEG = shutil.which("ffmpeg")
@@ -120,8 +122,9 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
-            write(ofile_path, sample_rate, fragment)
-            #sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
+            tmp_path = ofile_path + ".tmp"
+            write(tmp_path, sample_rate, fragment)
+            os.replace(tmp_path, ofile_path)  # atomic on most OSes to avoid mid-write files if crashes when writing
 
         results.append((ofile_name, seg))
     return results
@@ -154,30 +157,36 @@ def main():
     parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
-    parser.add_argument("--lsrc", type=str, default="en", help="Source language")
-    parser.add_argument("--ltgt", type=str, default="fr", help="Target language")
-    parser.add_argument("--data_set", type=str, default="train", help="Data set: train, dev, test")
+    parser.add_argument("--lp", type=str, default="en", help="Comma-separated list of language pairs (i.e. en-fr,es-it)")
+    parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev,train")
     args = parser.parse_args()
-
-    base_path = Path(args.idir) / args.lsrc / args.ltgt / args.data_set
-    segments_path = base_path / "segments.lst"
-    source_path = base_path / f"segments.{args.lsrc}"
-    target_path = base_path / f"segments.{args.ltgt}"
 
     out_path = Path(args.odir)
     audio_out_path = out_path / "audios"
-    out_path.mkdir(parents=True, exist_ok=True)
     audio_out_path.mkdir(parents=True, exist_ok=True)
+    tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
 
-    segments_dict = build_segments_dict(segments_path, source_path, target_path)
-
-    tsv_file = out_path / f"Europarl-ST_v1.1_{args.data_set}.tsv"
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
-        for audio_name, segments in tqdm(segments_dict.items(), desc="Processing audio files", unit="file"):
-            ifile_path = Path(args.idir) / args.lsrc / "audios" / f"{audio_name}.m4a"
-            results = extract_fragments(ifile_path, segments, audio_out_path)
-            for ofile_name, seg in results:
-                f_tsv.write(f"audios/{ofile_name}\t{args.lsrc}\t{seg['src']}\t{args.ltgt}\t{seg['tgt']}\n")
+
+        for lp in args.lp.split(","):
+            lsrc, ltgt = lp.split("-")
+
+            for data_set in args.data_sets.split(","):
+
+                base_path = Path(args.idir) / lsrc / ltgt / data_set
+                segments_path = base_path / "segments.lst"
+                source_path = base_path / f"segments.{lsrc}"
+                target_path = base_path / f"segments.{ltgt}"
+
+                segments_dict = build_segments_dict(segments_path, source_path, target_path)
+
+                for audio_name, segments in tqdm(segments_dict.items(), desc="Processing {lsrc}-{ltgt}_{data_set}", unit="file"):
+
+                    ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
+                    results = extract_fragments(ifile_path, segments, audio_out_path)
+
+                    for ofile_name, seg in results:
+                        f_tsv.write(f"audios/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
 
 
 if __name__ == "__main__":
