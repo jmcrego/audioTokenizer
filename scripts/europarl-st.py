@@ -46,6 +46,27 @@ def load_audio_pydub_aligned(path, sample_rate=None, channel=-1, norm=True):
 
     return samples, sr
 
+def load_audio_pydub(path, sample_rate=None, channel=-1):
+    """Load audio using pydub and return a mono float32 numpy array in [-1, 1]."""
+    audio = AudioSegment.from_file(path)
+
+    # Force mono
+    if channel == -1 or audio.channels > 1:
+        audio = audio.set_channels(1)
+    elif channel >= 0 and audio.channels > channel:
+        audio = audio.set_channels(1)
+
+    # Optional resampling
+    if sample_rate is not None and audio.frame_rate != sample_rate:
+        audio = audio.set_frame_rate(sample_rate)
+
+    # Convert to numpy float32 and normalize
+    samples = np.array(audio.get_array_of_samples()).astype(np.float32)
+    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
+
+    return samples, audio.frame_rate
+
+
 
 def load_audio_ffmpeg_aligned(path, sample_rate=None, channel=-1, norm=True):
     """
@@ -89,26 +110,6 @@ def load_audio_ffmpeg_aligned(path, sample_rate=None, channel=-1, norm=True):
     return wav, sr
 
 
-def load_audio_pydub(path, sample_rate=None, channel=-1):
-    """Load audio using pydub and return a mono float32 numpy array in [-1, 1]."""
-    audio = AudioSegment.from_file(path)
-
-    # Force mono
-    if channel == -1 or audio.channels > 1:
-        audio = audio.set_channels(1)
-    elif channel >= 0 and audio.channels > channel:
-        audio = audio.set_channels(1)
-
-    # Optional resampling
-    if sample_rate is not None and audio.frame_rate != sample_rate:
-        audio = audio.set_frame_rate(sample_rate)
-
-    # Convert to numpy float32 and normalize
-    samples = np.array(audio.get_array_of_samples()).astype(np.float32)
-    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
-
-    return samples, audio.frame_rate
-
 def load_audio_ffmpeg(path):
     cmd = [ FFMPEG, "-i", str(path), "-ac", "1", "-f", "f32le", "-acodec", "pcm_f32le", "pipe:1" ]
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -137,7 +138,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         return []
 
     try:
-        wav, sample_rate = load_audio_pydub_aligned(ifile_path)
+        wav, sample_rate = load_audio_pydub(ifile_path)
         #wav, sample_rate = load_audio_pydub(ifile_path)
     except Exception as e:
         print(f"Failed to read {ifile_path}: {e}")
