@@ -8,11 +8,86 @@ import soundfile as sf
 import subprocess
 import numpy as np
 import shutil
+import soxr 
 from scipy.io.wavfile import write
 
 FFMPEG = shutil.which("ffmpeg")
 if FFMPEG is None:
     raise RuntimeError("ffmpeg not found in PATH")
+
+def load_audio_pydub_aligned(path, sample_rate=None, channel=-1, norm=True):
+    """
+    Load audio using PyDub to mimic preprocess_audio behavior.
+    Returns float32 numpy array in [-1,1], mono if needed, optionally resampled.
+    """
+    audio = AudioSegment.from_file(path)
+
+    # Convert to numpy array
+    samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
+
+    # Reshape if stereo
+    if audio.channels > 1:
+        samples = samples.reshape((-1, audio.channels))
+        if channel == -1:
+            samples = samples.mean(axis=1)
+        elif channel < audio.channels:
+            samples = samples[:, channel]
+
+    # Optional resampling
+    sr = audio.frame_rate
+    if sample_rate is not None and sr != sample_rate:
+        samples = soxr.resample(samples, sr, sample_rate)
+        sr = sample_rate
+
+    # Optional normalization
+    if norm:
+        samples /= np.max(np.abs(samples)) + 1e-9
+
+    return samples, sr
+
+
+def load_audio_ffmpeg_aligned(path, sample_rate=None, channel=-1, norm=True):
+    """
+    Load audio using FFmpeg to mimic preprocess_audio behavior.
+    Returns float32 numpy array in [-1,1], mono if needed, optionally resampled.
+    """
+    cmd = [
+        "ffmpeg", "-i", str(path), "-f", "f32le",
+        "-ac", "2",  # keep stereo initially for channel handling
+        "-acodec", "pcm_f32le", "pipe:1"
+    ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    wav = np.frombuffer(proc.stdout, dtype=np.float32)
+
+    # Parse original sample rate from ffmpeg stderr
+    sr = None
+    for line in proc.stderr.decode().splitlines():
+        if "Hz" in line:
+            sr = int(line.split("Hz")[0].split()[-1])
+            break
+    if sr is None:
+        raise RuntimeError("Could not determine sample rate from FFmpeg")
+
+    # Reshape stereo
+    if wav.size % 2 == 0:
+        wav = wav.reshape((-1, 2))
+        if channel == -1:
+            wav = wav.mean(axis=1)
+        elif channel < 2:
+            wav = wav[:, channel]
+
+    # Optional resampling
+    if sample_rate is not None and sr != sample_rate:
+        wav = soxr.resample(wav, sr, sample_rate)
+        sr = sample_rate
+
+    # Optional normalization
+    if norm:
+        wav /= np.max(np.abs(wav)) + 1e-9
+
+    return wav, sr
+
 
 def load_audio_pydub(path, sample_rate=None, channel=-1):
     """Load audio using pydub and return a mono float32 numpy array in [-1, 1]."""
@@ -62,7 +137,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         return []
 
     try:
-        wav, sample_rate = load_audio_ffmpeg(ifile_path)
+        wav, sample_rate = load_audio_ffmpeg_aligned(ifile_path)
         #wav, sample_rate = load_audio_pydub(ifile_path)
     except Exception as e:
         print(f"Failed to read {ifile_path}: {e}")
