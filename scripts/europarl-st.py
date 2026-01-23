@@ -192,9 +192,11 @@ def main():
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
         for lp in args.lp.split(","):
+            print(f"lp={lp}")
             lsrc, ltgt = lp.split("-")
 
             for data_set in args.data_sets.split(","):
+                print(f"dataset={data_set}")
 
                 audio_out_path = out_path / "audios" / lp / data_set
                 audio_out_path.mkdir(parents=True, exist_ok=True)
