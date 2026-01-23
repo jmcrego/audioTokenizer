@@ -187,6 +187,7 @@ def main():
 
     out_path = Path(args.odir)
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
+    print(f"Writing {tsv_file}")
 
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
