@@ -120,8 +120,8 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
-            #write(ofile_path, sample_rate, fragment)
-            sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
+            write(ofile_path, sample_rate, fragment)
+            #sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
 
         results.append((ofile_name, seg))
     return results
