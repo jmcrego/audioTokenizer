@@ -9,7 +9,6 @@ import subprocess
 import numpy as np
 import shutil
 import soxr 
-import tempfile
 import os
 from scipy.io.wavfile import write
 
