@@ -116,9 +116,9 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
         ofile_path = audio_out_path / ofile_name
-        ofile_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not ofile_path.exists():
+            ofile_path.parent.mkdir(parents=True, exist_ok=True)
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
@@ -162,8 +162,6 @@ def main():
     args = parser.parse_args()
 
     out_path = Path(args.odir)
-    audio_out_path = out_path / "audios"
-    audio_out_path.mkdir(parents=True, exist_ok=True)
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
 
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
@@ -173,6 +171,9 @@ def main():
 
             for data_set in args.data_sets.split(","):
 
+                audio_out_path = out_path / "audios" / lp / data_set
+                audio_out_path.mkdir(parents=True, exist_ok=True)
+
                 base_path = Path(args.idir) / lsrc / ltgt / data_set
                 segments_path = base_path / "segments.lst"
                 source_path = base_path / f"segments.{lsrc}"
@@ -180,13 +181,13 @@ def main():
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
-                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}_{data_set}", unit="file"):
+                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}_{data_set}", unit="file"):
 
                     ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
                     results = extract_fragments(ifile_path, segments, audio_out_path)
 
                     for ofile_name, seg in results:
-                        f_tsv.write(f"audios/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
+                        f_tsv.write(f"audios/{lp}/{data_set}/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
 
 
 if __name__ == "__main__":
