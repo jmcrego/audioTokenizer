@@ -9,10 +9,6 @@ import soundfile as sf
 
 logger = logging.getLogger("Embedder")
 
-# next are to speed up the embedding
-# torch.backends.cuda.matmul.allow_tf32 = True
-# torch.backends.cudnn.benchmark = True
-
 def preprocess_audio(audio_input, sample_rate=None, channel=-1, norm=True):
     """
     Load audio from:

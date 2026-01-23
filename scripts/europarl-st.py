@@ -1,0 +1,155 @@
+import argparse
+from pathlib import Path
+from collections import defaultdict
+from tqdm import tqdm
+import numpy as np
+from pydub import AudioSegment
+import soundfile as sf
+import subprocess
+import numpy as np
+import shutil
+from scipy.io.wavfile import write
+
+FFMPEG = shutil.which("ffmpeg")
+if FFMPEG is None:
+    raise RuntimeError("ffmpeg not found in PATH")
+
+def load_audio_pydub(path, sample_rate=None, channel=-1):
+    """Load audio using pydub and return a mono float32 numpy array in [-1, 1]."""
+    audio = AudioSegment.from_file(path)
+
+    # Force mono
+    if channel == -1 or audio.channels > 1:
+        audio = audio.set_channels(1)
+    elif channel >= 0 and audio.channels > channel:
+        audio = audio.set_channels(1)
+
+    # Optional resampling
+    if sample_rate is not None and audio.frame_rate != sample_rate:
+        audio = audio.set_frame_rate(sample_rate)
+
+    # Convert to numpy float32 and normalize
+    samples = np.array(audio.get_array_of_samples()).astype(np.float32)
+    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
+
+    return samples, audio.frame_rate
+
+def load_audio_ffmpeg(path):
+    cmd = [ FFMPEG, "-i", str(path), "-ac", "1", "-f", "f32le", "-acodec", "pcm_f32le", "pipe:1" ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
+    # Parse sample rate from ffmpeg stderr
+    sr = None
+    for line in proc.stderr.decode().splitlines():
+        if "Hz" in line:
+            sr = int(line.split("Hz")[0].split()[-1])
+            break
+    if sr is None:
+        raise RuntimeError("Could not determine sample rate")
+
+    wav = np.frombuffer(proc.stdout, dtype=np.float32)
+    return wav, sr
+
+
+def extract_fragments(ifile_path, segments, audio_out_path):
+    """
+    Load an audio file once, slice all fragments in memory, and write them out.
+    segments: list of dicts with keys 'beg', 'end', 'src', 'tgt'
+    Returns: list of (ofile_name, segment_dict)
+    """
+    if not ifile_path.exists():
+        print(f"Missing input audio: {ifile_path}")
+        return []
+
+    try:
+        #wav, sample_rate = load_audio_ffmpeg(ifile_path)
+        wav, sample_rate = load_audio_pydub(ifile_path)
+    except Exception as e:
+        print(f"Failed to read {ifile_path}: {e}")
+        return []
+
+    segments.sort(key=lambda s: s["beg"])
+    
+    results = []
+    for seg in segments:
+        beg_sample = int(seg["beg"] * sample_rate)
+        end_sample = int(seg["end"] * sample_rate)
+        duration_sec = seg["end"] - seg["beg"]
+
+        if duration_sec <= 0:
+            print(f"Skipping invalid segment {seg} in {ifile_path}")
+            continue
+        if duration_sec > 30.0:
+            print(f"Skipping long segment {seg} in {ifile_path}")
+            continue
+
+        ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
+        ofile_path = audio_out_path / ofile_name
+        ofile_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not ofile_path.exists():
+            # Slice waveform in memory
+            fragment = wav[beg_sample:end_sample]
+            # Write as wav soundfile
+            write(ofile_path, sample_rate, fragment)
+            #sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
+
+        results.append((ofile_name, seg))
+    return results
+
+
+def build_segments_dict(segments_path, source_path, target_path):
+    """Read segments, source, target files and group by audio_name."""
+    segments_dict = defaultdict(list)
+
+    with segments_path.open("r", encoding="utf-8") as f_seg, \
+         source_path.open("r", encoding="utf-8") as f_src, \
+         target_path.open("r", encoding="utf-8") as f_tgt:
+
+        n_segments = 0
+        for seg, src, tgt in tqdm(zip(f_seg, f_src, f_tgt), desc="Parsing segments", unit="file"):
+            audio_name, beg, end = seg.strip().split(" ")
+            segments_dict[audio_name].append({
+                "beg": float(beg),
+                "end": float(end),
+                "src": src.strip(),
+                "tgt": tgt.strip()
+            })
+            n_segments += 1
+        print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
+        
+    return segments_dict
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
+    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
+    parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
+    parser.add_argument("--lsrc", type=str, default="en", help="Source language")
+    parser.add_argument("--ltgt", type=str, default="fr", help="Target language")
+    parser.add_argument("--data_set", type=str, default="train", help="Data set: train, dev, test")
+    args = parser.parse_args()
+
+    base_path = Path(args.idir) / args.lsrc / args.ltgt / args.data_set
+    segments_path = base_path / "segments.lst"
+    source_path = base_path / f"segments.{args.lsrc}"
+    target_path = base_path / f"segments.{args.ltgt}"
+
+    out_path = Path(args.odir)
+    audio_out_path = out_path / "audios"
+    out_path.mkdir(parents=True, exist_ok=True)
+    audio_out_path.mkdir(parents=True, exist_ok=True)
+
+    segments_dict = build_segments_dict(segments_path, source_path, target_path)
+
+    tsv_file = out_path / f"Europarl-ST_v1.1_{args.data_set}.tsv"
+    with tsv_file.open("w", encoding="utf-8") as f_tsv:
+        for audio_name, segments in tqdm(segments_dict.items(), desc="Processing audio files", unit="file"):
+            ifile_path = Path(args.idir) / args.lsrc / "audios" / f"{audio_name}.m4a"
+            results = extract_fragments(ifile_path, segments, audio_out_path)
+            for ofile_name, seg in results:
+                f_tsv.write(f"audios/{ofile_name}\t{args.lsrc}\t{seg['src']}\t{args.ltgt}\t{seg['tgt']}\n")
+
+
+if __name__ == "__main__":
+    main()
