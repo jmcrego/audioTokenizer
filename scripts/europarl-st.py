@@ -15,58 +15,6 @@ FFMPEG = shutil.which("ffmpeg")
 if FFMPEG is None:
     raise RuntimeError("ffmpeg not found in PATH")
 
-def load_audio_pydub_aligned(path, sample_rate=None, channel=-1, norm=True):
-    """
-    Load audio using PyDub to mimic preprocess_audio behavior.
-    Returns float32 numpy array in [-1,1], mono if needed, optionally resampled.
-    """
-    audio = AudioSegment.from_file(path)
-
-    # Convert to numpy array
-    samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
-    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
-
-    # Reshape if stereo
-    if audio.channels > 1:
-        samples = samples.reshape((-1, audio.channels))
-        if channel == -1:
-            samples = samples.mean(axis=1)
-        elif channel < audio.channels:
-            samples = samples[:, channel]
-
-    # Optional resampling
-    sr = audio.frame_rate
-    if sample_rate is not None and sr != sample_rate:
-        samples = soxr.resample(samples, sr, sample_rate)
-        sr = sample_rate
-
-    # Optional normalization
-    if norm:
-        samples /= np.max(np.abs(samples)) + 1e-9
-
-    return samples, sr
-
-def load_audio_pydub(path, sample_rate=None, channel=-1):
-    """Load audio using pydub and return a mono float32 numpy array in [-1, 1]."""
-    audio = AudioSegment.from_file(path)
-
-    # Force mono
-    if channel == -1 or audio.channels > 1:
-        audio = audio.set_channels(1)
-    elif channel >= 0 and audio.channels > channel:
-        audio = audio.set_channels(1)
-
-    # Optional resampling
-    if sample_rate is not None and audio.frame_rate != sample_rate:
-        audio = audio.set_frame_rate(sample_rate)
-
-    # Convert to numpy float32 and normalize
-    samples = np.array(audio.get_array_of_samples()).astype(np.float32)
-    samples /= (1 << (8 * audio.sample_width - 1))  # normalize to [-1,1]
-
-    return samples, audio.frame_rate
-
-
 
 def load_audio_ffmpeg_aligned(path, sample_rate=None, channel=-1, norm=True):
     """
@@ -111,6 +59,11 @@ def load_audio_ffmpeg_aligned(path, sample_rate=None, channel=-1, norm=True):
 
 
 def load_audio_ffmpeg(path):
+    # This version :
+    # Does not resample (leaves audio as it is)
+    # Mono forced immediately (mixes everything into mono automatically)
+    # No normalization, ffmpeg outputs float32 PCM, usually in [-1,1], but no guarantee your pipeline does dynamic normalization like preprocess_audio.
+
     cmd = [ FFMPEG, "-i", str(path), "-ac", "1", "-f", "f32le", "-acodec", "pcm_f32le", "pipe:1" ]
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
 
@@ -139,7 +92,6 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
     try:
         wav, sample_rate = load_audio_ffmpeg(ifile_path)
-        #wav, sample_rate = load_audio_pydub(ifile_path)
     except Exception as e:
         print(f"Failed to read {ifile_path}: {e}")
         return []
@@ -168,8 +120,8 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
-            write(ofile_path, sample_rate, fragment)
-            #sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
+            #write(ofile_path, sample_rate, fragment)
+            sf.write(ofile_path, fragment, sample_rate, subtype="PCM_16")
 
         results.append((ofile_name, seg))
     return results
