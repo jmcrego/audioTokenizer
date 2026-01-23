@@ -122,7 +122,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             # Slice waveform in memory
             fragment = wav[beg_sample:end_sample]
             # Write as wav soundfile
-            tmp_path = ofile_path + ".tmp"
+            tmp_path = str(ofile_path) + ".tmp"
             write(tmp_path, sample_rate, fragment)
             os.replace(tmp_path, ofile_path)  # atomic on most OSes to avoid mid-write files if crashes when writing
 
@@ -180,7 +180,7 @@ def main():
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
-                for audio_name, segments in tqdm(segments_dict.items(), desc="Processing {lsrc}-{ltgt}_{data_set}", unit="file"):
+                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}_{data_set}", unit="file"):
 
                     ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
                     results = extract_fragments(ifile_path, segments, audio_out_path)
