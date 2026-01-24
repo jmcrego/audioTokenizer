@@ -171,7 +171,7 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "src": src.strip(),
                 "tgt": tgt.strip()
             })
-            print(audio_name, beg, end, src.strip(), tgt.strip())
+            # print(audio_name, beg, end, src.sdetrip(), tgt.strip())
             n_segments += 1
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
