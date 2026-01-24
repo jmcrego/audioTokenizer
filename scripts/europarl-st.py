@@ -216,6 +216,8 @@ def main():
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
+        n_total = 0
+        t_total = 0
         for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
             print(f"---------- {slang}-{tlang}:{data_set} ----------")
             segments_path = base_path / slang / tlang / data_set / "segments.lst"
@@ -239,8 +241,12 @@ def main():
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
 
-            print(f"Created {n_created} files ({n_exist} existing) duration={t_audio}")
+            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} seg")
+            n_total += n_created + n_exist
+            t_total += t_audio
 
+        print(f"Total files {n_total}")
+        print(f"Total duration {t_total} ({t_total/n_total} segs/file)")
 
 if __name__ == "__main__":
     main()
