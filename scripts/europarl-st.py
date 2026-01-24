@@ -220,7 +220,7 @@ def main():
                 target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
-                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
+                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
                     results = extract_fragments(m4a_name2path[audio_name], segments, out_path / "audios")
 
                     for ofile_name, seg in results:
