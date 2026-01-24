@@ -178,6 +178,20 @@ def build_segments_dict(segments_path, source_path, target_path):
     return segments_dict
 
 
+def get_audio_dict(base_path):
+    m4a_stem2path = {}
+    slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
+    for slang in slangs:
+        audios_path = base_path / slang / "audios"
+        for audio_name in audios_path.glob("*.m4a"):
+            audio_stem = Path(audio_name).stem
+            if audio_stem in m4a_stem2path:
+                print(f"repeated entry {audio_stem}")
+            m4a_stem2path[audio_stem] = audios_path / audio_name
+    print(f"Set with {len(set(m4a_stem2path.keys()))} m4a files")
+    return m4a_stem2path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
@@ -190,80 +204,54 @@ def main():
     out_path = Path(args.odir)
     langs = [p.name for p in base_path.iterdir() if p.is_dir()]
 
-    def get_audio_dict(base_path):
-        m4a_stem2path = {}
-        slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
-        for slang in slangs:
-            audios_path = base_path / slang / "audios"
-            for audio_name in audios_path.glob("*.m4a"):
-                audio_stem = Path(audio_name).stem
-                if audio_stem in m4a_stem2path:
-                    print(f"repeated entry {audio_stem}")
-                m4a_stem2path[audio_stem] = audios_path / audio_name
-        print(f"Set with {len(set(m4a_stem2path.keys()))} m4a files")
-        return m4a_stem2path
-
     m4a_stem2path = get_audio_dict(base_path)
 
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
-
-    import sys
-
-    for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
-        segments_path = base_path / slang / tlang / data_set / "segments.lst"
-        source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
-        target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
-
-        segments_dict = build_segments_dict(segments_path, source_path, target_path)
-        for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
-            #audio_name en.20081117.22.1-112
-            #segments [{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
-            results = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
-            print(results[0])
-            sys.exit()
-            #[(ofile_name, seg), ...]
-
-            for ofile_name, seg in results:
-                out_file = out_path / "audios" / ofile_name
-                f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
-
-
-
-
-
-
-
-    print(f"Writing {tsv_file}")
-
-    import sys
-    sys.exit()
-
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
-        for lp in args.lp.split(","):
-            print(f"lp={lp}")
-            lsrc, ltgt = lp.split("-")
+        for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
+            segments_path = base_path / slang / tlang / data_set / "segments.lst"
+            source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
+            target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
-            for data_set in args.data_sets.split(","):
-                print(f"dataset={data_set}")
+            segments_dict = build_segments_dict(segments_path, source_path, target_path)
+            for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {slang}-{tlang}:{data_set}", unit="file"):
+                #en.20081117.22.1-112
+                #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                audio_out_path = out_path / "audios" / lp / data_set
-                audio_out_path.mkdir(parents=True, exist_ok=True)
+                results = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
+                for ofile_name, seg in results:
+                    out_file = out_path / "audios" / ofile_name
+                    f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
-                base_path = Path(args.idir) / lsrc / ltgt / data_set
-                segments_path = base_path / "segments.lst"
-                source_path = base_path / f"segments.{lsrc}"
-                target_path = base_path / f"segments.{ltgt}"
 
-                segments_dict = build_segments_dict(segments_path, source_path, target_path)
+    # with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
-                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
+    #     for lp in args.lp.split(","):
+    #         print(f"lp={lp}")
+    #         lsrc, ltgt = lp.split("-")
 
-                    ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
-                    results = extract_fragments(ifile_path, segments, audio_out_path)
+    #         for data_set in args.data_sets.split(","):
+    #             print(f"dataset={data_set}")
 
-                    for ofile_name, seg in results:
-                        f_tsv.write(f"audios/{lp}/{data_set}/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
+    #             audio_out_path = out_path / "audios" / lp / data_set
+    #             audio_out_path.mkdir(parents=True, exist_ok=True)
+
+    #             base_path = Path(args.idir) / lsrc / ltgt / data_set
+    #             segments_path = base_path / "segments.lst"
+    #             source_path = base_path / f"segments.{lsrc}"
+    #             target_path = base_path / f"segments.{ltgt}"
+
+    #             segments_dict = build_segments_dict(segments_path, source_path, target_path)
+
+    #             for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
+
+    #                 ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
+    #                 results = extract_fragments(ifile_path, segments, audio_out_path)
+
+    #                 for ofile_name, seg in results:
+    #                     f_tsv.write(f"audios/{lp}/{data_set}/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
 
 
 if __name__ == "__main__":
