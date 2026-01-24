@@ -219,17 +219,17 @@ def main():
 
         n_total = 0
         t_total = 0
-        for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in data_sets if s != t]:
-            print(f"---------- {slang}-{tlang}:{data_set} ----------")
-            segments_path = base_path / slang / tlang / data_set / "segments.lst"
-            source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
-            target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
+        for lsrc, ltgt, data_set in [(s, t, d) for s in langs for t in langs for d in data_sets if s != t]:
+            print(f"---------- {lsrc}-{ltgt}:{data_set} ----------")
+            segments_path = base_path / lsrc / ltgt / data_set / "segments.lst"
+            source_path = base_path / lsrc / ltgt / data_set / f"segments.{lsrc}"
+            target_path = base_path / lsrc / ltgt / data_set / f"segments.{ltgt}"
 
             n_created = 0
             n_exist = 0
             t_audio = 0
             segments_dict = build_segments_dict(segments_path, source_path, target_path)
-            for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {slang}-{tlang}:{data_set}", unit="file"):
+            for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
@@ -240,14 +240,18 @@ def main():
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
-                    # f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
+                    # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
                     f_json.write({
-                        "audio_path": out_file,
-                        "lsrc": slang,
-                        "ltgt": tlang,
-                        "transcription": seg['src'],
-                        "translation": seg['tgt'],
+                        "file": out_file,
+                        "transcription": {
+                            "lang": lsrc, 
+                            "text": seg['src']
+                        }
+                        "translation": {
+                            "lang": ltgt,
+                            "text": seg['tgt']
                         "set": data_set
+                        }
                     })
 
             print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
