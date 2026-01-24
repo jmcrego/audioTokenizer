@@ -232,36 +232,9 @@ def main():
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
-                    f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
+                    f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
 
             print(f"Created {n_created} files ({n_exist} existing)")
-
-    # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-
-    #     for lp in args.lp.split(","):
-    #         print(f"lp={lp}")
-    #         lsrc, ltgt = lp.split("-")
-
-    #         for data_set in args.data_sets.split(","):
-    #             print(f"dataset={data_set}")
-
-    #             audio_out_path = out_path / "audios" / lp / data_set
-    #             audio_out_path.mkdir(parents=True, exist_ok=True)
-
-    #             base_path = Path(args.idir) / lsrc / ltgt / data_set
-    #             segments_path = base_path / "segments.lst"
-    #             source_path = base_path / f"segments.{lsrc}"
-    #             target_path = base_path / f"segments.{ltgt}"
-
-    #             segments_dict = build_segments_dict(segments_path, source_path, target_path)
-
-    #             for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
-
-    #                 ifile_path = Path(args.idir) / lsrc / "audios" / f"{audio_name}.m4a"
-    #                 results = extract_fragments(ifile_path, segments, audio_out_path)
-
-    #                 for ofile_name, seg in results:
-    #                     f_tsv.write(f"audios/{lp}/{data_set}/{ofile_name}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\n")
 
 
 if __name__ == "__main__":
