@@ -172,7 +172,6 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "tgt": tgt.strip()
             })
             print(audio_name, beg, end, src.strip(), tgt.strip())
-            sys.exit()
             n_segments += 1
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
@@ -209,6 +208,8 @@ def main():
     langs = [p.name for p in base_path.iterdir() if p.is_dir()]
     print(f"set of langs: {langs}")
 
+    import sys
+
     for slang in langs:
         for tlang in langs:
             if slang == tlang:
@@ -224,6 +225,7 @@ def main():
 
                     for ofile_name, seg in results:
                         out_file = out_path / "audios" / ofile_name
+                        sys.exit()
                         f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
 
