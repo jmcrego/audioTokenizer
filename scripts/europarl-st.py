@@ -188,7 +188,7 @@ def get_audio_dict(base_path):
             if audio_stem in m4a_stem2path:
                 print(f"repeated entry {audio_stem}")
             m4a_stem2path[audio_stem] = audios_path / audio_name
-    print(f"Set with {len(set(m4a_stem2path.keys()))} m4a files")
+    print(f"Found {len(set(m4a_stem2path.keys()))} m4a files")
     return m4a_stem2path
 
 
