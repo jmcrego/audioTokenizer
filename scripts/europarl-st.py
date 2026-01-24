@@ -185,6 +185,24 @@ def main():
     parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev")
     args = parser.parse_args()
 
+    base_path = Path(args.idir)
+    slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
+
+    m4a_files = []
+    for slang in slangs:
+        print(f"slang={slang}")
+        audios_path = base_path / slang / "audios"
+        m4a_files += list(audios_path.glob("*.m4a"))
+
+    print(f"Found {len(m4a_files)} m4a files")
+    print(f"Set with {len(set(m4a_files))} m4a files")
+
+
+    import sys
+    sys.exit()
+
+
+
     out_path = Path(args.odir)
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
     print(f"Writing {tsv_file}")
