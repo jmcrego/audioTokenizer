@@ -8,6 +8,7 @@ import soundfile as sf
 import subprocess
 import numpy as np
 import shutil
+import json
 import soxr 
 import os
 from scipy.io.wavfile import write
@@ -241,18 +242,20 @@ def main():
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
                     # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
-                    f_json.write({
-                        "file": out_file,
-                        "transcription": {
-                            "lang": lsrc, 
-                            "text": seg['src']
-                        },
-                        "translation": {
-                            "lang": ltgt,
-                            "text": seg['tgt'],
-                        "set": data_set
-                        }
-                    })
+                    f_json.write(
+                        json.dumps({
+                            "file": out_file,
+                            "transcription": {
+                                "lang": lsrc, 
+                                "text": seg['src']
+                            },
+                            "translation": {
+                                "lang": ltgt,
+                                "text": seg['tgt'],
+                            "set": data_set
+                            }
+                        })
+                    )
 
             print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_total += n_created + n_exist
