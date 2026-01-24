@@ -124,6 +124,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             return []
     
     results = []
+    n_exist = 0
     for seg in segments:
 
         duration_sec = seg["end"] - seg["beg"]
@@ -149,9 +150,11 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             tmp_path = str(ofile_path) + ".tmp"
             write(tmp_path, sample_rate, fragment)
             os.replace(tmp_path, ofile_path)  # atomic on most OSes to avoid mid-write files if crashes when writing
+        else:
+            n_exist += 1
 
         results.append((ofile_name, seg))
-    return results
+    return results, n_exist
 
 
 def build_segments_dict(segments_path, source_path, target_path):
@@ -214,17 +217,20 @@ def main():
             source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
             target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
+            n_exist = 0
             segments_dict = build_segments_dict(segments_path, source_path, target_path)
             for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {slang}-{tlang}:{data_set}", unit="file"):
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                results = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                results, n = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                n_exist += n
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
+            print(f"Found {n_exist} existing files")
 
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
