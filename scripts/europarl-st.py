@@ -246,10 +246,10 @@ def main():
                         "transcription": {
                             "lang": lsrc, 
                             "text": seg['src']
-                        }
+                        },
                         "translation": {
                             "lang": ltgt,
-                            "text": seg['tgt']
+                            "text": seg['tgt'],
                         "set": data_set
                         }
                     })
