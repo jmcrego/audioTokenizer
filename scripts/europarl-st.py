@@ -214,9 +214,9 @@ def main():
             if slang == tlang:
                 continue
             for data_set in ["dev", "test", "train"]:
-                segments_path = base_path / slang / tlang / "segments.lst"
-                source_path = base_path / slang / tlang  / f"segments.{slang}"
-                target_path = base_path / slang / tlang  / f"segments.{tlang}"
+                segments_path = base_path / slang / tlang / data_set / "segments.lst"
+                source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
+                target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
                 for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {lp}:{data_set}", unit="file"):
