@@ -221,6 +221,7 @@ def main():
 
             n_created = 0
             n_exist = 0
+            t_audio = 0
             segments_dict = build_segments_dict(segments_path, source_path, target_path)
             for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {slang}-{tlang}:{data_set}", unit="file"):
                 #en.20081117.22.1-112
@@ -233,8 +234,9 @@ def main():
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
+                    t_audio += seg['end'].  seg['beg']
 
-            print(f"Created {n_created} files ({n_exist} existing)")
+            print(f"Created {n_created} files ({n_exist} existing) time={t_audio}")
 
 
 if __name__ == "__main__":
