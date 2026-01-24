@@ -195,7 +195,7 @@ def main():
             for audio_name in audios_path.glob("*.m4a"):
                 if audio_name in m4a_name2path:
                     print(f"repeated entry {audio_name} in {m4a_name2path[audio_name]} and {audios_path / audio_name}")
-                m4a_name2path[audio_name[:-4]] = audios_path / audio_name
+                m4a_name2path[Path(audio_name).stem] = audios_path / audio_name
             print(f"{len(m4a_name2path)} m4a {slang} files")
         print(f"Set with {len(set(m4a_name2path.keys()))} m4a files")
 
