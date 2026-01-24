@@ -246,7 +246,7 @@ def main():
             t_total += t_audio
 
         print(f"Total files {n_total}")
-        print(f"Total duration {t_total} ({t_total/n_total} segs/file)")
+        print(f"Total duration {t_total} ({t_total/n_total:.1f} segs/file)")
 
 if __name__ == "__main__":
     main()
