@@ -244,7 +244,7 @@ def main():
                     # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
                     f_json.write(
                         json.dumps({
-                            "file": out_file,
+                            "file": str(out_file),
                             "transcription": {
                                 "lang": lsrc, 
                                 "text": seg['src']
