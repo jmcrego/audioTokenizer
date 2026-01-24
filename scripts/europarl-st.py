@@ -233,7 +233,7 @@ def main():
                 results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
                 n_created += n
                 n_exist += m
-                t_audios += duration
+                t_audio += duration
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
