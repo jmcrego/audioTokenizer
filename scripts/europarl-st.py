@@ -254,7 +254,7 @@ def main():
                                 "text": seg['tgt']
                             },
                             "set": data_set
-                        }, ensure_ascii=False, indent=2) + "\n"
+                        }, ensure_ascii=False, indent=0) + "\n"
                     )
 
             print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
