@@ -185,29 +185,45 @@ def main():
     parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev")
     args = parser.parse_args()
 
+
+    def get_audio_dict(base_path):
+        slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
+        m4a_name2path = {}
+        for slang in slangs:
+            audios_path = base_path / slang / "audios"
+            for audio_name in audios_path.glob("*.m4a"):
+                if audio_name in m4a_name2path:
+                    print(f"repeated entry {audio_name} in {m4a_name2path[audio_name]} and {audios_path / audio_name}")
+                m4a_name2path[audio_name] = audios_path / audio_name
+            print(f"{len(m4a_name2path)} m4a {slang} files")
+        print(f"Set with {len(set(m4a_name2path.keys()))} m4a files")
+
     base_path = Path(args.idir)
-    slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
-
-    m4a_files = {}
-    for slang in slangs:
-        audios_path = base_path / slang / "audios"
-        for audio_name in audios_path.glob("*.m4a"):
-            if audio_name in m4a_files:
-                print(f"repeated entry {audio_name} in {m4a_files[audio_name]} and {audios_path / audio_name}")
-            m4a_files[audio_name] = audios_path / audio_name
-        print(f"{len(m4a_files)} m4a {slang} files")
-
-    print(f"Set with {len(set(m4a_files.keys()))} m4a files")
-
-
-    import sys
-    sys.exit()
-
-
+    m4a_name2path = get_audio_dict(base_path)
 
     out_path = Path(args.odir)
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
+
+    langs = [p.name for p in base_path.iterdir() if p.is_dir()]
+    print(f"set of langs: {langs}")
+
+    for slang in langs:
+        for tlang in langs:
+            for data_set in ["dev", "test", "train"]:
+                segments_path = base_path / slang / tlang / "segments.lst"
+                source_path = base_path / slang / tlang  / f"segments.{slang}"
+                target_path = base_path / slang / tlang  / f"segments.{tlang}"
+
+
+
+
+
+
+
     print(f"Writing {tsv_file}")
+
+    import sys
+    sys.exit()
 
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
