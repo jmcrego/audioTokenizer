@@ -192,7 +192,7 @@ def main():
     for slang in slangs:
         audios_path = base_path / slang / "audios"
         m4a_files += list(audios_path.glob("*.m4a"))
-        print(f"\tFound  {len(m4a_files)} m4a {slang} files")
+        print(f"{len(m4a_files)} m4a {slang} files")
 
     print(f"Set with {len(set(m4a_files))} m4a files")
 
