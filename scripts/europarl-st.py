@@ -186,51 +186,46 @@ def main():
     parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev")
     args = parser.parse_args()
 
+    base_path = Path(args.idir)
+    out_path = Path(args.odir)
+    langs = [p.name for p in base_path.iterdir() if p.is_dir()]
 
     def get_audio_dict(base_path):
+        m4a_stem2path = {}
         slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
-        m4a_name2path = {}
         for slang in slangs:
             audios_path = base_path / slang / "audios"
             for audio_name in audios_path.glob("*.m4a"):
-                if audio_name in m4a_name2path:
-                    print(f"repeated entry {audio_name} in {m4a_name2path[audio_name]} and {audios_path / audio_name}")
-                m4a_name2path[Path(audio_name).stem] = audios_path / audio_name
-            print(f"{len(m4a_name2path)} m4a {slang} files")
-        print(f"Set with {len(set(m4a_name2path.keys()))} m4a files")
+                audio_stem = Path(audio_name).stem
+                if audio_stem in m4a_stem2path:
+                    print(f"repeated entry {audio_stem}")
+                m4a_stem2path[audio_stem] = audios_path / audio_name
+        print(f"Set with {len(set(m4a_stem2path.keys()))} m4a files")
+        return m4a_stem2path
 
-    base_path = Path(args.idir)
-    m4a_name2path = get_audio_dict(base_path)
+    m4a_stem2path = get_audio_dict(base_path)
 
-    out_path = Path(args.odir)
     tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
-
-    langs = [p.name for p in base_path.iterdir() if p.is_dir()]
-    print(f"set of langs: {langs}")
 
     import sys
 
-    for slang in langs:
-        for tlang in langs:
-            if slang == tlang:
-                continue
-            for data_set in ["dev", "test", "train"]:
-                segments_path = base_path / slang / tlang / data_set / "segments.lst"
-                source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
-                target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
+    for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
+        segments_path = base_path / slang / tlang / data_set / "segments.lst"
+        source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
+        target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
-                segments_dict = build_segments_dict(segments_path, source_path, target_path)
-                for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
-                    #audio_name en.20081117.22.1-112
-                    #segments [{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
-                    results = extract_fragments(m4a_name2path[audio_name], segments, out_path / "audios")
-                    print(results[0])
-                    sys.exit()
-                    #[(ofile_name, seg), ...]
+        segments_dict = build_segments_dict(segments_path, source_path, target_path)
+        for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
+            #audio_name en.20081117.22.1-112
+            #segments [{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
+            results = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+            print(results[0])
+            sys.exit()
+            #[(ofile_name, seg), ...]
 
-                    for ofile_name, seg in results:
-                        out_file = out_path / "audios" / ofile_name
-                        f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
+            for ofile_name, seg in results:
+                out_file = out_path / "audios" / ofile_name
+                f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
 
 
