@@ -195,7 +195,7 @@ def main():
             for audio_name in audios_path.glob("*.m4a"):
                 if audio_name in m4a_name2path:
                     print(f"repeated entry {audio_name} in {m4a_name2path[audio_name]} and {audios_path / audio_name}")
-                m4a_name2path[audio_name] = audios_path / audio_name
+                m4a_name2path[audio_name[:-4]] = audios_path / audio_name
             print(f"{len(m4a_name2path)} m4a {slang} files")
         print(f"Set with {len(set(m4a_name2path.keys()))} m4a files")
 
@@ -221,12 +221,12 @@ def main():
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
                 for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
-                    print()
-                    print()
-                    print()
-                    print(audio_name, segments)
-                    sys.exit()
+                    #audio_name en.20081117.22.1-112
+                    #segments [{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
                     results = extract_fragments(m4a_name2path[audio_name], segments, out_path / "audios")
+                    print(results[0])
+                    sys.exit()
+                    #[(ofile_name, seg), ...]
 
                     for ofile_name, seg in results:
                         out_file = out_path / "audios" / ofile_name
