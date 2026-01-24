@@ -188,13 +188,16 @@ def main():
     base_path = Path(args.idir)
     slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
 
-    m4a_files = []
+    m4a_files = {}
     for slang in slangs:
         audios_path = base_path / slang / "audios"
-        m4a_files += list(audios_path.glob("*.m4a"))
+        for audio_name in audios_path.glob("*.m4a"):
+            if audio_name in m4a_files:
+                print(f"repeated entry {audio_name} in {m4a_files[audio_name]} and {audios_path / audio_name}")
+            m4a_files[audio_name] = audios_path / audio_name
         print(f"{len(m4a_files)} m4a {slang} files")
 
-    print(f"Set with {len(set(m4a_files))} m4a files")
+    print(f"Set with {len(set(m4a_files.keys()))} m4a files")
 
 
     import sys
