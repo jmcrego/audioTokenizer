@@ -175,7 +175,7 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "tgt": tgt.strip()
             })
             n_segments += 1
-        print(f"\tFound {n_segments} segments in {len(segments_dict)} audio files")
+        print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
     return segments_dict
 
@@ -190,7 +190,7 @@ def get_audio_dict(base_path):
             if audio_stem in m4a_stem2path:
                 print(f"repeated entry {audio_stem}")
             m4a_stem2path[audio_stem] = audios_path / audio_name
-    print(f"\tFound {len(set(m4a_stem2path.keys()))} m4a files")
+    print(f"Found {len(set(m4a_stem2path.keys()))} m4a files")
     return m4a_stem2path
 
 
@@ -212,7 +212,7 @@ def main():
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
         for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
-            print(f"{slang}-{tlang}:{data_set}")
+            print(f"---------- {slang}-{tlang}:{data_set} ----------")
             segments_path = base_path / slang / tlang / data_set / "segments.lst"
             source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
             target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
@@ -230,7 +230,7 @@ def main():
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
-            print(f"\tFound {n_exist} existing files")
+            print(f"Found {n_exist} existing files")
 
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
