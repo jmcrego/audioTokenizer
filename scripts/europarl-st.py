@@ -125,6 +125,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
     
     results = []
     n_exist = 0
+    n_created = 0
     for seg in segments:
 
         duration_sec = seg["end"] - seg["beg"]
@@ -150,11 +151,12 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             tmp_path = str(ofile_path) + ".tmp"
             write(tmp_path, sample_rate, fragment)
             os.replace(tmp_path, ofile_path)  # atomic on most OSes to avoid mid-write files if crashes when writing
+            n_created += 1
         else:
             n_exist += 1
 
         results.append((ofile_name, seg))
-    return results, n_exist
+    return results, n_created, n_exist
 
 
 def build_segments_dict(segments_path, source_path, target_path):
@@ -217,20 +219,22 @@ def main():
             source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
             target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
 
+            n_created = 0
             n_exist = 0
             segments_dict = build_segments_dict(segments_path, source_path, target_path)
             for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {slang}-{tlang}:{data_set}", unit="file"):
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                results, n = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
-                n_exist += n
+                results, n, m = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                n_created += n
+                n_exist += m
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
-            print(f"Found {n_exist} existing files")
+            print(f"Created {n_created} files ({n_exist} existing)")
 
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
