@@ -203,22 +203,23 @@ def main():
     parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
-    parser.add_argument("--lp", type=str, default="en-fr,en-es,en-de,en-it,en-pt,fr-en,fr-es,fr-de,fr-it,fr-pt,de-en,de-fr,de-es,de-it,de-pt,pt-en,pt-es,pt-de,pt-fr,pt-it,it-en,it-es,it-de,it-fr,it-pt", help="Comma-separated list of language pairs (i.e. en-fr,es-it)")
-    parser.add_argument("--data_sets", type=str, default="test,dev,train", help="Comma-separated list of sets (i.e. test,dev")
     args = parser.parse_args()
 
     base_path = Path(args.idir)
     out_path = Path(args.odir)
     langs = [p.name for p in base_path.iterdir() if p.is_dir()]
+    data_sets = ["dev", "test", "train"]
 
     m4a_stem2path = get_audio_dict(base_path)
 
-    tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
-    with tsv_file.open("w", encoding="utf-8") as f_tsv:
+    # tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
+    json_file = out_path / f"Europarl-ST_v1.1.json"
+    # with tsv_file.open("w", encoding="utf-8") as f_tsv:
+    with open(json_file, "w", encoding="utf-8") as f_json:
 
         n_total = 0
         t_total = 0
-        for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
+        for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in data_sets if s != t]:
             print(f"---------- {slang}-{tlang}:{data_set} ----------")
             segments_path = base_path / slang / tlang / data_set / "segments.lst"
             source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
@@ -239,14 +240,22 @@ def main():
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
-                    f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
+                    # f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
+                    f_json.write({
+                        "audio_path": out_file,
+                        "lsrc": slang,
+                        "ltgt": tlang,
+                        "transcription": seg['src'],
+                        "translation": seg['tgt'],
+                        "set": data_set
+                    })
 
             print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_total += n_created + n_exist
             t_total += t_audio
 
-        print(f"Total files {n_total}")
-        print(f"Total duration {t_total:.1f} secs ({t_total/n_total:.1f} secs/file)")
+    print(f"Total files {n_total}")
+    print(f"Total duration {t_total:.1f} secs ({t_total/n_total:.1f} secs/file)")
 
 if __name__ == "__main__":
     main()
