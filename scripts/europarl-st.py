@@ -126,10 +126,11 @@ def extract_fragments(ifile_path, segments, audio_out_path):
     results = []
     n_exist = 0
     n_created = 0
+    t_audio = 0
     for seg in segments:
 
         duration_sec = seg["end"] - seg["beg"]
-
+        
         if duration_sec <= 0:
             print(f"Skipping invalid segment {seg} in {ifile_path}")
             continue
@@ -155,8 +156,10 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         else:
             n_exist += 1
 
+        t_audio += duration_sec
         results.append((ofile_name, seg))
-    return results, n_created, n_exist
+
+    return results, n_created, n_exist, t_audio
 
 
 def build_segments_dict(segments_path, source_path, target_path):
@@ -227,16 +230,16 @@ def main():
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                results, n, m = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
                 n_created += n
                 n_exist += m
+                t_audios += duration
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
-                    t_audio += seg['end'].  seg['beg']
 
-            print(f"Created {n_created} files ({n_exist} existing) time={t_audio}")
+            print(f"Created {n_created} files ({n_exist} existing) duration={t_audio}")
 
 
 if __name__ == "__main__":
