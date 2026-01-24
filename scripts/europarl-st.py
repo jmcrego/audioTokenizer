@@ -213,9 +213,9 @@ def main():
     m4a_stem2path = get_audio_dict(base_path)
 
     # tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
-    json_file = out_path / f"Europarl-ST_v1.1.json"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    with open(json_file, "w", encoding="utf-8") as f_json:
+    json_file = out_path / f"Europarl-ST_v1.1.json"
+    with json_file.open("w", encoding="utf-8") as f_json:
 
         n_total = 0
         t_total = 0
