@@ -241,12 +241,12 @@ def main():
                     out_file = out_path / "audios" / ofile_name
                     f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\t{data_set}\n")
 
-            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} seg")
+            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_total += n_created + n_exist
             t_total += t_audio
 
         print(f"Total files {n_total}")
-        print(f"Total duration {t_total} ({t_total/n_total:.1f} segs/file)")
+        print(f"Total duration {t_total:.1f} secs ({t_total/n_total:.1f} secs/file)")
 
 if __name__ == "__main__":
     main()
