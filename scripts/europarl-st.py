@@ -221,12 +221,12 @@ def main():
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
                 for audio_name, segments in tqdm(segments_dict.items(), desc=f"Processing {data_set}", unit="file"):
+                    print(audio_name, segments)
+                    sys.exit()
                     results = extract_fragments(m4a_name2path[audio_name], segments, out_path / "audios")
 
                     for ofile_name, seg in results:
-                        print(ofile_name, seg)
                         out_file = out_path / "audios" / ofile_name
-                        sys.exit()
                         f_tsv.write(f"{out_file}\t{slang}\t{seg['src']}\t{tlang}\t{seg['tgt']}\n")
 
 
