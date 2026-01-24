@@ -251,9 +251,9 @@ def main():
                             },
                             "translation": {
                                 "lang": ltgt,
-                                "text": seg['tgt'],
-                            "set": data_set
+                                "text": seg['tgt']
                             }
+                            "set": data_set
                         }, ensure_ascii=False, indent=2) + "\n"
                     )
 
