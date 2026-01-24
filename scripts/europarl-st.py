@@ -163,7 +163,7 @@ def build_segments_dict(segments_path, source_path, target_path):
          target_path.open("r", encoding="utf-8") as f_tgt:
 
         n_segments = 0
-        for seg, src, tgt in tqdm(zip(f_seg, f_src, f_tgt), desc="Parsing segments", unit="file"):
+        for seg, src, tgt in zip(f_seg, f_src, f_tgt):
             audio_name, beg, end = seg.strip().split(" ")
             segments_dict[audio_name].append({
                 "beg": float(beg),
@@ -171,7 +171,6 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "src": src.strip(),
                 "tgt": tgt.strip()
             })
-            # print(audio_name, beg, end, src.sdetrip(), tgt.strip())
             n_segments += 1
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
@@ -210,6 +209,7 @@ def main():
     with tsv_file.open("w", encoding="utf-8") as f_tsv:
 
         for slang, tlang, data_set in [(s, t, d) for s in langs for t in langs for d in ["dev", "test", "train"] if s != t]:
+            print(f"{slang}-{tlang}:{data_set}")
             segments_path = base_path / slang / tlang / data_set / "segments.lst"
             source_path = base_path / slang / tlang / data_set / f"segments.{slang}"
             target_path = base_path / slang / tlang / data_set / f"segments.{tlang}"
