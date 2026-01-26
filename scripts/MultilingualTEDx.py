@@ -182,7 +182,7 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "tgt": tgt.strip()
             })
             n_segments += 1
-            print(segments_dict[audio_name])
+            print(audio_name, segments_dict[audio_name], "\n")
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
     return segments_dict
