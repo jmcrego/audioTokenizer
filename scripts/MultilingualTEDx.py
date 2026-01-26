@@ -174,7 +174,7 @@ def build_segments_dict(segments_path, source_path, target_path):
 
         n_segments = 0
         for seg, src, tgt in zip(f_seg, f_src, f_tgt):
-            print(seg, src tgt)
+            print(seg, src, tgt)
             _, audio_name, beg, end = seg.strip().split(" ")
             segments_dict[audio_name].append({
                 "beg": float(beg),
