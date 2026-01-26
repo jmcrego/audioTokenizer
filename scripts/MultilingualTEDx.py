@@ -87,15 +87,17 @@ def main():
                 n_created = 0
                 n_exist = 0
                 t_audio = 0
+                n_skipped = 0
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
 
-                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MultilingualTEDx")
+                    results, n, m, duration, s = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MultilingualTEDx")
                     n_created += n
                     n_exist += m
                     t_audio += duration
+                    n_skipped += s
 
                     for ofile_name, seg in results:
                         out_file = str(out_path / "audios" / "MultilingualTEDx" / ofile_name)
@@ -114,7 +116,7 @@ def main():
                                 }
                             }, ensure_ascii=False) + "\n"
                         )
-                print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
+                print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs, skipped {n_skipped} segments")
 
             n_entries += n_created + n_exist
             t_entries += t_audio

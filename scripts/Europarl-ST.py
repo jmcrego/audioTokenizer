@@ -81,15 +81,17 @@ def main():
             n_created = 0
             n_exist = 0
             t_audio = 0
+            n_skipped = 0
             segments_dict = build_segments_dict(segments_path, source_path, target_path)
             for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios" / "Europarl-ST_v1.1")
+                results, n, m, duration, s = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios" / "Europarl-ST_v1.1")
                 n_created += n
                 n_exist += m
                 t_audio += duration
+                n_skipped += s
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
                     out_file = str(out_path / "audios" / "Europarl-ST_v1.1" / ofile_name)
@@ -109,7 +111,7 @@ def main():
                         }, ensure_ascii=False) + "\n"
                     )
 
-            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
+            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs, skipped {n_skipped} segments")
             n_entries += n_created + n_exist
             t_entries += t_audio
 

@@ -90,7 +90,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
     if not ifile_path.exists():
         print(f"Missing input audio: {ifile_path}")
-        return [], 0, 0, 0
+        return [], 0, 0, 0, 0
 
     segments.sort(key=lambda s: s["beg"])
 
@@ -121,12 +121,13 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             wav, sample_rate = load_audio_ffmpeg(ifile_path)
         except Exception as e:
             print(f"Failed to read {ifile_path}: {e}")
-            return [], 0, 0, 0
+            return [], 0, 0, 0, 0
     
     results = []
     n_exist = 0
     n_created = 0
     t_audio = 0
+    n_skipped = 0
     for seg in segments: 
 
         duration_sec = seg["end"] - seg["beg"]
@@ -137,6 +138,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
         if duration_sec > 30.0:
             print(f"Skipping long segment {seg} in {ifile_path}")
+            n_skipped += 1
             continue
 
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
@@ -159,4 +161,4 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         t_audio += duration_sec
         results.append((ofile_name, seg))
 
-    return results, n_created, n_exist, t_audio
+    return results, n_created, n_exist, t_audio, n_skipped
