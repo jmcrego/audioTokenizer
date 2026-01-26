@@ -229,13 +229,13 @@ def main():
                 segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"segments"
 
                 flac_stem2path = get_audio_dict(base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "wav")
-                print(flac_stem2path)
-                sys.exit()
 
                 n_created = 0
                 n_exist = 0
                 t_audio = 0
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
+                sys.exit()
+                
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
                     #en.20081117.22.1-112
                     #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
