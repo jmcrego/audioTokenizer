@@ -201,7 +201,7 @@ def get_audio_dict(base_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Extract MuST-C audio fragments and build TSV.")
-    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MUST-C", help="Input path")
+    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MuST-C", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
 
@@ -223,6 +223,7 @@ def main():
                 continue
 
             for data_set in data_sets:
+                print(f"---------- {lsrc}-{ltgt}:{data_set} ----------")
                 source_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{lsrc}"
                 target_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{ltgt}"
                 segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"segments"
@@ -237,7 +238,7 @@ def main():
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
 
-                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MultilingualTEDx")
+                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MuST-C")
                     n_created += n
                     n_exist += m
                     t_audio += duration
@@ -259,8 +260,8 @@ def main():
                                 }
                             }, ensure_ascii=False) + "\n"
                         )
+                print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
 
-            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_entries += n_created + n_exist
             t_entries += t_audio
 

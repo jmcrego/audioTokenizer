@@ -240,7 +240,7 @@ def main():
                 t_audio += duration
                 #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
                 for ofile_name, seg in results:
-                    out_file = str(out_path / "audios" / ofile_name)
+                    out_file = str(out_path / "audios" / "Europarl-ST_v1.1" / ofile_name)
                     # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
                     f_json.write(
                         json.dumps({

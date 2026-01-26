@@ -244,7 +244,7 @@ def main():
                     t_audio += duration
 
                     for ofile_name, seg in results:
-                        out_file = str(out_path / "audios" / ofile_name)
+                        out_file = str(out_path / "audios" / "MultilingualTEDx" / ofile_name)
                         # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
                         f_json.write(
                             json.dumps({
