@@ -238,13 +238,13 @@ def main():
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
 
-                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MuST-C")
+                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios" / "MuST-C")
                     n_created += n
                     n_exist += m
                     t_audio += duration
 
                     for ofile_name, seg in results:
-                        out_file = str(out_path / "audios" / ofile_name)
+                        out_file = str(out_path / "audios" / "MuST-C" / ofile_name)
                         # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
                         f_json.write(
                             json.dumps({
