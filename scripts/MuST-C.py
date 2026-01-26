@@ -200,8 +200,8 @@ def get_audio_dict(base_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
-    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MultilingualTEDx", help="Input path")
+    parser = argparse.ArgumentParser(description="Extract MuST-C audio fragments and build TSV.")
+    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MUST-C", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
 
@@ -211,9 +211,9 @@ def main():
     lang_pairs = {tuple(p.name.split("-")) for p in base_path.iterdir() if p.is_dir() and len(p.name.split("-")) == 2 and all(len(x) == 2 for x in p.name.split("-"))}
     data_sets = ["valid", "test", "train"]
 
-    # tsv_file = out_path / f"MultilingualTEDx.tsv"
+    # tsv_file = out_path / f"MuST-C.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    json_file = out_path / f"MultilingualTEDx.json"
+    json_file = out_path / f"MuST-C.json"
     with json_file.open("w", encoding="utf-8") as f_json:
 
         n_entries = 0

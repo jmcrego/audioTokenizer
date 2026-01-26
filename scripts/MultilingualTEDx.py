@@ -200,7 +200,7 @@ def get_audio_dict(base_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
+    parser = argparse.ArgumentParser(description="Extract MultilingualTEDx audio fragments and build TSV.")
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MultilingualTEDx", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
@@ -259,8 +259,8 @@ def main():
                                 }
                             }, ensure_ascii=False) + "\n"
                         )
+                print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
 
-            print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_entries += n_created + n_exist
             t_entries += t_audio
 
