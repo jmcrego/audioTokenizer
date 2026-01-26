@@ -142,8 +142,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
         ofile_path = audio_out_path / ofile_name
-        print(f"writing: {ofile_path}")
-        sys.exit()
+
         if not ofile_path.exists():
             ofile_path.parent.mkdir(parents=True, exist_ok=True)
             # Slice waveform in memory
