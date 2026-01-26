@@ -102,11 +102,11 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         duration_sec = seg["end"] - seg["beg"]
 
         if duration_sec <= 0:
-            print(f"Skipping invalid segment {seg} in {ifile_path}")
+            #print(f"Skipping invalid segment {seg} in {ifile_path}")
             continue
 
         if duration_sec > 30.0:
-            print(f"Skipping long segment {seg} in {ifile_path}")
+            #print(f"Skipping long segment {seg} in {ifile_path}")
             continue
 
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
