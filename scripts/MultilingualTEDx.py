@@ -223,6 +223,7 @@ def main():
                 continue
 
             for data_set in data_sets:
+                print(f"---------- {lsrc}-{ltgt}:{data_set} ----------")
                 source_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{lsrc}"
                 target_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{ltgt}"
                 segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"segments"
