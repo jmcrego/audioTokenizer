@@ -104,6 +104,7 @@ def main():
                 segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.yaml"
 
                 wav_stem2path = get_audio_dict(base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "wav")
+                print(wav_stem2path)
 
                 n_created = 0
                 n_exist = 0
@@ -113,7 +114,7 @@ def main():
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
-
+                    print(audio_stem)
                     results, n, m, duration, s = extract_fragments(wav_stem2path[audio_stem], segments, out_path / "audios" / "MuST-C")
                     n_created += n
                     n_exist += m
