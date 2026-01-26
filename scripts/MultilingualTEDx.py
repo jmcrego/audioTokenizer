@@ -92,7 +92,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 
     if not ifile_path.exists():
         print(f"Missing input audio: {ifile_path}")
-        return []
+        return [], 0, 0, 0
 
     segments.sort(key=lambda s: s["beg"])
 
