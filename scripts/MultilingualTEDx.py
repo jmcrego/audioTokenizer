@@ -167,6 +167,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 def build_segments_dict(segments_path, source_path, target_path):
     """Read segments, source, target files and group by audio_name."""
     segments_dict = defaultdict(list)
+    print(segments_path, source_path, target_path)
 
     with segments_path.open("r", encoding="utf-8") as f_seg, \
          source_path.open("r", encoding="utf-8") as f_src, \
