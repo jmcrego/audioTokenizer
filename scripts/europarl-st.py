@@ -128,7 +128,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
     n_exist = 0
     n_created = 0
     t_audio = 0
-    for seg in segments:
+    for seg in segments: 
 
         duration_sec = seg["end"] - seg["beg"]
         
