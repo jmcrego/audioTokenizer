@@ -31,7 +31,7 @@ def parse_line(line: str) -> dict:
     duration = float(m.group(1))
     beg = float(m.group(2))
     audio_name = m.group(3)
-    return beg, beg + duration, audio_name
+    return beg, beg + duration, audio_name.replace(".wav","")
 
 def build_segments_dict(segments_path, source_path, target_path):
     """Read segments, source, target files and group by audio_name."""
