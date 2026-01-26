@@ -167,7 +167,6 @@ def extract_fragments(ifile_path, segments, audio_out_path):
 def build_segments_dict(segments_path, source_path, target_path):
     """Read segments, source, target files and group by audio_name."""
     segments_dict = defaultdict(list)
-    print(segments_path, source_path, target_path)
 
     with segments_path.open("r", encoding="utf-8") as f_seg, \
          source_path.open("r", encoding="utf-8") as f_src, \
@@ -190,17 +189,18 @@ def build_segments_dict(segments_path, source_path, target_path):
 
 
 def get_audio_dict(base_path):
-    m4a_stem2path = {}
+    print(base_path)
+    flac_stem2path = {}
     slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
     for slang in slangs:
         audios_path = base_path / slang / "audios"
         for audio_name in audios_path.glob("*.m4a"):
             audio_stem = Path(audio_name).stem
-            if audio_stem in m4a_stem2path:
+            if audio_stem in flac_stem2path:
                 print(f"repeated entry {audio_stem}")
-            m4a_stem2path[audio_stem] = audios_path / audio_name
-    print(f"Found {len(set(m4a_stem2path.keys()))} m4a files")
-    return m4a_stem2path
+            flac_stem2path[audio_stem] = audios_path / audio_name
+    print(f"Found {len(set(flac_stem2path.keys()))} m4a files")
+    return flac_stem2path
 
 
 def main():
