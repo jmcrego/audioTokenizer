@@ -182,7 +182,7 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "tgt": tgt.strip()
             })
             n_segments += 1
-            print(audio_name, segments_dict[audio_name], "\n")
+
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
     return segments_dict
@@ -197,6 +197,7 @@ def get_audio_dict(base_path):
             print(f"repeated entry {audio_stem}")
         flac_stem2path[audio_stem] = base_path / audio_name
     print(f"Found {len(set(flac_stem2path.keys()))} flac files")
+
     return flac_stem2path
 
 
@@ -233,18 +234,16 @@ def main():
                 n_created = 0
                 n_exist = 0
                 t_audio = 0
+
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
-                sys.exit()
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
-                    #en.20081117.22.1-112
-                    #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                    results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios")
                     n_created += n
                     n_exist += m
                     t_audio += duration
-                    #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
+
                     for ofile_name, seg in results:
                         out_file = str(out_path / "audios" / ofile_name)
                         # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
