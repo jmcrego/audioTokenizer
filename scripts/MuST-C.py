@@ -11,10 +11,31 @@ import shutil
 import json
 import soxr 
 import os
+import re
 import sys
 from scipy.io.wavfile import write
 from utils import load_audio_ffmpeg, extract_fragments
 
+pattern = re.compile(
+    r"""
+    duration:\s*(?P<duration>[0-9.]+),\s*
+    offset:\s*(?P<offset>[0-9.]+),\s*
+    speaker_id:\s*(?P<speaker_id>[^,]+),\s*
+    wav:\s*(?P<wav>[^}]+)
+    """,
+    re.VERBOSE
+)
+
+def parse_line(line: str) -> dict:
+    line = line.strip().lstrip("- ").strip("{}")
+    m = pattern.search(line)
+    if not m:
+        raise ValueError(f"Cannot parse line: {line}")
+
+    duration = float(m.group("duration"))
+    beg = float(m.group("offset"))
+    audio_name = m.group("wav")
+    return beg, beg + duration, audio_name
 
 def build_segments_dict(segments_path, source_path, target_path):
     """Read segments, source, target files and group by audio_name."""
@@ -26,7 +47,7 @@ def build_segments_dict(segments_path, source_path, target_path):
 
         n_segments = 0
         for seg, src, tgt in zip(f_seg, f_src, f_tgt):
-            _, audio_name, beg, end = seg.strip().split(" ")
+            beg, end, audio_name = parse_line(seg)
             segments_dict[audio_name].append({
                 "beg": float(beg),
                 "end": float(end),
@@ -42,15 +63,15 @@ def build_segments_dict(segments_path, source_path, target_path):
 
 def get_audio_dict(base_path):
     print(base_path)
-    flac_stem2path = {}
-    for audio_name in base_path.glob("*.flac"):
+    wav_stem2path = {}
+    for audio_name in base_path.glob("*.wav"):
         audio_stem = Path(audio_name).stem
-        if audio_stem in flac_stem2path:
+        if audio_stem in wav_stem2path:
             print(f"repeated entry {audio_stem}")
-        flac_stem2path[audio_stem] = base_path / audio_name
-    print(f"Found {len(set(flac_stem2path.keys()))} flac files")
+        wav_stem2path[audio_stem] = base_path / audio_name
+    print(f"Found {len(set(wav_stem2path.keys()))} wav files")
 
-    return flac_stem2path
+    return wav_stem2path
 
 
 def main():
@@ -63,7 +84,7 @@ def main():
     out_path = Path(args.odir)
 
     lang_pairs = {tuple(p.name.split("-")) for p in base_path.iterdir() if p.is_dir() and len(p.name.split("-")) == 2 and all(len(x) == 2 for x in p.name.split("-"))}
-    data_sets = ["valid", "test", "train"]
+    data_sets = ["dev", "tst-COMMON", "tst-HE", "train"]
 
     # tsv_file = out_path / f"MuST-C.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
@@ -80,9 +101,9 @@ def main():
                 print(f"---------- {lsrc}-{ltgt}:{data_set} ----------")
                 source_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{lsrc}"
                 target_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{ltgt}"
-                segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"segments"
+                segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.yaml"
 
-                flac_stem2path = get_audio_dict(base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "wav")
+                wav_stem2path = get_audio_dict(base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "wav")
 
                 n_created = 0
                 n_exist = 0
@@ -93,7 +114,7 @@ def main():
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
 
-                    results, n, m, duration, s = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios" / "MuST-C")
+                    results, n, m, duration, s = extract_fragments(wav_stem2path[audio_stem], segments, out_path / "audios" / "MuST-C")
                     n_created += n
                     n_exist += m
                     t_audio += duration
