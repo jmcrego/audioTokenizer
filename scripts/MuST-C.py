@@ -43,7 +43,7 @@ def build_segments_dict(segments_path, source_path, target_path):
 
         n_segments = 0
         for seg, src, tgt in zip(f_seg, f_src, f_tgt):
-            print(seg)
+            #print(seg)
             beg, end, audio_name = parse_line(seg)
             segments_dict[audio_name].append({
                 "beg": float(beg),
@@ -111,6 +111,7 @@ def main():
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
+                    print(audio_stem)
                     results, n, m, duration, s = extract_fragments(wav_stem2path[audio_stem], segments, out_path / "audios" / "MuST-C")
                     n_created += n
                     n_exist += m
