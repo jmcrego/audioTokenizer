@@ -191,15 +191,12 @@ def build_segments_dict(segments_path, source_path, target_path):
 def get_audio_dict(base_path):
     print(base_path)
     flac_stem2path = {}
-    slangs = [p.name for p in base_path.iterdir() if p.is_dir()]
-    for slang in slangs:
-        audios_path = base_path / slang / "audios"
-        for audio_name in audios_path.glob("*.m4a"):
-            audio_stem = Path(audio_name).stem
-            if audio_stem in flac_stem2path:
-                print(f"repeated entry {audio_stem}")
-            flac_stem2path[audio_stem] = audios_path / audio_name
-    print(f"Found {len(set(flac_stem2path.keys()))} m4a files")
+    for audio_name in base_path.glob("*.flac"):
+        audio_stem = Path(audio_name).stem
+        if audio_stem in flac_stem2path:
+            print(f"repeated entry {audio_stem}")
+        flac_stem2path[audio_stem] = base_path / audio_name
+    print(f"Found {len(set(flac_stem2path.keys()))} flac files")
     return flac_stem2path
 
 
