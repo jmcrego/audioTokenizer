@@ -28,10 +28,9 @@ def parse_line(line: str) -> dict:
     m = pattern.search(line)
     if not m:
         raise ValueError(f"Cannot parse line: {line}")
-
-    duration = float(m.group("duration"))
-    beg = float(m.group("offset"))
-    audio_name = m.group("wav")
+    duration = float(m.group(1))
+    beg = float(m.group(2))
+    audio_name = m.group(3)
     return beg, beg + duration, audio_name
 
 def build_segments_dict(segments_path, source_path, target_path):
