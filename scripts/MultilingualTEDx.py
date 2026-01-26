@@ -174,7 +174,6 @@ def build_segments_dict(segments_path, source_path, target_path):
 
         n_segments = 0
         for seg, src, tgt in zip(f_seg, f_src, f_tgt):
-            print(seg, src, tgt)
             _, audio_name, beg, end = seg.strip().split(" ")
             segments_dict[audio_name].append({
                 "beg": float(beg),
@@ -183,6 +182,7 @@ def build_segments_dict(segments_path, source_path, target_path):
                 "tgt": tgt.strip()
             })
             n_segments += 1
+            print(segments_dict[-1])
         print(f"Found {n_segments} segments in {len(segments_dict)} audio files")
         
     return segments_dict
@@ -235,7 +235,7 @@ def main():
                 t_audio = 0
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
                 sys.exit()
-                
+
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
                     #en.20081117.22.1-112
                     #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
