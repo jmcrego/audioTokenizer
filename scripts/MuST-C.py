@@ -16,14 +16,11 @@ import sys
 from scipy.io.wavfile import write
 from utils import load_audio_ffmpeg, extract_fragments
 
+
 pattern = re.compile(
-    r"""
-    duration:\s*(?P<duration>[0-9.]+),\s*
-    offset:\s*(?P<offset>[0-9.]+),\s*
-    speaker_id:\s*(?P<speaker_id>[^,]+),\s*
-    wav:\s*(?P<wav>[^}]+)
-    """,
-    re.VERBOSE
+    r"duration:\s*([0-9.]+).*?"
+    r"offset:\s*([0-9.]+).*?"
+    r"wav:\s*([^}\s]+)"
 )
 
 def parse_line(line: str) -> dict:
