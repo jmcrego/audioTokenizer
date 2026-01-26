@@ -76,7 +76,7 @@ def get_audio_dict(base_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Extract MuST-C audio fragments and build TSV.")
-    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MuST-C", help="Input path")
+    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MUST-C", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
 
