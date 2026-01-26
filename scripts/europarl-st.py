@@ -234,7 +234,7 @@ def main():
                 #en.20081117.22.1-112
                 #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
 
-                results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios" / "Europarl-ST_v1.1")
                 n_created += n
                 n_exist += m
                 t_audio += duration
