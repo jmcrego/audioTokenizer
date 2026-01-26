@@ -87,6 +87,7 @@ def main():
                 n_created = 0
                 n_exist = 0
                 t_audio = 0
+                n_skipped = 0
 
                 segments_dict = build_segments_dict(segments_path, source_path, target_path)
 
