@@ -104,11 +104,9 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         duration_sec = seg["end"] - seg["beg"]
 
         if duration_sec <= 0:
-            # print(f"Skipping invalid segment {seg} in {ifile_path}")
             continue
 
         if duration_sec > 30.0:
-            # print(f"Skipping long segment {seg} in {ifile_path}")
             continue
 
         ofile_name = f"{ifile_path.stem}___{seg['beg']:.2f}___{seg['end']:.2f}.wav"
@@ -123,7 +121,7 @@ def extract_fragments(ifile_path, segments, audio_out_path):
             wav, sample_rate = load_audio_ffmpeg(ifile_path)
         except Exception as e:
             print(f"Failed to read {ifile_path}: {e}")
-            return []
+            return [], 0, 0, 0
     
     results = []
     n_exist = 0
@@ -239,7 +237,7 @@ def main():
 
                 for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
 
-                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios")
+                    results, n, m, duration = extract_fragments(flac_stem2path[audio_stem], segments, out_path / "audios"/ "MultilingualTEDx")
                     n_created += n
                     n_exist += m
                     t_audio += duration
