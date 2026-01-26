@@ -124,24 +124,14 @@ class Trainer:
         # -----------------------
         # Sampler & DataLoader
         # -----------------------
+        
         self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=train_batch_size, shuffle=not train_dataset.is_cached)
-        self.train_loader = DataLoader(
-            train_dataset,
-            batch_sampler=self.train_sampler,
-            collate_fn=self.collate_fn
-        )
+        self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=self.collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={train_batch_size} with {len(self.train_dataset)} samples")
 
-        if eval_dataset is not None:
-            self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=eval_batch_size, shuffle=not train_dataset.is_cached)
-            self.eval_loader = DataLoader(
-                eval_dataset,
-                batch_sampler=self.eval_sampler,
-                collate_fn=self.collate_fn
-            )
-            logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={eval_batch_size} with {len(self.eval_dataset)} samples")
-        else:
-            self.eval_loader = None
+        self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=eval_batch_size, shuffle=not train_dataset.is_cached)
+        self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=self.collate_fn)
+        logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={eval_batch_size} with {len(self.eval_dataset)} samples")
 
         if max_epochs:
             self.max_steps = min(self.max_steps, int(len(train_dataset) / (batch_size * accum_steps)))
@@ -294,7 +284,7 @@ class Trainer:
                     # --- Compute grad norms ---
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
                     lora_grad_norm = compute_grad_norm(self.model.llm.lora_parameters())
-                    
+
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
                         scale_val = scale_val.item()

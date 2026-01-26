@@ -11,6 +11,7 @@ import shutil
 import json
 import soxr 
 import os
+import sys
 from scipy.io.wavfile import write
 
 FFMPEG = shutil.which("ffmpeg")
@@ -173,7 +174,7 @@ def build_segments_dict(segments_path, source_path, target_path):
 
         n_segments = 0
         for seg, src, tgt in zip(f_seg, f_src, f_tgt):
-            audio_name, beg, end = seg.strip().split(" ")
+            _, audio_name, beg, end = seg.strip().split(" ")
             segments_dict[audio_name].append({
                 "beg": float(beg),
                 "end": float(end),
@@ -202,60 +203,66 @@ def get_audio_dict(base_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Extract Europarl-ST audio fragments and build TSV.")
-    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/Europarl-ST/v1.1", help="Input path")
+    parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/MultilingualTEDx", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
 
     base_path = Path(args.idir)
     out_path = Path(args.odir)
-    langs = [p.name for p in base_path.iterdir() if p.is_dir()]
-    data_sets = ["dev", "test", "train"]
 
-    m4a_stem2path = get_audio_dict(base_path)
+    lang_pairs = {tuple(p.name.split("-")) for p in base_path.iterdir() if p.is_dir() and len(p.name.split("-")) == 2 and all(len(x) == 2 for x in p.name.split("-"))}
+    data_sets = ["valid", "test", "train"]
 
-    # tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
+    # tsv_file = out_path / f"MultilingualTEDx.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    json_file = out_path / f"Europarl-ST_v1.1.json"
+    json_file = out_path / f"MultilingualTEDx.json"
     with json_file.open("w", encoding="utf-8") as f_json:
 
         n_entries = 0
         t_entries = 0
-        for lsrc, ltgt, data_set in [(s, t, d) for s in langs for t in langs for d in data_sets if s != t]:
-            print(f"---------- {lsrc}-{ltgt}:{data_set} ----------")
-            segments_path = base_path / lsrc / ltgt / data_set / "segments.lst"
-            source_path = base_path / lsrc / ltgt / data_set / f"segments.{lsrc}"
-            target_path = base_path / lsrc / ltgt / data_set / f"segments.{ltgt}"
+        for lsrc, ltgt in lang_pairs:
+            if lsrc == ltgt:
+                continue
 
-            n_created = 0
-            n_exist = 0
-            t_audio = 0
-            segments_dict = build_segments_dict(segments_path, source_path, target_path)
-            for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
-                #en.20081117.22.1-112
-                #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
+            for data_set in data_sets:
+                source_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{lsrc}"
+                target_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"{data_set}.{ltgt}"
+                segments_path = base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "txt" / f"segments"
 
-                results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
-                n_created += n
-                n_exist += m
-                t_audio += duration
-                #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
-                for ofile_name, seg in results:
-                    out_file = str(out_path / "audios" / ofile_name)
-                    # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
-                    f_json.write(
-                        json.dumps({
-                            "audio_file": out_file,
-                            "set": data_set,
-                            "transcription": {
-                                "lang": lsrc, 
-                                "text": seg['src']
-                            },
-                            "translation": {
-                                "lang": ltgt,
-                                "text": seg['tgt']
-                            }
-                        }, ensure_ascii=False) + "\n"
-                    )
+                flac_stem2path = get_audio_dict(base_path / f"{lsrc}-{ltgt}" / "data" / data_set / "wav")
+                print(flac_stem2path)
+                sys.exit()
+
+                n_created = 0
+                n_exist = 0
+                t_audio = 0
+                segments_dict = build_segments_dict(segments_path, source_path, target_path)
+                for audio_stem, segments in tqdm(segments_dict.items(), desc=f"Processing {lsrc}-{ltgt}:{data_set}", unit="file"):
+                    #en.20081117.22.1-112
+                    #[{'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ...', 'tgt': '. Senhor Presidente, ...'}, ...]
+
+                    results, n, m, duration = extract_fragments(m4a_stem2path[audio_stem], segments, out_path / "audios")
+                    n_created += n
+                    n_exist += m
+                    t_audio += duration
+                    #('en.20081117.22.1-112___0.00___15.98.wav', {'beg': 0.0, 'end': 15.98, 'src': 'Signor Presidente, ....', 'tgt': '. Senhor Presidente, ...'})
+                    for ofile_name, seg in results:
+                        out_file = str(out_path / "audios" / ofile_name)
+                        # f_tsv.write(f"{out_file}\t{lsrc}\t{seg['src']}\t{ltgt}\t{seg['tgt']}\t{data_set}\n")
+                        f_json.write(
+                            json.dumps({
+                                "audio_file": out_file,
+                                "set": data_set,
+                                "transcription": {
+                                    "lang": lsrc, 
+                                    "text": seg['src']
+                                },
+                                "translation": {
+                                    "lang": ltgt,
+                                    "text": seg['tgt']
+                                }
+                            }, ensure_ascii=False) + "\n"
+                        )
 
             print(f"Created {n_created} files ({n_exist} existing), total duration {t_audio:.1f} secs")
             n_entries += n_created + n_exist
