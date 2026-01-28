@@ -219,14 +219,15 @@ def main():
             if linked_in_file:
                 print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
 
-    # ------------------------------------------------------------------
-    # Summary
-    # ------------------------------------------------------------------
-    pct = 100.0 * total_linked / max(1, len(name2entry))
-    print(
-        f"Total {total_linked} out of {len(name2entry)} "
-        f"({pct:.2f}%) entries written to {out_path}"
-    )
+
+        # ------------------------------------------------------------------
+        # Summary
+        # ------------------------------------------------------------------
+        pct = 100.0 * total_linked / max(1, len(name2entry))
+        print(
+            f"Total {total_linked} out of {len(name2entry)} "
+            f"({pct:.2f}%) entries written to {out_path}"
+        )
 
 if __name__ == "__main__":
     main()
