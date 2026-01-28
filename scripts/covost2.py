@@ -91,10 +91,10 @@ def main():
     out_path = Path(args.tsv) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
 
+        total_linked = 0
         for covost2_tsv_file in covost2_tsv_files:
             src_lang = covost2_tsv_file.name.split(".")[1].split("_")[0]
             tgt_lang = covost2_tsv_file.name.split(".")[1].split("_")[1]
-            total_linked = 0
 
             # ------------------------------------------------------------------
             # Load CoVoST translation table
@@ -120,7 +120,6 @@ def main():
 
                 print(f"\tParsing {cv_tsv}")
                 seen = set()
-                linked_in_file = 0
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
@@ -198,12 +197,9 @@ def main():
                         })
 
                         seen.add(fname)
-                        linked_in_file += 1
                         total_linked += 1
 
-            if linked_in_file:
-                print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
-
+            print(f"\t{len(json_lines)} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
             print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
 
             # ------------------------------------------------------------------
