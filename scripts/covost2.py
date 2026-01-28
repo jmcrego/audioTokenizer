@@ -75,6 +75,7 @@ def main():
     # ------------------------------------------------------------------
 
     covost2_tsv_files = list(Path(args.tsv).glob("covost2.??_??.tsv"))
+    print(covost2_tsv_files)
     name2entry = {}
     src_langs = set()
     for tsv_file in covost2_tsv_files:
