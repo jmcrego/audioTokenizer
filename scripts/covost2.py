@@ -107,6 +107,9 @@ def main():
     # Parse CommonVoice TSVs and link
     # ------------------------------------------------------------------
 
+    seen = set()
+    total_linked = 0
+
     for covost_tsv_file in covost2_tsv_files:
         src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
         tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
@@ -115,8 +118,6 @@ def main():
         with open(out_path, "w", encoding="utf-8") as fdo:
 
             dir_lang = Path(args.cv) / src_lang
-            seen = set()
-            total_linked = 0
 
             print(f"Parsing {dir_lang}/*.tsv files")
             for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
@@ -192,11 +193,11 @@ def main():
                             "audio_file": str(clean_field(str(path))),
                             "set": clean_field(split),
                             "transcription": {
-                                "lang": clean_field(slang),
+                                "lang": clean_field(src_lang),
                                 "text": clean_field(transc),
                             },
                             "translation": {
-                                "lang": clean_field(tlang),
+                                "lang": clean_field(tgt_lang),
                                 "text": clean_field(transl),
                             },
                         }
