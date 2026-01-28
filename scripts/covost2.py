@@ -88,21 +88,19 @@ def main():
     # Parse CommonVoice TSVs and link to CoVoST entries
     # ------------------------------------------------------------------
 
-
-    total_linked = 0
-
     out_path = Path(args.tsv) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
 
-        for covost_tsv_file in covost2_tsv_files:
-            src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
-            tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
+        for covost2_tsv_file in covost2_tsv_files:
+            src_lang = covost2_tsv_file.name.split(".")[1].split("_")[0]
+            tgt_lang = covost2_tsv_file.name.split(".")[1].split("_")[1]
+            total_linked = 0
 
             # ------------------------------------------------------------------
             # Load CoVoST translation table
             # ------------------------------------------------------------------
-            name2entry = read_covost_tsv(covost_tsv_file)
-            print(f" - Loaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
+            name2entry = read_covost_tsv(covost2_tsv_file)
+            print(f" - Loaded {len(name2entry)} CoVoST entries from {covost2_tsv_file}")
 
             # ------------------------------------------------------------------
             # Locate ALL CommonVoice audio files given src_langs
@@ -206,14 +204,13 @@ def main():
             if linked_in_file:
                 print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
 
-        print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
+            print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
 
-
-    # ------------------------------------------------------------------
-    # Summary
-    # ------------------------------------------------------------------
-    pct = 100.0 * total_linked / max(1, len(name2entry))
-    print(f"Total {total_linked} out of {len(name2entry)} ({pct:.2f}%) entries written to {out_path}")
+            # ------------------------------------------------------------------
+            # Summary
+            # ------------------------------------------------------------------
+            pct = 100.0 * total_linked / max(1, len(name2entry))
+            print(f"Total {total_linked} out of {len(name2entry)} ({pct:.2f}%) entries written to {out_path}")
 
 if __name__ == "__main__":
     main()
