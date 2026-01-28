@@ -99,7 +99,7 @@ def main():
         # Load CoVoST translation table
         # ------------------------------------------------------------------
         name2entry = read_covost_tsv(covost_tsv_file)
-        print(f"Loaded {len(name2entry)} CoVoST entries from {args.tsv}")
+        print(f"\tLoaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
 
         # ------------------------------------------------------------------
         # Locate ALL CommonVoice audio files given src_langs
@@ -107,16 +107,15 @@ def main():
 
         clips_dir = Path(args.cv) / src_lang / "clips"
         name2path = read_audio_files(clips_dir, name2entry)
-        print(f"Resolved {len(name2path)} audio files")
+        print(f"\tResolved {len(name2path)} audio files from {clips_dir}")
 
         dir_lang = Path(args.cv) / src_lang
-
-        print(f"Parsing {dir_lang}/*.tsv files")
         for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
 
             if cv_tsv.name not in ALLOWED:
                 continue
 
+            print(f"\tParsing {cv_tsv}")
             seen = set()
             linked_in_file = 0
             n_missing = 0
