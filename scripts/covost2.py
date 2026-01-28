@@ -108,7 +108,7 @@ def main():
 
             clips_dir = Path(args.cv) / src_lang / "clips"
             name2path = read_audio_files(clips_dir, name2entry)
-            print(f"\tResolved {len(name2path)} audio files from {clips_dir}")
+            print(f" + Resolved {len(name2path)} audio files from {clips_dir}")
 
             json_lines = []
 
