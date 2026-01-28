@@ -105,7 +105,7 @@ def main():
         )
 
     # ------------------------------------------------------------------
-    # Parse CommonVoice TSVs and link
+    # Parse CommonVoice TSVs and link to CoVoST entries
     # ------------------------------------------------------------------
 
     json_lines = []
@@ -189,7 +189,7 @@ def main():
                     # write to jsonl file
                     json_lines.append({
                         "audio_file": str(clean_field(str(path))),
-                        "set": clean_field(split),
+                        "split": clean_field(split),
                         "transcription": {
                             "lang": clean_field(src_lang),
                             "text": clean_field(transc),
