@@ -88,123 +88,126 @@ def main():
     # Parse CommonVoice TSVs and link to CoVoST entries
     # ------------------------------------------------------------------
 
-    json_lines = []
 
     total_linked = 0
-    for covost_tsv_file in covost2_tsv_files:
-        src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
-        tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
-
-        # ------------------------------------------------------------------
-        # Load CoVoST translation table
-        # ------------------------------------------------------------------
-        name2entry = read_covost_tsv(covost_tsv_file)
-        print(f"\tLoaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
-
-        # ------------------------------------------------------------------
-        # Locate ALL CommonVoice audio files given src_langs
-        # ------------------------------------------------------------------
-
-        clips_dir = Path(args.cv) / src_lang / "clips"
-        name2path = read_audio_files(clips_dir, name2entry)
-        print(f"\tResolved {len(name2path)} audio files from {clips_dir}")
-
-        dir_lang = Path(args.cv) / src_lang
-        for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
-
-            if cv_tsv.name not in ALLOWED:
-                continue
-
-            print(f"\tParsing {cv_tsv}")
-            seen = set()
-            linked_in_file = 0
-            n_missing = 0
-            n_errors = 0
-            n_repeated = 0
-            with open(cv_tsv, "r", encoding="utf-8", newline="") as f:
-                reader = csv.DictReader(f, delimiter="\t")
-
-                if reader.fieldnames is None:
-                    n_errors += 1
-                    continue
-
-                required_cols = {"path", "sentence"}
-                if not required_cols.issubset(reader.fieldnames):
-                    n_errors += 1
-                    continue
-
-                for row in reader:
-
-                    rel_path = row.get("path")
-                    if rel_path is None:
-                        n_errors += 1
-                        continue
-
-                    fname = Path(rel_path.strip()).name
-                    if fname in seen:
-                        n_repeated += 1
-                        continue
-
-                    transc = row.get("sentence")
-                    if transc is None:
-                        n_errors += 1
-                        continue
-
-                    path = name2path.get(fname) #Path object or None
-                    if path is None:
-                        n_errors += 1
-                        continue
-
-                    entry = name2entry.get(fname)
-                    if entry is None:
-                        n_errors += 1
-                        continue
-
-                    transl = entry.get("translation")
-                    if transl is None:
-                        n_errors += 1
-                        continue
-
-                    split = entry.get("split")
-                    if split is None:
-                        n_errors += 1
-                        continue
-
-                    if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
-                        #print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
-                        n_errors += 1
-                        continue
-
-                    if args.verify and not path.is_file():
-                        print(f"\tskipping missing linked file {path}")
-                        n_missing += 1
-                        continue
-
-                    # write to jsonl file
-                    json_lines.append({
-                        "audio_file": str(clean_field(str(path))),
-                        "split": clean_field(split),
-                        "transcription": {
-                            "lang": clean_field(src_lang),
-                            "text": clean_field(transc),
-                        },
-                        "translation": {
-                            "lang": clean_field(tgt_lang),
-                            "text": clean_field(transl),
-                        },
-                    })
-
-                    seen.add(fname)
-                    linked_in_file += 1
-                    total_linked += 1
-
-        if linked_in_file:
-            print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
-
 
     out_path = Path(args.tsv) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
+
+        for covost_tsv_file in covost2_tsv_files:
+            src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
+            tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
+
+            # ------------------------------------------------------------------
+            # Load CoVoST translation table
+            # ------------------------------------------------------------------
+            name2entry = read_covost_tsv(covost_tsv_file)
+            print(f"\tLoaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
+
+            # ------------------------------------------------------------------
+            # Locate ALL CommonVoice audio files given src_langs
+            # ------------------------------------------------------------------
+
+            clips_dir = Path(args.cv) / src_lang / "clips"
+            name2path = read_audio_files(clips_dir, name2entry)
+            print(f"\tResolved {len(name2path)} audio files from {clips_dir}")
+
+            json_lines = []
+
+            dir_lang = Path(args.cv) / src_lang
+            for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
+
+                if cv_tsv.name not in ALLOWED:
+                    continue
+
+                print(f"\tParsing {cv_tsv}")
+                seen = set()
+                linked_in_file = 0
+                n_missing = 0
+                n_errors = 0
+                n_repeated = 0
+                with open(cv_tsv, "r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f, delimiter="\t")
+
+                    if reader.fieldnames is None:
+                        n_errors += 1
+                        continue
+
+                    required_cols = {"path", "sentence"}
+                    if not required_cols.issubset(reader.fieldnames):
+                        n_errors += 1
+                        continue
+
+                    for row in reader:
+
+                        rel_path = row.get("path")
+                        if rel_path is None:
+                            n_errors += 1
+                            continue
+
+                        fname = Path(rel_path.strip()).name
+                        if fname in seen:
+                            n_repeated += 1
+                            continue
+
+                        transc = row.get("sentence")
+                        if transc is None:
+                            n_errors += 1
+                            continue
+
+                        path = name2path.get(fname) #Path object or None
+                        if path is None:
+                            n_errors += 1
+                            continue
+
+                        entry = name2entry.get(fname)
+                        if entry is None:
+                            n_errors += 1
+                            continue
+
+                        transl = entry.get("translation")
+                        if transl is None:
+                            n_errors += 1
+                            continue
+
+                        split = entry.get("split")
+                        if split is None:
+                            n_errors += 1
+                            continue
+
+                        if "\n" in str(path) or "\n" in transc or "\n" in transl or "\n" in split:
+                            #print(f"skipping {cv_tsv} line with \\n:\npath={str(path)}\ntransc={transc}\ntransl={transl}\nsplit={split}")
+                            n_errors += 1
+                            continue
+
+                        if args.verify and not path.is_file():
+                            print(f"\tskipping missing linked file {path}")
+                            n_missing += 1
+                            continue
+
+                        # write to jsonl file
+                        json_lines.append({
+                            "audio_file": str(clean_field(str(path))),
+                            "split": clean_field(split),
+                            "transcription": {
+                                "lang": clean_field(src_lang),
+                                "text": clean_field(transc),
+                            },
+                            "translation": {
+                                "lang": clean_field(tgt_lang),
+                                "text": clean_field(transl),
+                            },
+                        })
+
+                        seen.add(fname)
+                        linked_in_file += 1
+                        total_linked += 1
+
+            if linked_in_file:
+                print(f"\t{linked_in_file} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
+
         print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
+
 
     # ------------------------------------------------------------------
     # Summary
