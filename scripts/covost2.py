@@ -65,7 +65,7 @@ def read_audio_files(mp3_dir, name2entry):
 
 def main():
     parser = argparse.ArgumentParser(description="Link CoVoST 2 TSV file with corresponding CommonVoice audio files.")
-    parser.add_argument("--tsv", type=str, defualut="./data/covost2", help="Directory where TSV files with translations (built by download_covost_tsv.py)")
+    parser.add_argument("--tsv", type=str, default="./data/covost2", help="Directory where TSV files with translations (built by download_covost_tsv.py)")
     parser.add_argument("--cv", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Directory with CommonVoice audio files")
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
