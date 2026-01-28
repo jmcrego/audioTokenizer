@@ -11,6 +11,17 @@ from collections import defaultdict
 import csv
 csv.field_size_limit(sys.maxsize)
 
+ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv", "test.tsv.old", "dev.tsv.old", "train.tsv.old", "validated.tsv.old", "other.tsv.old"}
+
+def clean_field(s: str) -> str:
+    if not s:
+        return ""
+    return (
+        s.replace("\n", " ")
+        .replace("\r", " ")
+        .replace("\t", " ")
+        .strip()
+    )
 
 def read_covost_tsv(tsv_path):
     """
@@ -70,39 +81,8 @@ def main():
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
 
-    # ------------------------------------------------------------------
-    # Load CoVoST translation table
-    # ------------------------------------------------------------------
-
     covost2_tsv_files = list(Path(args.tsv).glob("covost_v2.??_??.tsv"))
-    name2entry = {}
-    src_langs = set()
-    for tsv_file in covost2_tsv_files:
-        name2entry.update(read_covost_tsv(tsv_file))
-        src_langs.add(tsv_file.name.split(".")[1].split("_")[0])
-    print(f"Loaded {len(name2entry)} CoVoST entries from {args.tsv}")
-
-    # ------------------------------------------------------------------
-    # Locate ALL CommonVoice audio files given src_langs
-    # ------------------------------------------------------------------
-
-    name2path = {}
-    for src_lang in src_langs:
-        clips_dir = Path(args.cv) / src_lang / "clips"
-        name2path.update(read_audio_files(clips_dir, name2entry))
-    print(f"Resolved {len(name2path)} audio files")
-
-    ALLOWED = {"test.tsv", "dev.tsv", "train.tsv", "validated.tsv", "other.tsv", "test.tsv.old", "dev.tsv.old", "train.tsv.old", "validated.tsv.old", "other.tsv.old"}
-
-    def clean_field(s: str) -> str:
-        if not s:
-            return ""
-        return (
-            s.replace("\n", " ")
-            .replace("\r", " ")
-            .replace("\t", " ")
-            .strip()
-        )
+    print(f"Found {len(covost2_tsv_files)} CoVoST TSV files in {args.tsv}")
 
     # ------------------------------------------------------------------
     # Parse CommonVoice TSVs and link to CoVoST entries
@@ -114,6 +94,20 @@ def main():
     for covost_tsv_file in covost2_tsv_files:
         src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
         tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
+
+        # ------------------------------------------------------------------
+        # Load CoVoST translation table
+        # ------------------------------------------------------------------
+        name2entry = read_covost_tsv(covost_tsv_file)
+        print(f"Loaded {len(name2entry)} CoVoST entries from {args.tsv}")
+
+        # ------------------------------------------------------------------
+        # Locate ALL CommonVoice audio files given src_langs
+        # ------------------------------------------------------------------
+
+        clips_dir = Path(args.cv) / src_lang / "clips"
+        name2path = read_audio_files(clips_dir, name2entry)
+        print(f"Resolved {len(name2path)} audio files")
 
         dir_lang = Path(args.cv) / src_lang
 
@@ -217,10 +211,7 @@ def main():
     # Summary
     # ------------------------------------------------------------------
     pct = 100.0 * total_linked / max(1, len(name2entry))
-    print(
-        f"Total {total_linked} out of {len(name2entry)} "
-        f"({pct:.2f}%) entries written to {out_path}"
-    )
+    print(f"Total {total_linked} out of {len(name2entry)} ({pct:.2f}%) entries written to {out_path}")
 
 if __name__ == "__main__":
     main()
