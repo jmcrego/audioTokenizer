@@ -23,7 +23,7 @@ pattern = re.compile(
     r"wav:\s*([^}\s]+)"
 )
 
-def parse_line(line: str) -> dict:
+def parse_line(line: str) -> tuple[float, float, str]:
     line = line.strip().lstrip("- ").strip("{}")
     m = pattern.search(line)
     if not m:
