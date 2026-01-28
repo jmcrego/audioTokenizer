@@ -102,7 +102,7 @@ def main():
             # Load CoVoST translation table
             # ------------------------------------------------------------------
             name2entry = read_covost_tsv(covost_tsv_file)
-            print(f"Loaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
+            print(f"- Loaded {len(name2entry)} CoVoST entries from {covost_tsv_file}")
 
             # ------------------------------------------------------------------
             # Locate ALL CommonVoice audio files given src_langs
