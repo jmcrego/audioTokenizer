@@ -111,6 +111,7 @@ def main():
             print(f" + Resolved {len(name2path)} audio files from {clips_dir}")
 
             json_lines = []
+            seen = set()
 
             dir_lang = Path(args.cv) / src_lang
             for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
@@ -119,7 +120,6 @@ def main():
                     continue
 
                 print(f"\tParsing {cv_tsv}")
-                seen = set()
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
