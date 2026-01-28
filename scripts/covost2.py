@@ -110,6 +110,7 @@ def main():
 
     json_lines = []
 
+    total_linked = 0
     for covost_tsv_file in covost2_tsv_files:
         src_lang = covost_tsv_file.name.split(".")[1].split("_")[0]
         tgt_lang = covost_tsv_file.name.split(".")[1].split("_")[1]
