@@ -67,7 +67,7 @@ def main():
 
     # tsv_file = out_path / f"MultilingualTEDx.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    json_file = out_path / f"MultilingualTEDx.json"
+    json_file = out_path / f"MultilingualTEDx.jsonl"
     with json_file.open("w", encoding="utf-8") as f_json:
 
         n_entries = 0

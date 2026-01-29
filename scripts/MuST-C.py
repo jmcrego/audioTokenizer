@@ -85,7 +85,7 @@ def main():
 
     # tsv_file = out_path / f"MuST-C.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    json_file = out_path / f"MuST-C.json"
+    json_file = out_path / f"MuST-C.jsonl"
     with json_file.open("w", encoding="utf-8") as f_json:
 
         n_entries = 0

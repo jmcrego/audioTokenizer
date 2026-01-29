@@ -67,7 +67,7 @@ def main():
 
     # tsv_file = out_path / f"Europarl-ST_v1.1.tsv"
     # with tsv_file.open("w", encoding="utf-8") as f_tsv:
-    json_file = out_path / f"Europarl-ST_v1.1.json"
+    json_file = out_path / f"Europarl-ST_v1.1.jsonl"
     with json_file.open("w", encoding="utf-8") as f_json:
 
         n_entries = 0
