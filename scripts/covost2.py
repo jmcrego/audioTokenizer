@@ -119,7 +119,7 @@ def main():
                 # ------------------------------------------------------------------
                 # Locate translations of audio files from CommonVoice TSV
                 # ------------------------------------------------------------------
-                print(f"\t---- Processing {cv_tsv}... ----" + "-" * 20)
+                print(f"\t---- Processing {cv_tsv}... ----" + "-" * 8)
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
