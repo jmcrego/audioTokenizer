@@ -103,9 +103,9 @@ def main():
             # Locate ALL CommonVoice audio files given src_lang
             # ------------------------------------------------------------------
             clips_dir = Path(args.cv) / src_lang / "clips"
-            print(f"==== Processing {clips_dir}... ====")
+            print(f"\t==== Processing {clips_dir}... ====")
             cv_name2path = read_audio_files(clips_dir, c2_name2entry)
-            print(f" - Found {len(cv_name2path)} audio files")
+            print(f"\t - Found {len(cv_name2path)} audio files")
 
             seen = set()
             json_lines = []
