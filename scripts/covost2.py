@@ -86,9 +86,10 @@ def main():
 
     out_path = Path(args.c2) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
-        total_linked = 0
 
         for c2_tsv_file in c2_tsv_files:
+            total_linked = 0
+            print(f"#### Processing {c2_tsv_file}... ####")
             src_lang = c2_tsv_file.name.split(".")[1].split("_")[0]
             tgt_lang = c2_tsv_file.name.split(".")[1].split("_")[1]
 
@@ -102,9 +103,11 @@ def main():
             # Locate ALL CommonVoice audio files given src_lang
             # ------------------------------------------------------------------
             clips_dir = Path(args.cv) / src_lang / "clips"
+            print(f"==== Processing {clips_dir}... ====")
             cv_name2path = read_audio_files(clips_dir, c2_name2entry)
-            print(f" + Resolved {len(cv_name2path)} audio files from {clips_dir}")
+            print(f" - Found {len(cv_name2path)} audio files")
 
+            seen = set()
             json_lines = []
 
             dir_lang = Path(args.cv) / src_lang
@@ -113,8 +116,10 @@ def main():
                 if cv_tsv.name not in ALLOWED:
                     continue
 
-                print(f"\tParsing {cv_tsv}")
-                seen = set()
+                # ------------------------------------------------------------------
+                # Locate translations of audio files from CommonVoice TSV
+                # ------------------------------------------------------------------
+                print(f"\t---- Processing {cv_tsv}... ----")
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
@@ -147,7 +152,7 @@ def main():
                             n_errors += 1
                             continue
 
-                        path = cv_name2path.get(fname) #Path object or None
+                        path = cv_name2path.get(fname) 
                         if path is None:
                             n_errors += 1
                             continue
@@ -194,15 +199,15 @@ def main():
                         seen.add(fname)
                         total_linked += 1
 
-            print(f"\t{len(json_lines)} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
-
-            print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
-
             # ------------------------------------------------------------------
             # Summary
             # ------------------------------------------------------------------
+            print(f"\t{total_linked} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
             pct = 100.0 * total_linked / max(1, len(c2_name2entry))
             print(f"Total {total_linked} out of {len(c2_name2entry)} ({pct:.2f}%) entries written to {out_path}")
+
+        print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
+
 
 if __name__ == "__main__":
     main()
