@@ -105,7 +105,7 @@ def main():
                         f_json.write(
                             json.dumps({
                                 "audio_file": out_file,
-                                "set": data_set,
+                                "split": data_set,
                                 "transcription": {
                                     "lang": lsrc, 
                                     "text": seg['src']
