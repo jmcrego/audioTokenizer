@@ -25,8 +25,7 @@ def clean_field(s: str) -> str:
 
 def read_covost_tsv(tsv_path):
     """
-    Robust TSV parser for broken CoVoST files.
-    Enforces: one physical line = one entry.
+    TSV parser for CoVoST files.
     """
     name2entry = {}
 
@@ -34,14 +33,11 @@ def read_covost_tsv(tsv_path):
         for lineno, line in enumerate(f, start=1):
             line = line.rstrip("\n")
 
-            if not line:
+            if not line: # skip empty lines
                 continue
 
             parts = line.split("\t")
-
-            # Expect exactly 3 columns
-            if len(parts) != 3:
-                # malformed line → skip
+            if len(parts) != 3: # Expect exactly 3 columns
                 continue
 
             path, translation, split = parts
@@ -50,11 +46,10 @@ def read_covost_tsv(tsv_path):
             translation = translation.strip()
             split = split.strip()
 
-            if not path or not translation or not split:
+            if not path or not translation or not split: # skip incomplete entries
                 continue
 
-            # Guard against hidden newlines (paranoia)
-            if any("\n" in x for x in (path, translation, split)):
+            if any("\n" in x for x in (path, translation, split)): # Guard against hidden newlines
                 continue
 
             name2entry[path] = {
@@ -74,21 +69,22 @@ def read_audio_files(mp3_dir, name2entry):
         name2path[path.name] = path 
     return name2path
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Link CoVoST 2 TSV file with corresponding CommonVoice audio files.")
-    parser.add_argument("--tsv", type=str, default="./data/covost2", help="Directory where TSV files with translations (built by download_covost_tsv.py)")
+    parser = argparse.ArgumentParser(description="Link CoVoST TSV file with corresponding CommonVoice audio files.")
+    parser.add_argument("--c2", type=str, default="./data/covost2", help="Directory where CoVoST TSV files with translations (built by download_covost_tsv.py)")
     parser.add_argument("--cv", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Directory with CommonVoice audio files")
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
 
-    covost2_tsv_files = list(Path(args.tsv).glob("covost_v2.??_??.tsv"))
-    print(f"Found {len(covost2_tsv_files)} CoVoST TSV files in {args.tsv}")
+    covost2_tsv_files = list(Path(args.c2).glob("covost_v2.??_??.tsv"))
+    print(f"Found {len(covost2_tsv_files)} CoVoST TSV files in {args.c2}")
 
     # ------------------------------------------------------------------
     # Parse CommonVoice TSVs and link to CoVoST entries
     # ------------------------------------------------------------------
 
-    out_path = Path(args.tsv) / "covost_v2.jsonl"
+    out_path = Path(args.c2) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
 
         total_linked = 0
@@ -99,16 +95,15 @@ def main():
             # ------------------------------------------------------------------
             # Load CoVoST translation table
             # ------------------------------------------------------------------
-            name2entry = read_covost_tsv(covost2_tsv_file)
-            print(f" - Loaded {len(name2entry)} CoVoST entries from {covost2_tsv_file}")
+            c2_name2entry = read_covost_tsv(covost2_tsv_file)
+            print(f" - Loaded {len(c2_name2entry)} CoVoST entries from {covost2_tsv_file}")
 
             # ------------------------------------------------------------------
-            # Locate ALL CommonVoice audio files given src_langs
+            # Locate ALL CommonVoice audio files given src_lang
             # ------------------------------------------------------------------
-
             clips_dir = Path(args.cv) / src_lang / "clips"
-            name2path = read_audio_files(clips_dir, name2entry)
-            print(f" + Resolved {len(name2path)} audio files from {clips_dir}")
+            cv_name2path = read_audio_files(clips_dir, c2_name2entry)
+            print(f" + Resolved {len(cv_name2path)} audio files from {clips_dir}")
 
             json_lines = []
             seen = set()
@@ -152,12 +147,12 @@ def main():
                             n_errors += 1
                             continue
 
-                        path = name2path.get(fname) #Path object or None
+                        path = cv_name2path.get(fname) #Path object or None
                         if path is None:
                             n_errors += 1
                             continue
 
-                        entry = name2entry.get(fname)
+                        entry = c2_name2entry.get(fname)
                         if entry is None:
                             n_errors += 1
                             continue
@@ -205,8 +200,8 @@ def main():
             # ------------------------------------------------------------------
             # Summary
             # ------------------------------------------------------------------
-            pct = 100.0 * total_linked / max(1, len(name2entry))
-            print(f"Total {total_linked} out of {len(name2entry)} ({pct:.2f}%) entries written to {out_path}")
+            pct = 100.0 * total_linked / max(1, len(c2_name2entry))
+            print(f"Total {total_linked} out of {len(c2_name2entry)} ({pct:.2f}%) entries written to {out_path}")
 
 if __name__ == "__main__":
     main()
