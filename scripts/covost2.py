@@ -108,7 +108,7 @@ def main():
             print(f"\t - Found {len(cv_name2path)} audio files")
 
             seen = set()
-            json_lines = []
+            # json_lines = []
 
             dir_lang = Path(args.cv) / src_lang
             for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
@@ -183,7 +183,7 @@ def main():
                             continue
 
                         # write to jsonl file
-                        json_lines.append({
+                        json_line = {
                             "audio_file": str(clean_field(str(path))),
                             "split": clean_field(split),
                             "transcription": {
@@ -194,7 +194,9 @@ def main():
                                 "lang": clean_field(tgt_lang),
                                 "text": clean_field(transl),
                             },
-                        })
+                        }
+                        print(json.dumps(json_line, ensure_ascii=False), file=fdo, flush=False)
+                        # json_lines.append(json_line)
 
                         seen.add(fname)
                         total_linked += 1
@@ -205,7 +207,7 @@ def main():
             pct = 100.0 * total_linked / max(1, len(c2_name2entry))
             print(f"\t - {total_linked} out of {len(c2_name2entry)} ({pct:.2f}%) entries found, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
 
-        print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
+        # print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
 
 
 if __name__ == "__main__":
