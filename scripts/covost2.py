@@ -74,6 +74,7 @@ def main():
     parser = argparse.ArgumentParser(description="Link CoVoST TSV file with corresponding CommonVoice audio files.")
     parser.add_argument("--c2", type=str, default="./data/covost2", help="Directory where CoVoST TSV files with translations (built by download_covost_tsv.py)")
     parser.add_argument("--cv", type=str, default="/lustre/fsmisc/dataset/CommonVoice/cv-corpus-22.0-2025-06-20", help="Directory with CommonVoice audio files")
+    parser.add_argument("--out", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets/covost_v2.jsonl", help="Output jsonl file")
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
 
@@ -84,7 +85,7 @@ def main():
     # Parse CommonVoice TSVs and link to CoVoST entries
     # ------------------------------------------------------------------
 
-    out_path = Path(args.c2) / "covost_v2.jsonl"
+    out_path = Path(args.out)
     with open(out_path, "w", encoding="utf-8") as fdo:
 
         for c2_tsv_file in c2_tsv_files:
