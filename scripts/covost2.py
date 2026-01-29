@@ -77,8 +77,8 @@ def main():
     parser.add_argument("--verify", action="store_true", help="Verify linked file exists (slows down the script)")
     args = parser.parse_args()
 
-    covost2_tsv_files = list(Path(args.c2).glob("covost_v2.??_??.tsv"))
-    print(f"Found {len(covost2_tsv_files)} CoVoST TSV files in {args.c2}")
+    c2_tsv_files = list(Path(args.c2).glob("covost_v2.??_??.tsv"))
+    print(f"Found {len(c2_tsv_files)} CoVoST TSV files in {args.c2}")
 
     # ------------------------------------------------------------------
     # Parse CommonVoice TSVs and link to CoVoST entries
@@ -86,17 +86,17 @@ def main():
 
     out_path = Path(args.c2) / "covost_v2.jsonl"
     with open(out_path, "w", encoding="utf-8") as fdo:
-
         total_linked = 0
-        for covost2_tsv_file in covost2_tsv_files:
-            src_lang = covost2_tsv_file.name.split(".")[1].split("_")[0]
-            tgt_lang = covost2_tsv_file.name.split(".")[1].split("_")[1]
+
+        for c2_tsv_file in c2_tsv_files:
+            src_lang = c2_tsv_file.name.split(".")[1].split("_")[0]
+            tgt_lang = c2_tsv_file.name.split(".")[1].split("_")[1]
 
             # ------------------------------------------------------------------
             # Load CoVoST translation table
             # ------------------------------------------------------------------
-            c2_name2entry = read_covost_tsv(covost2_tsv_file)
-            print(f" - Loaded {len(c2_name2entry)} CoVoST entries from {covost2_tsv_file}")
+            c2_name2entry = read_covost_tsv(c2_tsv_file)
+            print(f" - Loaded {len(c2_name2entry)} CoVoST entries from {c2_tsv_file}")
 
             # ------------------------------------------------------------------
             # Locate ALL CommonVoice audio files given src_lang
@@ -106,7 +106,6 @@ def main():
             print(f" + Resolved {len(cv_name2path)} audio files from {clips_dir}")
 
             json_lines = []
-            seen = set()
 
             dir_lang = Path(args.cv) / src_lang
             for cv_tsv in list(dir_lang.glob("*.tsv")) + list(dir_lang.glob("*.tsv.old")):
@@ -115,6 +114,7 @@ def main():
                     continue
 
                 print(f"\tParsing {cv_tsv}")
+                seen = set()
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
@@ -195,6 +195,7 @@ def main():
                         total_linked += 1
 
             print(f"\t{len(json_lines)} entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
+
             print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
 
             # ------------------------------------------------------------------
