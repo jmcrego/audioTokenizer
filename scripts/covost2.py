@@ -103,7 +103,7 @@ def main():
             # Locate ALL CommonVoice audio files given src_lang
             # ------------------------------------------------------------------
             clips_dir = Path(args.cv) / src_lang / "clips"
-            print(f"\t==== Processing {clips_dir}... ====" + "=" * 20)
+            print(f"\t==== Processing {clips_dir}... ====" + "=" * 8)
             cv_name2path = read_audio_files(clips_dir, c2_name2entry)
             print(f"\t - Found {len(cv_name2path)} audio files")
 
