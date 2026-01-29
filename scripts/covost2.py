@@ -89,7 +89,7 @@ def main():
 
         for c2_tsv_file in c2_tsv_files:
             total_linked = 0
-            print(f"#### Processing {c2_tsv_file}... ####")
+            print(f"#### Processing {c2_tsv_file}... ####" + "#" * 20)
             src_lang = c2_tsv_file.name.split(".")[1].split("_")[0]
             tgt_lang = c2_tsv_file.name.split(".")[1].split("_")[1]
 
@@ -103,7 +103,7 @@ def main():
             # Locate ALL CommonVoice audio files given src_lang
             # ------------------------------------------------------------------
             clips_dir = Path(args.cv) / src_lang / "clips"
-            print(f"\t==== Processing {clips_dir}... ====")
+            print(f"\t==== Processing {clips_dir}... ====" + "=" * 20)
             cv_name2path = read_audio_files(clips_dir, c2_name2entry)
             print(f"\t - Found {len(cv_name2path)} audio files")
 
@@ -119,7 +119,7 @@ def main():
                 # ------------------------------------------------------------------
                 # Locate translations of audio files from CommonVoice TSV
                 # ------------------------------------------------------------------
-                print(f"\t---- Processing {cv_tsv}... ----")
+                print(f"\t---- Processing {cv_tsv}... ----" + "-" * 20)
                 n_missing = 0
                 n_errors = 0
                 n_repeated = 0
