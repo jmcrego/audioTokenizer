@@ -198,12 +198,12 @@ def main():
 
                         seen.add(fname)
                         total_linked += 1
-
+                print(f"\t - {total_linked} entries so far")
             # ------------------------------------------------------------------
             # Summary
             # ------------------------------------------------------------------
             pct = 100.0 * total_linked / max(1, len(c2_name2entry))
-            print(f"\t{total_linked} out of {len(c2_name2entry)} ({pct:.2f}%) entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
+            print(f"\t - {total_linked} out of {len(c2_name2entry)} ({pct:.2f}%) entries found from {cv_tsv}, errors={n_errors} repeated={n_repeated} missing={n_missing} entries")
 
         print(json.dumps(json_lines, ensure_ascii=False), file=fdo)
 
