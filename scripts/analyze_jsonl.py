@@ -17,7 +17,7 @@ def analyze_jsonl(input_path):
     split_counts = Counter()
 
     transcription_langs = Counter()
-    translation_langs = Counter()
+    translation_matrix = defaultdict(Counter)
 
     # counts of empty text lines
     empty_transcription_count = 0
@@ -61,8 +61,7 @@ def analyze_jsonl(input_path):
                 else:
                     src_lang = "unknown"
                 tgt_lang = entry["translation"].get("lang") or "unknown"
-                pair = f"{src_lang}-{tgt_lang}"
-                translation_langs[pair] += 1
+                translation_matrix[src_lang][tgt_lang] += 1
                 if "text" in entry["translation"]:
                     txt = entry["translation"]["text"]
                     text_length_stats["translation.text"].append(len(txt))
@@ -86,20 +85,26 @@ def analyze_jsonl(input_path):
     for lang, count in transcription_langs.items():
         print(f"  {lang}: {count}")
 
-    # Translation languages table
-    print("\nTranslation languages:")
-    if translation_langs:
-        rows = [(pair, count) for pair, count in translation_langs.items()]
-        # sort by count desc, then pair
-        rows.sort(key=lambda x: (-x[1], x[0]))
-        pair_w = max(len("pair"), max(len(r[0]) for r in rows))
-        count_w = max(len("count"), max(len(str(r[1])) for r in rows))
-        header = f"  {'pair'.ljust(pair_w)}  {'count'.rjust(count_w)}"
-        sep = f"  {'-'*pair_w}  {'-'*count_w}"
-        print(header)
-        print(sep)
-        for pair, count in rows:
-            print(f"  {pair.ljust(pair_w)}  {str(count).rjust(count_w)}")
+    # Translation languages matrix (sources rows, targets columns)
+    print("\nTranslation languages (src -> tgt):")
+    if translation_matrix:
+        srcs = sorted(translation_matrix.keys())
+        tgts = sorted({t for src in translation_matrix for t in translation_matrix[src].keys()})
+        # compute column widths
+        src_w = max(len("src"), max(len(s) for s in srcs))
+        tgt_w = {t: max(len(t), len(str(max((translation_matrix[s].get(t,0) for s in srcs))))) for t in tgts}
+        # overall widths for printing
+        tgt_col_w = {t: tgt_w[t] for t in tgts}
+        # header
+        header_cells = [ "src".ljust(src_w) ] + [ t.rjust(tgt_col_w[t]) for t in tgts ]
+        print("  " + "  ".join(header_cells))
+        # separator
+        sep_cells = [ "-"*src_w ] + [ "-"*tgt_col_w[t] for t in tgts ]
+        print("  " + "  ".join(sep_cells))
+        # rows
+        for s in srcs:
+            cells = [ s.ljust(src_w) ] + [ str(translation_matrix[s].get(t,0)).rjust(tgt_col_w[t]) for t in tgts ]
+            print("  " + "  ".join(cells))
     else:
         print("  (none)")
 
