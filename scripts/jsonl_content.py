@@ -39,7 +39,8 @@ def analyze_jsonl(input_path):
 
             # Transcription
             if "transcription" in entry:
-                transcription_langs[entry["transcription"].get("lang")] += 1
+                t_lang = entry["transcription"].get("lang") or "unknown"
+                transcription_langs[t_lang] += 1
                 if "text" in entry["transcription"]:
                     text_length_stats["transcription.text"].append(
                         len(entry["transcription"]["text"])
@@ -47,7 +48,14 @@ def analyze_jsonl(input_path):
 
             # Translation
             if "translation" in entry:
-                translation_langs[entry["translation"].get("lang")] += 1
+                # source language is the transcription language when present
+                if "transcription" in entry:
+                    src_lang = entry["transcription"].get("lang") or "unknown"
+                else:
+                    src_lang = "unknown"
+                tgt_lang = entry["translation"].get("lang") or "unknown"
+                pair = f"{src_lang}->{tgt_lang}"
+                translation_langs[pair] += 1
                 if "text" in entry["translation"]:
                     text_length_stats["translation.text"].append(
                         len(entry["translation"]["text"])
@@ -69,8 +77,8 @@ def analyze_jsonl(input_path):
         print(f"  {lang}: {count}")
 
     print("\nTranslation languages:")
-    for lang, count in translation_langs.items():
-        print(f"  {lang}: {count}")
+    for pair, count in translation_langs.items():
+        print(f"  {pair}: {count}")
 
     print("\nText length statistics (characters):")
     for field, lengths in text_length_stats.items():
