@@ -148,3 +148,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     analyze_jsonl(args.input)
+
+    # Example usage:
+    # analyze_jsonl("MuST-C.jsonl")
