@@ -8,7 +8,6 @@ import sys
 import time
 from transformers import AutoTokenizer
 
-
 from utils import build_template
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
