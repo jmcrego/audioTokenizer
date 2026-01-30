@@ -162,3 +162,138 @@ def extract_fragments(ifile_path, segments, audio_out_path):
         results.append((ofile_name, seg))
 
     return results, n_created, n_exist, t_audio, n_skipped
+
+
+def build_template(
+        type="instruct", task="asr", 
+        audio_token="<audio>", bos_token="<s>", eos_token="</s>", 
+        src_lang=None, tgt_lang=None, 
+        asr_text=None, stt_text=None
+    ):
+    if type not in {'instruct', 'declarative', 'oneline'}:
+        raise ValueError("unknown type template: use 'instruct' OR 'declarative' OR 'oneline'")
+
+    if task not in {'asr', 'ast', 'stt', 'ttt'}:
+        raise ValueError("unknown task template: use 'asr' OR 'ast' OR 'stt' OR 'ttt'")
+
+    ####################################################################
+    ### oneline prompt #################################################
+    ####################################################################
+    if type == "oneline":
+        # Automatic Speech Recognition
+        if task == "asr":
+            prompt=f"{audio_token}<|{task}|>" 
+            target=f"<|{src_lang}|>{asr_text}" if src_lang is not None and asr_text is not None else None
+
+        # Automatic Speech Translation
+        elif task == "ast":
+            if tgt_lang is None:
+                raise ValueError("tgt_lang must exist for ast task")
+            
+            prompt=f"{audio_token}<|{task}|><|{tgt_lang}|>" 
+            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
+
+        # Speech Transcription and Translation
+        elif task == "stt":
+            if src_lang is None or tgt_lang is None:
+                raise ValueError("src_lang/tgt_lang must exist for stt task")
+            if asr_text is None:
+                raise ValueError("asr_text must exist for stt task")
+            
+            prompt=f"{audio_token}<|{task}-asr|><|{src_lang}|>{asr_text}<|{task}|><|{tgt_lang}|>" 
+            target=f"{stt_text}" if stt_text is not None else None
+
+        # Text to Text Translation (No audio involved)
+        elif task == "ttt":
+            if tgt_lang is None:
+                raise ValueError("tgt_lang must exist for ast task")
+            
+            prompt=f"{asr_text}<|{task}|><|{tgt_lang}|>"
+            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
+
+        return bos_token+prompt, target+eos_token if target is not None else None
+
+    ####################################################################
+    ### instruct prompt ################################################
+    ####################################################################
+    elif type == "instruct":
+        if task == "asr":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Transcribe the following speech:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+
+        elif task == "stt":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Translate the following speech into {tgt_lang}:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+            target = f"{stt_text}<|im_end|>"
+
+        elif task == "2stt":
+            prompt = (
+                f"<|im_start|>system\n"
+                f"You are a professional {src_lang} interpreter.\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Transcribe the following speech:\n"
+                f"{audio_token}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+                f"{asr_text}\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>user\n"
+                f"Translate into {tgt_lang}:\n"
+                f"<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+            target = f"{stt_text}<|im_end|>"
+        return prompt, target
+
+    ####################################################################
+    ### declarative prompt #############################################
+    ####################################################################
+    elif type == "declarative":
+        if task == "asr":
+            prompt = (
+                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
+                f"<|speech|>\n" 
+                f"{audio_token}\n" 
+                f"<|transcription|>\n"
+            )
+            target = asr_text + eos_token if asr_text is not None else None
+
+        elif task == "stt":
+            prompt = (
+                f"{bos_token}<|task:stt|><|src_lang:{src_lang}|><|tgt_lang:{tgt_lang}|>\n"
+                f"<|speech|>\n"
+                f"{audio_token}\n"
+                f"<|translation|>\n"
+            )
+            target = stt_text + eos_token if stt_text is not None else None
+
+        elif task == "2stt":
+            prompt = (
+                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
+                f"<|speech|>\n"
+                f"{audio_token}\n"
+                f"<|transcription|>\n"
+                f"{asr_text}\n"
+                f"<|task:stt|><|tgt_lang:{tgt_lang}|>\n"
+                f"<|translation|>\n"
+            )
+            target = stt_text + eos_token if stt_text is not None else None
+
+        return prompt, target

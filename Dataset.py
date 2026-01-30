@@ -31,163 +31,6 @@ code2lang={
 }
 
 
-def audio_length_in_embeddings(duration, conv_stride=30, sample_rate=16000, downsample_ratio=160):
-    """
-    Estimate number of tokens produced from an audio file
-    after audio embedding + projection.
-    """
-    #whisper (always 1500 frames)
-    if downsample_ratio == 160: 
-        return (1500 + conv_stride - 1) // conv_stride
-    
-    # wav2vec OR mhubert
-    n_samples = int(duration * sample_rate)
-
-    # number of frame-level embeddings
-    # (audio encoder internal downsampling)
-    n_frames = (n_samples + downsample_ratio - 1) // downsample_ratio
-
-    # number of tokens after stacking frames
-    n_tokens = (n_frames + conv_stride - 1) // conv_stride
-
-    return n_tokens
-
-def build_template(
-        type="instruct", task="asr", 
-        audio_token="<audio>", bos_token="<s>", eos_token="</s>", 
-        src_lang=None, tgt_lang=None, 
-        asr_text=None, stt_text=None
-    ):
-    if type not in {'instruct', 'declarative', 'oneline'}:
-        raise ValueError("unknown type template: use 'instruct' OR 'declarative' OR 'oneline'")
-
-    if task not in {'asr', 'ast', 'stt'}:
-        raise ValueError("unknown task template: use 'asr' OR 'ast' OR 'stt'")
-
-    ####################################################################
-    ### oneline prompt #################################################
-    ####################################################################
-    if type == "oneline":
-        # Automatic Speech Recognition
-        if task == "asr":
-            prompt=f"{audio_token}<|{task}|>" 
-            target=f"<|{src_lang}|>{asr_text}" if src_lang is not None and asr_text is not None else None
-
-        # Automatic Speech Translation
-        elif task == "ast":
-            if tgt_lang is None:
-                raise ValueError("tgt_lang must exist for ast task")
-            
-            prompt=f"{audio_token}<|{task}|><|{tgt_lang}|>" 
-            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
-
-        # Speech Transcription and Translation
-        elif task == "stt":
-            if src_lang is None or tgt_lang is None:
-                raise ValueError("src_lang/tgt_lang must exist for stt task")
-            if asr_text is None:
-                raise ValueError("asr_text must exist for stt task")
-            
-            prompt=f"{audio_token}<|{task}-asr|><|{src_lang}|>{asr_text}<|{task}|><|{tgt_lang}|>" 
-            target=f"{stt_text}" if stt_text is not None else None
-
-        # Text to Text Translation (No audio involved)
-        elif task == "ttt":
-            if tgt_lang is None:
-                raise ValueError("tgt_lang must exist for ast task")
-            
-            prompt=f"{asr_text}<|{task}|><|{tgt_lang}|>"
-            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
-
-        return bos_token+prompt, target+eos_token if target is not None else None
-
-    ####################################################################
-    ### instruct prompt ################################################
-    ####################################################################
-    elif type == "instruct":
-        if task == "asr":
-            prompt = (
-                f"<|im_start|>system\n"
-                f"You are a professional {src_lang} interpreter.\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"Transcribe the following speech:\n"
-                f"{audio_token}\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>assistant\n"
-            )
-
-        elif task == "stt":
-            prompt = (
-                f"<|im_start|>system\n"
-                f"You are a professional {src_lang} interpreter.\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"Translate the following speech into {tgt_lang}:\n"
-                f"{audio_token}\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>assistant\n"
-            )
-            target = f"{stt_text}<|im_end|>"
-
-        elif task == "2stt":
-            prompt = (
-                f"<|im_start|>system\n"
-                f"You are a professional {src_lang} interpreter.\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"Transcribe the following speech:\n"
-                f"{audio_token}\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>assistant\n"
-                f"{asr_text}\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"Translate into {tgt_lang}:\n"
-                f"<|im_end|>\n"
-                f"<|im_start|>assistant\n"
-            )
-            target = f"{stt_text}<|im_end|>"
-        return prompt, target
-
-    ####################################################################
-    ### declarative prompt #############################################
-    ####################################################################
-    elif type == "declarative":
-        if task == "asr":
-            prompt = (
-                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
-                f"<|speech|>\n" 
-                f"{audio_token}\n" 
-                f"<|transcription|>\n"
-            )
-            target = asr_text + eos_token if asr_text is not None else None
-
-        elif task == "stt":
-            prompt = (
-                f"{bos_token}<|task:stt|><|src_lang:{src_lang}|><|tgt_lang:{tgt_lang}|>\n"
-                f"<|speech|>\n"
-                f"{audio_token}\n"
-                f"<|translation|>\n"
-            )
-            target = stt_text + eos_token if stt_text is not None else None
-
-        elif task == "2stt":
-            prompt = (
-                f"{bos_token}<|task:asr|><|src_lang:{src_lang}|>\n"
-                f"<|speech|>\n"
-                f"{audio_token}\n"
-                f"<|transcription|>\n"
-                f"{asr_text}\n"
-                f"<|task:stt|><|tgt_lang:{tgt_lang}|>\n"
-                f"<|translation|>\n"
-            )
-            target = stt_text + eos_token if stt_text is not None else None
-
-        return prompt, target
-
-
-
 def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
     """
     Read ASR and STT samples from a JSONL file and build training examples.
@@ -455,8 +298,8 @@ class Dataset(Dataset):
         file_path: str,
         tokenizer,
         audio_token="<extra_id_0>",
-        bos_token="<bos>",
-        eos_token="<eos>",
+        bos_token="<s>",
+        eos_token="</s>",
         seed=42,
     ):
         """
@@ -488,8 +331,13 @@ class Dataset(Dataset):
 
         else:
             self.info = None
-            self.data = read_samples_from_tsv(file_path)
-
+            if file_path.endswith(".tsv"):
+                self.data = read_samples_from_tsv(file_path)
+            elif file_path.endswith(".jsonl"):
+                self.data = read_samples_from_jsonl(file_path)
+            else:
+                raise ValueError("Unsupported file format. Use .tsv or .jsonl")
+            file_path_dir = Path(file_path).parent
 
         for idx in range(len(self.data)):
             sample = self.data[idx]
@@ -507,10 +355,10 @@ class Dataset(Dataset):
             target_ids = tokenizer(target, return_tensors="pt", padding=False, truncation=False, add_special_tokens=False).input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
             self.data[idx]["target_ids"] = target_ids
 
-            if self.is_cached: #convert the pt_path into an absolute path
+            if self.is_cached: #convert the pt_path (file where embeddings are stored) into an absolute path
                 self.data[idx]["pt_path"] = file_path_dir / self.data[idx]["pt_path"] 
 
-            else: #tsv dataset
+            else: #tsv/jsonl dataset
                 conv_kernel = 30
                 conv_stride = 30
                 n_tokens_audio = (WHISPER_FRAMES - conv_kernel) // conv_stride + 1
