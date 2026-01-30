@@ -106,37 +106,36 @@ def save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
 
-def build_audio_cache(
-        tsv_path, 
-        cache_dir, 
-        embedder_path, 
-        tokenizer_path, 
-        audio_token,
-        template,
-        task,
-        device, 
-        dtype, 
-        batch_size, 
-        bucket_size,
-    ):
-    os.makedirs(cache_dir, exist_ok=True)
-    torch_dtype = getattr(torch, dtype)
+def build_audio_cache(args):
+    #     tsv_path, 
+    #     cache_dir, 
+    #     embedder_path, 
+    #     tokenizer_path, 
+    #     audio_token,
+    #     template,
+    #     task,
+    #     device, 
+    #     dtype, 
+    #     batch_size, 
+    #     bucket_size,
+    # ):
+    os.makedirs(args.cache_dir, exist_ok=True)
+    torch_dtype = getattr(torch, args.dtype)
 
     # Initialize embedder
-    audio_embedder = Embedder(config={'path': embedder_path})
-    audio_embedder.to(device, dtype=torch_dtype)
+    audio_embedder = Embedder(config={'path': args.embedder_path})
+    audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
-
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
     # Read TSV samples
-    samples = read_samples_from_tsv(tsv_path)
+    samples = read_samples_from_tsv(args.tsv_path)
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
-        prompt, target = build_template(type=template, task=task, 
-            audio_token=audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
+        prompt, target = build_template(type=args.template, task=args.task, 
+            audio_token=args.audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
             src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), 
             asr_text=s.get("asr"), stt_text=s.get("stt"),
         )
@@ -145,19 +144,19 @@ def build_audio_cache(
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
 
-    save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_dir, device, torch_dtype)
+    save_sorted_samples(samples, audio_embedder, args.batch_size, args.bucket_size, args.cache_dir, args.device, torch_dtype)
 
     # Save meta.json
-    meta_path = os.path.join(cache_dir, "meta.json")
+    meta_path = os.path.join(args.cache_dir, "meta.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({
             "info": {
-                "tsv_path": tsv_path, 
-                "cache_dir": cache_dir, 
-                "embedder_path": embedder_path,
-                "tokenizer_path": tokenizer_path,
-                "dtype": dtype,
-                "bucket_size": bucket_size,
+                "tsv_path": args.tsv_path, 
+                "cache_dir": args.cache_dir, 
+                "embedder_path": args.embedder_path,
+                "tokenizer_path": args.tokenizer_path,
+                "dtype": args.dtype,
+                "bucket_size": args.bucket_size,
             },
             "samples": [{
                 "audio_path": s["audio_path"],
@@ -190,16 +189,4 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    build_audio_cache(
-        args.tsv_path, 
-        args.cache_dir, 
-        args.embedder_path,
-        args.tokenizer_path,
-        args.audio_token,
-        args.template,
-        args.task,
-        args.device, 
-        args.dtype,
-        args.batch_size,
-        args.bucket_size,
-    )
+    build_audio_cache(args)
