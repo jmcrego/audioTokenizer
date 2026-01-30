@@ -86,9 +86,22 @@ def analyze_jsonl(input_path):
     for lang, count in transcription_langs.items():
         print(f"  {lang}: {count}")
 
+    # Translation languages table
     print("\nTranslation languages:")
-    for pair, count in translation_langs.items():
-        print(f"  {pair}: {count}")
+    if translation_langs:
+        rows = [(pair, count) for pair, count in translation_langs.items()]
+        # sort by count desc, then pair
+        rows.sort(key=lambda x: (-x[1], x[0]))
+        pair_w = max(len("pair"), max(len(r[0]) for r in rows))
+        count_w = max(len("count"), max(len(str(r[1])) for r in rows))
+        header = f"  {'pair'.ljust(pair_w)}  {'count'.rjust(count_w)}"
+        sep = f"  {'-'*pair_w}  {'-'*count_w}"
+        print(header)
+        print(sep)
+        for pair, count in rows:
+            print(f"  {pair.ljust(pair_w)}  {str(count).rjust(count_w)}")
+    else:
+        print("  (none)")
 
     # Summary of empty text lines
     print("\nEmpty text lines:")
