@@ -297,3 +297,5 @@ def build_template(
             target = stt_text + eos_token if stt_text is not None else None
 
         return prompt, target
+
+
