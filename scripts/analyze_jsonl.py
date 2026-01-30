@@ -2,6 +2,37 @@ import json
 from pathlib import Path
 from collections import Counter, defaultdict
 
+def print_matrix(title, matrix):
+    """
+    Print a matrix (mapping src -> mapping tgt -> count) with sources as rows
+    and targets as columns, aligned.
+    """
+    print(f"\n{title}")
+    if not matrix:
+        print("  (none)")
+        return
+    srcs = sorted(matrix.keys())
+    tgts = sorted({t for s in matrix for t in matrix[s].keys()})
+    if not srcs or not tgts:
+        print("  (none)")
+        return
+    src_w = max(len("src"), max(len(s) for s in srcs))
+    # determine width per target column (consider header and max count width)
+    tgt_col_w = {}
+    for t in tgts:
+        max_count_w = max(len(str(matrix[s].get(t, 0))) for s in srcs)
+        tgt_col_w[t] = max(len(t), max_count_w)
+    # header
+    header_cells = ["src".ljust(src_w)] + [t.rjust(tgt_col_w[t]) for t in tgts]
+    print("  " + "  ".join(header_cells))
+    # separator
+    sep_cells = ["-" * src_w] + ["-" * tgt_col_w[t] for t in tgts]
+    print("  " + "  ".join(sep_cells))
+    # rows
+    for s in srcs:
+        cells = [s.ljust(src_w)] + [str(matrix[s].get(t, 0)).rjust(tgt_col_w[t]) for t in tgts]
+        print("  " + "  ".join(cells))
+
 def analyze_jsonl(input_path):
     """
     Analyze a JSONL file and print dataset statistics.
@@ -18,6 +49,8 @@ def analyze_jsonl(input_path):
 
     transcription_langs = Counter()
     translation_matrix = defaultdict(Counter)
+    # per-split translation counts: split -> (src -> Counter(tgt->count))
+    translation_by_split = defaultdict(lambda: defaultdict(Counter))
 
     # counts of empty text lines
     empty_transcription_count = 0
@@ -39,7 +72,8 @@ def analyze_jsonl(input_path):
                 top_level_fields[key] += 1
 
             # Split
-            split_counts[entry.get("split")] += 1
+            split = entry.get("split") or "none"
+            split_counts[split] += 1
 
             # Transcription
             if "transcription" in entry:
@@ -62,6 +96,7 @@ def analyze_jsonl(input_path):
                     src_lang = "unknown"
                 tgt_lang = entry["translation"].get("lang") or "unknown"
                 translation_matrix[src_lang][tgt_lang] += 1
+                translation_by_split[split][src_lang][tgt_lang] += 1
                 if "text" in entry["translation"]:
                     txt = entry["translation"]["text"]
                     text_length_stats["translation.text"].append(len(txt))
@@ -85,28 +120,11 @@ def analyze_jsonl(input_path):
     for lang, count in transcription_langs.items():
         print(f"  {lang}: {count}")
 
-    # Translation languages matrix (sources rows, targets columns)
-    print("\nTranslation languages (src -> tgt):")
-    if translation_matrix:
-        srcs = sorted(translation_matrix.keys())
-        tgts = sorted({t for src in translation_matrix for t in translation_matrix[src].keys()})
-        # compute column widths
-        src_w = max(len("src"), max(len(s) for s in srcs))
-        tgt_w = {t: max(len(t), len(str(max((translation_matrix[s].get(t,0) for s in srcs))))) for t in tgts}
-        # overall widths for printing
-        tgt_col_w = {t: tgt_w[t] for t in tgts}
-        # header
-        header_cells = [ "src".ljust(src_w) ] + [ t.rjust(tgt_col_w[t]) for t in tgts ]
-        print("  " + "  ".join(header_cells))
-        # separator
-        sep_cells = [ "-"*src_w ] + [ "-"*tgt_col_w[t] for t in tgts ]
-        print("  " + "  ".join(sep_cells))
-        # rows
-        for s in srcs:
-            cells = [ s.ljust(src_w) ] + [ str(translation_matrix[s].get(t,0)).rjust(tgt_col_w[t]) for t in tgts ]
-            print("  " + "  ".join(cells))
-    else:
-        print("  (none)")
+    # Print overall translation matrix
+    print_matrix("Translation languages (overall src -> tgt):", translation_matrix)
+    # Print per-split translation matrices
+    for sp in sorted(translation_by_split.keys()):
+        print_matrix(f"Translation languages (split={sp})", translation_by_split[sp])
 
     # Summary of empty text lines
     print("\nEmpty text lines:")
