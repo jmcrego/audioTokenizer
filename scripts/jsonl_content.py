@@ -54,7 +54,7 @@ def analyze_jsonl(input_path):
                 else:
                     src_lang = "unknown"
                 tgt_lang = entry["translation"].get("lang") or "unknown"
-                pair = f"{src_lang}->{tgt_lang}"
+                pair = f"{src_lang}-{tgt_lang}"
                 translation_langs[pair] += 1
                 if "text" in entry["translation"]:
                     text_length_stats["translation.text"].append(
