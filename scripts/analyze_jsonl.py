@@ -96,7 +96,7 @@ def analyze_jsonl(input_path):
         # overall widths for printing
         tgt_col_w = {t: tgt_w[t] for t in tgts}
         # header
-        header_cells = [ "s\t".ljust(src_w) ] + [ t.rjust(tgt_col_w[t]) for t in tgts ]
+        header_cells = [ "src".ljust(src_w) ] + [ t.rjust(tgt_col_w[t]) for t in tgts ]
         print("  " + "  ".join(header_cells))
         # separator
         sep_cells = [ "-"*src_w ] + [ "-"*tgt_col_w[t] for t in tgts ]
