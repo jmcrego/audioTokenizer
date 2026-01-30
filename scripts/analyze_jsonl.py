@@ -19,6 +19,10 @@ def analyze_jsonl(input_path):
     transcription_langs = Counter()
     translation_langs = Counter()
 
+    # counts of empty text lines
+    empty_transcription_count = 0
+    empty_translation_count = 0
+
     text_length_stats = defaultdict(list)  # lengths only, no content
 
     num_entries = 0
@@ -45,6 +49,7 @@ def analyze_jsonl(input_path):
                     txt = entry["transcription"]["text"]
                     text_length_stats["transcription.text"].append(len(txt))
                     if len(txt) == 0:
+                        empty_transcription_count += 1
                         print("Warning: transcription.text length 0 for entry:")
                         print(json.dumps(entry, ensure_ascii=False, indent=2))
 
@@ -62,6 +67,7 @@ def analyze_jsonl(input_path):
                     txt = entry["translation"]["text"]
                     text_length_stats["translation.text"].append(len(txt))
                     if len(txt) == 0:
+                        empty_translation_count += 1
                         print("Warning: translation.text length 0 for entry:")
                         print(json.dumps(entry, ensure_ascii=False, indent=2))
 
@@ -83,6 +89,11 @@ def analyze_jsonl(input_path):
     print("\nTranslation languages:")
     for pair, count in translation_langs.items():
         print(f"  {pair}: {count}")
+
+    # Summary of empty text lines
+    print("\nEmpty text lines:")
+    print(f"  transcriptions: {empty_transcription_count}")
+    print(f"  translations: {empty_translation_count}")
 
     print("\nText length statistics (characters):")
     for field, lengths in text_length_stats.items():
