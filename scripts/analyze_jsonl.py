@@ -50,7 +50,7 @@ def analyze_jsonl(input_path):
                     text_length_stats["transcription.text"].append(len(txt))
                     if len(txt) == 0:
                         empty_transcription_count += 1
-                        print("Warning: transcription.text length 0 for entry:")
+                        print(f"Warning: transcription.text length 0 for entry idx {num_entries}:")
                         print(json.dumps(entry, ensure_ascii=False, indent=2))
 
             # Translation
@@ -68,7 +68,7 @@ def analyze_jsonl(input_path):
                     text_length_stats["translation.text"].append(len(txt))
                     if len(txt) == 0:
                         empty_translation_count += 1
-                        print("Warning: translation.text length 0 for entry:")
+                        print(f"Warning: translation.text length 0 for entry idx {num_entries}:")
                         print(json.dumps(entry, ensure_ascii=False, indent=2))
 
     # Output
