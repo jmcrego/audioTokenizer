@@ -188,6 +188,112 @@ def build_template(
 
 
 
+def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
+    """
+    Read ASR and STT samples from a JSONL file and build training examples.
+
+    Each line in the file must contain either:
+    - 3 fields: audio_path, source_language, transcription (ASR)
+    - 5 fields: audio_path, source_language, transcription, target_language, translation (STT)
+
+    The function validates audio files, constructs prompts and targets,
+    and returns a list of samples suitable for training chat-based LLMs.
+
+    Args:
+        path (str): Path to the JSONL file.
+        max_duration (float): Maximum duration for an audio file.
+        sep (str): Field separator used in the JSONL file.
+
+    Returns:
+        list[dict]: A list of samples with audio metadata, prompt, and target text.
+    """    
+    samples = []
+
+    # read jsonl line by line
+    with open(path, "r", encoding="utf-8") as f:
+        for line_no, line in enumerate(tqdm(f, desc=f"Reading {Path(path).name}", unit=" sample", disable=not use_tqdm), start=1):
+        
+            entry = json.loads(line)
+
+            audio_path = entry.get("audio_path")
+            if audio_path is None:
+                logger.warning(f"{path}:{line_no} missing audio_path")
+                continue
+
+            transcription = entry.get("transcription")
+            if transcription is None:
+                logger.warning(f"{path}:{line_no} missing transcription field")
+                continue
+            
+            src_lang = transcription.get("src_lang", "").strip()
+            if not src_lang:
+                logger.warning(f"{path}:{line_no} bad src_lang: {src_lang}")
+                continue
+
+            asr = transcription.get("text", "").strip()
+            if not asr:
+                logger.warning(f"{path}:{line_no} empty asr text")
+                continue
+
+            translation = entry.get("translation")
+
+            if translation is None:
+                # ASR sample
+                tgt_lang = None
+                stt = None
+            else:
+                # STT sample
+                tgt_lang = translation.get("tgt_lang", "").strip()
+                stt = translation.get("text", "").strip()
+
+                if not tgt_lang:
+                    logger.warning(f"{path}:{line_no} bad tgt_lang: {tgt_lang}")
+                    continue
+
+                if not stt:
+                    logger.warning(f"{path}:{line_no} empty stt text")
+                    continue
+
+            try:
+                info = sf.info(audio_path)
+                if not info.duration:
+                    logger.warning(f"{path}:{line_no} invalid duration in audio file")
+                    continue
+                if info.duration > max_duration:
+                    logger.warning(f"{path}:{line_no} audio file duration={info.duration} exceeds max_duration ({max_duration})")
+                    continue
+
+            except Exception as e:
+                logger.warning(f"{path}:{line_no} failed to read audio: {e}")
+                continue                
+
+            sample = {
+                "audio_path": audio_path,
+                "src_lang": src_lang,
+                "asr": asr,
+                "tgt_lang": tgt_lang,
+                "stt": stt,
+                "duration": info.duration,
+            }
+
+            samples.append(sample)
+
+    logger.info(f"samples: {len(samples)}")
+    stt_count = sum(1 for x in samples if x["stt"] is not None)
+    logger.info("### Task stats ###")
+    logger.info(f"ASR samples: {len(samples) - stt_count}")
+    logger.info(f"STT samples: {stt_count}")
+    if samples:
+        durations = [x["duration"] for x in samples]
+        total_duration = sum(durations)
+        logger.info("### Audio duration stats ###")
+        logger.info(f"sum: {total_duration}")
+        logger.info(f"max: {max(durations)}")
+        logger.info(f"min: {min(durations)}")
+        logger.info(f"avg: {total_duration / len(durations)}")
+    return samples
+
+
 def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
     """
     Read ASR and STT samples from a TSV file and build training examples.

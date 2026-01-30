@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Dataset import read_samples_from_tsv, build_template #build_prompt, build_target
+from Dataset import read_samples_from_jsonl, build_template #build_prompt, build_target
 from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
@@ -107,18 +107,6 @@ def save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_
 
 
 def build_audio_cache(args):
-    #     tsv_path, 
-    #     cache_dir, 
-    #     embedder_path, 
-    #     tokenizer_path, 
-    #     audio_token,
-    #     template,
-    #     task,
-    #     device, 
-    #     dtype, 
-    #     batch_size, 
-    #     bucket_size,
-    # ):
     os.makedirs(args.cache_dir, exist_ok=True)
     torch_dtype = getattr(torch, args.dtype)
 
@@ -129,8 +117,8 @@ def build_audio_cache(args):
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
-    # Read TSV samples
-    samples = read_samples_from_tsv(args.tsv_path)
+    # Read JSON samples
+    samples = read_samples_from_jsonl(args.json_path)
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
@@ -151,7 +139,7 @@ def build_audio_cache(args):
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({
             "info": {
-                "tsv_path": args.tsv_path, 
+                "json_path": args.json_path, 
                 "cache_dir": args.cache_dir, 
                 "embedder_path": args.embedder_path,
                 "tokenizer_path": args.tokenizer_path,
@@ -173,8 +161,8 @@ def build_audio_cache(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from TSV (bucketed)")
-    parser.add_argument("--tsv_path", type=str, required=True, help="TSV file with audio metadata")
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
+    parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
     parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
