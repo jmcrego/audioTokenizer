@@ -42,9 +42,11 @@ def analyze_jsonl(input_path):
                 t_lang = entry["transcription"].get("lang") or "unknown"
                 transcription_langs[t_lang] += 1
                 if "text" in entry["transcription"]:
-                    text_length_stats["transcription.text"].append(
-                        len(entry["transcription"]["text"])
-                    )
+                    txt = entry["transcription"]["text"]
+                    text_length_stats["transcription.text"].append(len(txt))
+                    if len(txt) == 0:
+                        print("Warning: transcription.text length 0 for entry:")
+                        print(json.dumps(entry, ensure_ascii=False, indent=2))
 
             # Translation
             if "translation" in entry:
@@ -57,9 +59,11 @@ def analyze_jsonl(input_path):
                 pair = f"{src_lang}-{tgt_lang}"
                 translation_langs[pair] += 1
                 if "text" in entry["translation"]:
-                    text_length_stats["translation.text"].append(
-                        len(entry["translation"]["text"])
-                    )
+                    txt = entry["translation"]["text"]
+                    text_length_stats["translation.text"].append(len(txt))
+                    if len(txt) == 0:
+                        print("Warning: translation.text length 0 for entry:")
+                        print(json.dumps(entry, ensure_ascii=False, indent=2))
 
     # Output
     print(f"Total entries: {num_entries}\n")
