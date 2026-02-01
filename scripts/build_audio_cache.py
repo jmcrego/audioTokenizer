@@ -123,10 +123,28 @@ def build_audio_cache(args):
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
+        transcription = s.get("transcription", None)
+        translation = s.get("translation", None)
+        if transcription is not None:
+            asr_text = transcription.get("text", None)
+            src_lang = transcription.get("lang", None)
+        else:
+            continue
+
+        if args.task == "stt":
+            if translation is not None:
+                stt_text = translation.get("text", None)
+                tgt_lang = translation.get("lang", None)
+            else:
+                continue
+        else:
+            stt_text = None
+            tgt_lang = None
+
         prompt, target = build_template(type=args.template, task=args.task, 
             audio_token=args.audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
-            src_lang=s.get("src_lang"), tgt_lang=s.get("tgt_lang"), 
-            asr_text=s.get("asr"), stt_text=s.get("stt"),
+            src_lang=src_lang, tgt_lang=tgt_lang, 
+            asr_text=asr_text, stt_text=stt_text,
         )
         s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
     
