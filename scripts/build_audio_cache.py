@@ -122,6 +122,8 @@ if __name__ == "__main__":
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
     parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
+    #correct the next line
+    parser.add_argument("--splits", nargs='*', default=[], help="list of splits to use (use all if not given)")
     parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
@@ -141,7 +143,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    samples = read_samples_from_jsonl(args.json_path)
+    samples = read_samples_from_jsonl(args.json_path, splits=args.splits)
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):

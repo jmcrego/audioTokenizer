@@ -33,7 +33,7 @@ code2lang={
 }
 
 
-def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", split=None, use_tqdm=True):
+def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", splits=[], use_tqdm=True):
     """
     Read ASR/STT samples from a JSONL file and build training examples.
     """    
@@ -54,8 +54,8 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
         
             entry = json.loads(line)
 
-            if split is not None:
-                if entry.get("split", "") != split:
+            if len(splits):
+                if entry.get("split", "") not in splits:
                     continue
 
             audio_file = entry.get("audio_file")
@@ -126,8 +126,8 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
     logger.info(f"invalid duration: {invalid_duration}")
     logger.info(f"too long duration: {too_long_duration}")
     logger.info("### Task stats ###")
-    logger.info(f"Transcription samples: {len(samples) - {missing_transcriptions}}")
-    logger.info(f"Translation samples: {len(samples) - {missing_translations}}")
+    logger.info(f"Transcription samples: {len(samples) - missing_transcriptions}")
+    logger.info(f"Translation samples: {len(samples) - missing_translations}")
     if samples:
         durations = [x["duration"] for x in samples]
         total_duration = sum(durations)
