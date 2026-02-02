@@ -14,7 +14,7 @@ from typing import Iterator, List, Dict, Optional
 from torch.utils.data import Dataset, BatchSampler
 from transformers import PreTrainedTokenizerBase
 
-from scripts.utils import build_template
+from Template import build_template
 
 logger = logging.getLogger("Dataset")
 
