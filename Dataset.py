@@ -35,24 +35,18 @@ code2lang={
 
 def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
     """
-    Read ASR and STT samples from a JSONL file and build training examples.
-
-    Each line in the file must contain either:
-    - 3 fields: audio_path, source_language, transcription (ASR)
-    - 5 fields: audio_path, source_language, transcription, target_language, translation (STT)
-
-    The function validates audio files, constructs prompts and targets,
-    and returns a list of samples suitable for training chat-based LLMs.
-
-    Args:
-        path (str): Path to the JSONL file.
-        max_duration (float): Maximum duration for an audio file.
-        sep (str): Field separator used in the JSONL file.
-
-    Returns:
-        list[dict]: A list of samples with audio metadata, prompt, and target text.
+    Read ASR/STT samples from a JSONL file and build training examples.
     """    
     samples = []
+    missing_audio_files = 0
+    missing_transcriptions = 0
+    missing_translations = 0
+    empty_src_lang = 0
+    empty_src_text = 0
+    empty_tgt_lang = 0
+    empty_tgt_text = 0
+    invalid_duration = 0
+    too_long_duration = 0
 
     # read jsonl line by line
     with open(path, "r", encoding="utf-8") as f:
@@ -62,22 +56,22 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
 
             audio_file = entry.get("audio_file")
             if audio_file is None:
-                logger.warning(f"{path}:{line_no} missing audio_file")
+                missing_audio_files += 1
                 continue
 
             transcription = entry.get("transcription")
             if transcription is None:
-                logger.warning(f"{path}:{line_no} missing transcription field")
+                missing_transcriptions += 1
                 continue
             
             src_lang = transcription.get("lang", "").strip()
             if not src_lang:
-                logger.warning(f"{path}:{line_no} empty src lang")
+                empty_src_lang += 1
                 continue
 
             src_text = transcription.get("text", "").strip()
             if not src_text:
-                logger.warning(f"{path}:{line_no} empty src text")
+                empty_src_text += 1
                 continue
 
             translation = entry.get("translation")
@@ -86,26 +80,27 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 # STT sample
                 tgt_lang = translation.get("lang", "").strip()
                 if not tgt_lang:
-                    logger.warning(f"{path}:{line_no} empty tgt lang")
+                    empty_tgt_lang += 1
+                    # logger.warning(f"{path}:{line_no} empty tgt lang")
                     continue
 
                 tgt_text = translation.get("text", "").strip()
                 if not tgt_text:
-                    logger.warning(f"{path}:{line_no} empty tgt text")
+                    empty_tgt_text += 1
+                    # logger.warning(f"{path}:{line_no} empty tgt text")
                     continue
-
-            # else:
-            #     # ASR sample
-            #     tgt_lang = None
-            #     tgt_text = None
+            else:
+                missing_translations += 1
 
             try:
                 info = sf.info(audio_file)
                 if not info.duration:
-                    logger.warning(f"{path}:{line_no} invalid duration in audio file")
+                    invalid_duration += 1
+                    # logger.warning(f"{path}:{line_no} invalid duration in audio file")
                     continue
                 if info.duration > max_duration:
-                    logger.warning(f"{path}:{line_no} audio file duration={info.duration} exceeds max_duration ({max_duration})")
+                    too_long_duration += 1
+                    # logger.warning(f"{path}:{line_no} audio file duration={info.duration} exceeds max_duration ({max_duration})")
                     continue
 
             except Exception as e:
@@ -115,21 +110,20 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
             entry["duration"] = info.duration
             samples.append(entry)
 
-            # sample = {
-            #     "audio_file": audio_file,
-            #     "src_lang": src_lang,
-            #     "src_text": src_text,
-            #     "tgt_lang": tgt_lang,
-            #     "tgt_text": tgt_text,
-            #     "duration": info.duration,
-            # }
-            # samples.append(sample)
 
     logger.info(f"samples: {len(samples)}")
-    stt_count = sum(1 for x in samples if "translation" in x)    
+    logger.info(f"missing audio files: {missing_audio_files}")
+    logger.info(f"missing transcriptions: {missing_transcriptions}")
+    logger.info(f"missing translations: {missing_translations}")
+    logger.info(f"empty src_lang: {empty_src_lang}")
+    logger.info(f"empty src_text: {empty_src_text}")
+    logger.info(f"empty tgt_lang: {empty_tgt_lang}")
+    logger.info(f"empty tgt_text: {empty_tgt_text}")
+    logger.info(f"invalid duration: {invalid_duration}")
+    logger.info(f"too long duration: {too_long_duration}")
     logger.info("### Task stats ###")
-    logger.info(f"Transcription samples: {len(samples) - stt_count}")
-    logger.info(f"Translation samples: {stt_count}")
+    logger.info(f"Transcription samples: {len(samples) - {missing_transcriptions}}")
+    logger.info(f"Translation samples: {len(samples) - {missing_translations}}")
     if samples:
         durations = [x["duration"] for x in samples]
         total_duration = sum(durations)
