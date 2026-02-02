@@ -133,9 +133,9 @@ if __name__ == "__main__":
 
     os.makedirs(args.cache_dir, exist_ok=True)
 
-    #####################################################################################################################
-    ### Compute tokenized lengths and sort samples by length (shortest → longest) previously to embedding and caching ###
-    #####################################################################################################################
+    #################################################################################
+    ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
+    #################################################################################
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
@@ -172,9 +172,9 @@ if __name__ == "__main__":
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
 
-    #####################################################################################################################
-    ### Save audio embeddings in bucketed .pt files #####################################################################
-    #####################################################################################################################
+    #################################################################################
+    ### Save audio embeddings in bucketed .pt files #################################
+    #################################################################################
 
     save_sorted_samples(samples, args.embedder_path, args.batch_size, args.bucket_size, args.cache_dir, args.device, args.dtype)
 
@@ -196,9 +196,9 @@ if __name__ == "__main__":
                 "offset": s["offset"],
                 "duration": s.get("duration"),
                 "src_lang": s.get("src_lang"),
-                "asr": s.get("asr"),
+                "src_text": s.get("src_text"),
                 "tgt_lang": s.get("tgt_lang"),
-                "stt": s.get("stt"),
+                "tgt_text": s.get("tgt_text"),
             } for s in samples],
         }, f, indent=2)
     logger.info(f"Saved {meta_path}")
