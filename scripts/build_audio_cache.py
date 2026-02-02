@@ -123,10 +123,10 @@ if __name__ == "__main__":
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
     parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
     #correct the next line
-    parser.add_argument("--split", type=str, default=None, help="split to use (use all if not given)")
     parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
-    parser.add_argument("--slang", type=str, default="-", help="source language")
-    parser.add_argument("--tlang", type=str, default="-", help="target language")
+    parser.add_argument("--split", type=str, default=None, help="split to use (use all if not given)")
+    parser.add_argument("--slang", type=str, default=None, help="source language to use (use all if not given)")
+    parser.add_argument("--tlang", type=str, default=None, help="target language to use (use all if not given)")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
@@ -153,9 +153,6 @@ if __name__ == "__main__":
         transcription = s.get("transcription", None)
         src_text = transcription.get("text", None) if transcription is not None else None
         src_lang = transcription.get("lang", None) if transcription is not None else None
-        if args.slang != "-":
-            if src_lang is not None and src_lang != args.slang:
-                continue
 
         translation = s.get("translation", None)
         tgt_text = translation.get("text", None) if translation is not None else None
