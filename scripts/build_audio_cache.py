@@ -197,15 +197,5 @@ if __name__ == "__main__":
                 "bucket_size": args.bucket_size,
             },
             "samples": samples,
-            # "samples": [{
-            #     "audio_path": s["audio_path"],
-            #     "pt_path": s["pt_path"],
-            #     "offset": s["offset"],
-            #     "duration": s.get("duration"),
-            #     "src_lang": s.get("src_lang"),
-            #     "src_text": s.get("src_text"),
-            #     "tgt_lang": s.get("tgt_lang"),
-            #     "tgt_text": s.get("tgt_text"),
-            # } for s in samples],
         }, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved {meta_path}")
