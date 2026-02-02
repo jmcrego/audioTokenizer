@@ -38,7 +38,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
     Read samples from a JSONL file and build training examples.
     """    
     samples = []
-    missing_audio_files = 0
+    missing_audio_paths = 0
     missing_transcriptions = 0
     missing_translations = 0
     empty_src_lang = 0
@@ -58,9 +58,11 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 if entry.get("split", "") not in splits:
                     continue
 
-            audio_file = entry.get("audio_file")
-            if audio_file is None:
-                missing_audio_files += 1
+            audio_path = entry.get("audio_file", None)
+            if audio_path is None:
+                audio_path = entry.get("audio_path")
+            if audio_path is None:
+                missing_audio_paths += 1
                 continue
 
             transcription = entry.get("transcription")
@@ -98,7 +100,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
 
 
             try:
-                info = sf.info(audio_file)
+                info = sf.info(audio_path)
                 if not info.duration:
                     invalid_duration += 1
                     continue
@@ -115,7 +117,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
 
 
     logger.info(f"samples: {len(samples)}")
-    logger.info(f"missing audio files: {missing_audio_files}")
+    logger.info(f"missing audio files: {missing_audio_paths}")
     logger.info(f"missing transcriptions: {missing_transcriptions}")
     logger.info(f"missing translations: {missing_translations}")
     logger.info(f"empty src_lang: {empty_src_lang}")
