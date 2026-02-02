@@ -8,11 +8,10 @@ import sys
 import time
 from transformers import AutoTokenizer
 
-from utils import build_template
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Dataset import read_samples_from_jsonl, build_template #build_prompt, build_target
+from Dataset import read_samples_from_jsonl
+from Template import build_template
 from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
@@ -107,7 +106,24 @@ def save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
 
-def build_audio_cache(args):
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
+    parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
+    parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
+    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
+    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
+    parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
+    parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
+    parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
+    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
+    parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
+    parser.add_argument("--bucket_size", type=int, default=128, help="Number of samples per saved bucket")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
     os.makedirs(args.cache_dir, exist_ok=True)
     torch_dtype = getattr(torch, args.dtype)
 
@@ -115,7 +131,6 @@ def build_audio_cache(args):
     audio_embedder = Embedder(config={'path': args.embedder_path})
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
-
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
     # Read JSON samples
@@ -125,27 +140,34 @@ def build_audio_cache(args):
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         transcription = s.get("transcription", None)
         translation = s.get("translation", None)
+
         if transcription is not None:
             asr_text = transcription.get("text", None)
             src_lang = transcription.get("lang", None)
         else:
-            continue
+            asr_text = None
+            src_lang = None
 
-        if args.task == "stt":
-            if translation is not None:
-                stt_text = translation.get("text", None)
-                tgt_lang = translation.get("lang", None)
-            else:
-                continue
+        if translation is not None:
+            stt_text = translation.get("text", None)
+            tgt_lang = translation.get("lang", None)
         else:
             stt_text = None
             tgt_lang = None
 
-        prompt, target = build_template(type=args.template, task=args.task, 
-            audio_token=args.audio_token, bos_token=tokenizer.bos_token, eos_token=tokenizer.eos_token, 
-            src_lang=src_lang, tgt_lang=tgt_lang, 
-            asr_text=asr_text, stt_text=stt_text,
+        prompt, target = build_template(
+            task=args.task, 
+            audio_token=args.audio_token, 
+            bos_token=tokenizer.bos_token, 
+            eos_token=tokenizer.eos_token, 
+            src_lang=src_lang, 
+            tgt_lang=tgt_lang, 
+            asr_text=asr_text, 
+            stt_text=stt_text,
         )
+        if prompt is None or target is None:
+            continue
+        
         s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
     
     # Sort samples by tokenized length (shortest → longest)
@@ -177,23 +199,3 @@ def build_audio_cache(args):
             } for s in samples],
         }, f, indent=2)
     logger.info(f"Saved {meta_path}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
-    parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
-    parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
-    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
-    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B")
-    parser.add_argument("--audio_token", type=str, default="<extra_id_0>")
-    parser.add_argument("--template", type=str, default="oneline", help="declarative OR instruct OR oneline")
-    parser.add_argument("--task", type=str, default="asr", help="asr OR ast OR stt OR ttt")
-    parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
-    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
-    parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
-    parser.add_argument("--bucket_size", type=int, default=128, help="Number of samples per saved bucket")
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
-
-    build_audio_cache(args)
