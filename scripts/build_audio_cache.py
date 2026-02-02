@@ -160,9 +160,9 @@ if __name__ == "__main__":
 
         prompt, target = build_template(
             task=args.task, 
-            audio_token=args.audio_token, 
-            bos_token=tokenizer.bos_token, 
-            eos_token=tokenizer.eos_token, 
+            audio_token=args.audio_token,
+            bos_token=tokenizer.bos_token,
+            eos_token=tokenizer.eos_token,
             src_lang=src_lang, 
             tgt_lang=tgt_lang, 
             src_text=src_text, 
