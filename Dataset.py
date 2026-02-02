@@ -35,7 +35,7 @@ code2lang={
 
 def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", splits=[], use_tqdm=True):
     """
-    Read ASR/STT samples from a JSONL file and build training examples.
+    Read samples from a JSONL file and build training examples.
     """    
     samples = []
     missing_audio_files = 0
@@ -64,19 +64,21 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 continue
 
             transcription = entry.get("transcription")
-            if transcription is None:
-                missing_transcriptions += 1
-                continue
-            
-            src_lang = transcription.get("lang", "").strip()
-            if not src_lang:
-                empty_src_lang += 1
-                continue
 
-            src_text = transcription.get("text", "").strip()
-            if not src_text:
-                empty_src_text += 1
-                continue
+            if transcription is not None:
+                # ASR sample
+                src_lang = transcription.get("lang", "").strip()
+                if not src_lang:
+                    empty_src_lang += 1
+                    continue
+
+                src_text = transcription.get("text", "").strip()
+                if not src_text:
+                    empty_src_text += 1
+                    continue
+            else:
+                missing_transcriptions += 1
+            
 
             translation = entry.get("translation")
 
@@ -85,26 +87,23 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 tgt_lang = translation.get("lang", "").strip()
                 if not tgt_lang:
                     empty_tgt_lang += 1
-                    # logger.warning(f"{path}:{line_no} empty tgt lang")
                     continue
 
                 tgt_text = translation.get("text", "").strip()
                 if not tgt_text:
                     empty_tgt_text += 1
-                    # logger.warning(f"{path}:{line_no} empty tgt text")
                     continue
             else:
                 missing_translations += 1
+
 
             try:
                 info = sf.info(audio_file)
                 if not info.duration:
                     invalid_duration += 1
-                    # logger.warning(f"{path}:{line_no} invalid duration in audio file")
                     continue
                 if info.duration > max_duration:
                     too_long_duration += 1
-                    # logger.warning(f"{path}:{line_no} audio file duration={info.duration} exceeds max_duration ({max_duration})")
                     continue
 
             except Exception as e:
