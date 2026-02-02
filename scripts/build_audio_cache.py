@@ -180,7 +180,6 @@ if __name__ == "__main__":
     #################################################################################
     ### Save audio embeddings in bucketed .pt files #################################
     #################################################################################
-    kk
     save_sorted_samples(samples, args.embedder_path, args.batch_size, args.bucket_size, args.cache_dir, args.device, args.dtype)
 
     # Save meta.json
@@ -195,15 +194,16 @@ if __name__ == "__main__":
                 "dtype": args.dtype,
                 "bucket_size": args.bucket_size,
             },
-            "samples": [{
-                "audio_path": s["audio_path"],
-                "pt_path": s["pt_path"],
-                "offset": s["offset"],
-                "duration": s.get("duration"),
-                "src_lang": s.get("src_lang"),
-                "src_text": s.get("src_text"),
-                "tgt_lang": s.get("tgt_lang"),
-                "tgt_text": s.get("tgt_text"),
-            } for s in samples],
+            "samples": samples,
+            # "samples": [{
+            #     "audio_path": s["audio_path"],
+            #     "pt_path": s["pt_path"],
+            #     "offset": s["offset"],
+            #     "duration": s.get("duration"),
+            #     "src_lang": s.get("src_lang"),
+            #     "src_text": s.get("src_text"),
+            #     "tgt_lang": s.get("tgt_lang"),
+            #     "tgt_text": s.get("tgt_text"),
+            # } for s in samples],
         }, f, indent=2)
     logger.info(f"Saved {meta_path}")
