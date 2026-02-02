@@ -205,5 +205,5 @@ if __name__ == "__main__":
             #     "tgt_lang": s.get("tgt_lang"),
             #     "tgt_text": s.get("tgt_text"),
             # } for s in samples],
-        }, f, indent=2)
+        }, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved {meta_path}")
