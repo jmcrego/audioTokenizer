@@ -59,13 +59,20 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         samples[idx]["offset"] = i
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
-def save_sorted_samples(samples, audio_embedder, batch_size, bucket_size, cache_dir, device, torch_dtype):
+def save_sorted_samples(samples, embedder_path, batch_size, bucket_size, cache_dir, device, dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
     bucket_id = 0
     t_embedding = 0.0
     t_saving = 0.0
+
+    torch_dtype = getattr(torch, dtype)
+
+    # Initialize embedder
+    audio_embedder = Embedder(config={'path': embedder_path})
+    audio_embedder.to(device, dtype=torch_dtype)
+    audio_embedder.eval()
 
     for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit=" sample"):
 
@@ -125,35 +132,27 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     os.makedirs(args.cache_dir, exist_ok=True)
-    torch_dtype = getattr(torch, args.dtype)
 
-    # Initialize embedder
-    audio_embedder = Embedder(config={'path': args.embedder_path})
-    audio_embedder.to(args.device, dtype=torch_dtype)
-    audio_embedder.eval()
+    #####################################################################################################################
+    ### Compute tokenized lengths and sort samples by length (shortest → longest) previously to embedding and caching ###
+    #####################################################################################################################
+
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
+
     # Read JSON samples
     samples = read_samples_from_jsonl(args.json_path)
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
+
         transcription = s.get("transcription", None)
+        src_text = transcription.get("text", None) if transcription is not None else None
+        src_lang = transcription.get("lang", None) if transcription is not None else None
+
         translation = s.get("translation", None)
-
-        if transcription is not None:
-            asr_text = transcription.get("text", None)
-            src_lang = transcription.get("lang", None)
-        else:
-            asr_text = None
-            src_lang = None
-
-        if translation is not None:
-            stt_text = translation.get("text", None)
-            tgt_lang = translation.get("lang", None)
-        else:
-            stt_text = None
-            tgt_lang = None
+        tgt_text = translation.get("text", None) if translation is not None else None
+        tgt_lang = translation.get("lang", None) if translation is not None else None
 
         prompt, target = build_template(
             task=args.task, 
@@ -162,18 +161,22 @@ if __name__ == "__main__":
             eos_token=tokenizer.eos_token, 
             src_lang=src_lang, 
             tgt_lang=tgt_lang, 
-            asr_text=asr_text, 
-            stt_text=stt_text,
+            src_text=src_text, 
+            tgt_text=tgt_text,
         )
         if prompt is None or target is None:
             continue
-        
+
         s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
     
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
 
-    save_sorted_samples(samples, audio_embedder, args.batch_size, args.bucket_size, args.cache_dir, args.device, torch_dtype)
+    #####################################################################################################################
+    ### Save audio embeddings in bucketed .pt files #####################################################################
+    #####################################################################################################################
+
+    save_sorted_samples(samples, args.embedder_path, args.batch_size, args.bucket_size, args.cache_dir, args.device, args.dtype)
 
     # Save meta.json
     meta_path = os.path.join(args.cache_dir, "meta.json")

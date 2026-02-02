@@ -11,8 +11,8 @@ def build_template(
         eos_token="</s>", 
         src_lang=None, 
         tgt_lang=None, 
-        asr_text=None, 
-        stt_text=None,
+        src_text=None, 
+        tgt_text=None,
     ):
 
     prompt = None
@@ -29,7 +29,7 @@ def build_template(
         # Automatic Speech Recognition
         if task == "asr":
             prompt=f"{audio_token}<|{task}|>" 
-            target=f"<|{src_lang}|>{asr_text}" if src_lang is not None and asr_text is not None else None
+            target=f"<|{src_lang}|>{src_text}" if src_lang is not None and src_text is not None else None
 
         # Automatic Speech Translation
         elif task == "ast":
@@ -37,25 +37,25 @@ def build_template(
                 return prompt, target
             
             prompt=f"{audio_token}<|{task}|><|{tgt_lang}|>" 
-            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
+            target=f"<|{src_lang}|>{tgt_text}" if src_lang is not None and tgt_text is not None else None
 
         # Speech Transcription and Translation
         elif task == "stt":
             if src_lang is None or tgt_lang is None:
                 return prompt, target
-            if asr_text is None:
+            if src_text is None:
                 return prompt, target
             
-            prompt=f"{audio_token}<|{task}-asr|><|{src_lang}|>{asr_text}<|{task}|><|{tgt_lang}|>" 
-            target=f"{stt_text}" if stt_text is not None else None
+            prompt=f"{audio_token}<|{task}-asr|><|{src_lang}|>{src_text}<|{task}|><|{tgt_lang}|>" 
+            target=f"{tgt_text}" if tgt_text is not None else None
 
         # Text to Text Translation (No audio involved)
         elif task == "ttt":
             if tgt_lang is None:
                 return prompt, target
             
-            prompt=f"{asr_text}<|{task}|><|{tgt_lang}|>"
-            target=f"<|{src_lang}|>{stt_text}" if src_lang is not None and stt_text is not None else None
+            prompt=f"{src_text}<|{task}|><|{tgt_lang}|>"
+            target=f"<|{src_lang}|>{tgt_text}" if src_lang is not None and tgt_text is not None else None
 
         return bos_token+prompt, target+eos_token if target is not None else None
 
