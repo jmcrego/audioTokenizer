@@ -33,7 +33,7 @@ code2lang={
 }
 
 
-def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", use_tqdm=True):
+def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", split=None, use_tqdm=True):
     """
     Read ASR/STT samples from a JSONL file and build training examples.
     """    
@@ -53,6 +53,10 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
         for line_no, line in enumerate(tqdm(f, desc=f"Reading {Path(path).name}", unit=" sample", disable=not use_tqdm), start=1):
         
             entry = json.loads(line)
+
+            if split is not None:
+                if entry.get("split", "") != split:
+                    continue
 
             audio_file = entry.get("audio_file")
             if audio_file is None:
@@ -128,10 +132,10 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
         durations = [x["duration"] for x in samples]
         total_duration = sum(durations)
         logger.info("### Audio duration stats ###")
-        logger.info(f"sum: {total_duration}")
-        logger.info(f"max: {max(durations)}")
-        logger.info(f"min: {min(durations)}")
-        logger.info(f"avg: {total_duration / len(durations)}")
+        logger.info(f"sum: {total_duration:.2f}")
+        logger.info(f"max: {max(durations):.2f}")
+        logger.info(f"min: {min(durations):.2f}")
+        logger.info(f"avg: {total_duration / len(durations):.2f}")
     return samples
 
 
