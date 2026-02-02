@@ -22,7 +22,7 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     Embed audio for a batch of indices.
     Returns embeddings on CPU.
     """
-    audio_paths = [samples[idx]["audio_path"] for idx in batch_indices]
+    audio_paths = [samples[idx]["audio_file"] for idx in batch_indices]
 
     with torch.no_grad():
         with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
