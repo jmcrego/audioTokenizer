@@ -70,34 +70,34 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 logger.warning(f"{path}:{line_no} missing transcription field")
                 continue
             
-            src_lang = transcription.get("src_lang", "").strip()
+            src_lang = transcription.get("lang", "").strip()
             if not src_lang:
-                logger.warning(f"{path}:{line_no} bad src_lang: {src_lang}")
+                logger.warning(f"{path}:{line_no} empty src lang")
                 continue
 
-            asr = transcription.get("text", "").strip()
-            if not asr:
-                logger.warning(f"{path}:{line_no} empty asr text")
+            src_text = transcription.get("text", "").strip()
+            if not src_text:
+                logger.warning(f"{path}:{line_no} empty src text")
                 continue
 
             translation = entry.get("translation")
 
-            if translation is None:
-                # ASR sample
-                tgt_lang = None
-                stt = None
-            else:
+            if translation is not None:
                 # STT sample
-                tgt_lang = translation.get("tgt_lang", "").strip()
-                stt = translation.get("text", "").strip()
-
+                tgt_lang = translation.get("lang", "").strip()
                 if not tgt_lang:
-                    logger.warning(f"{path}:{line_no} bad tgt_lang: {tgt_lang}")
+                    logger.warning(f"{path}:{line_no} empty tgt lang")
                     continue
 
-                if not stt:
-                    logger.warning(f"{path}:{line_no} empty stt text")
+                tgt_text = translation.get("text", "").strip()
+                if not tgt_text:
+                    logger.warning(f"{path}:{line_no} empty tgt text")
                     continue
+
+            # else:
+            #     # ASR sample
+            #     tgt_lang = None
+            #     tgt_text = None
 
             try:
                 info = sf.info(audio_path)
@@ -112,22 +112,24 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 logger.warning(f"{path}:{line_no} failed to read audio: {e}")
                 continue                
 
-            sample = {
-                "audio_path": audio_path,
-                "src_lang": src_lang,
-                "asr": asr,
-                "tgt_lang": tgt_lang,
-                "stt": stt,
-                "duration": info.duration,
-            }
+            entry["duration"] = info.duration
+            samples.append(entry)
 
-            samples.append(sample)
+            # sample = {
+            #     "audio_path": audio_path,
+            #     "src_lang": src_lang,
+            #     "src_text": src_text,
+            #     "tgt_lang": tgt_lang,
+            #     "tgt_text": tgt_text,
+            #     "duration": info.duration,
+            # }
+            # samples.append(sample)
 
     logger.info(f"samples: {len(samples)}")
-    stt_count = sum(1 for x in samples if x["stt"] is not None)
+    stt_count = sum(1 for x in samples if "translation" in x)    
     logger.info("### Task stats ###")
-    logger.info(f"ASR samples: {len(samples) - stt_count}")
-    logger.info(f"STT samples: {stt_count}")
+    logger.info(f"Transcription samples: {len(samples) - stt_count}")
+    logger.info(f"Translation samples: {stt_count}")
     if samples:
         durations = [x["duration"] for x in samples]
         total_duration = sum(durations)

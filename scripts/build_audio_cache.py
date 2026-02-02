@@ -169,6 +169,9 @@ if __name__ == "__main__":
 
         s["seq_len"] = len(tokenizer(prompt, target, padding=False, truncation=False, add_special_tokens=False)["input_ids"])
     
+    # Remove samples without seq_len
+    samples = [s for s in samples if "seq_len" in s]
+
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
 
