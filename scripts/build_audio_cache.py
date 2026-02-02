@@ -135,8 +135,6 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
-    os.makedirs(args.cache_dir, exist_ok=True)
-
     #################################################################################
     ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
     #################################################################################
@@ -149,24 +147,17 @@ if __name__ == "__main__":
 
     # Compute tokenized lengths
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
-
         transcription = s.get("transcription", None)
-        src_text = transcription.get("text", None) if transcription is not None else None
-        src_lang = transcription.get("lang", None) if transcription is not None else None
-
         translation = s.get("translation", None)
-        tgt_text = translation.get("text", None) if translation is not None else None
-        tgt_lang = translation.get("lang", None) if translation is not None else None
-
         prompt, target = build_template(
             task=args.task, 
             audio_token=args.audio_token,
             bos_token=tokenizer.bos_token,
             eos_token=tokenizer.eos_token,
-            src_lang=src_lang, 
-            tgt_lang=tgt_lang, 
-            src_text=src_text, 
-            tgt_text=tgt_text,
+            src_lang=transcription.get("lang", None) if transcription is not None else None, 
+            tgt_lang=translation.get("lang", None) if translation is not None else None, 
+            src_text=transcription.get("text", None) if transcription is not None else None, 
+            tgt_text=translation.get("text", None) if translation is not None else None,
         )
         if prompt is None or target is None:
             continue
@@ -176,8 +167,14 @@ if __name__ == "__main__":
     # Remove samples without seq_len
     samples = [s for s in samples if "seq_len" in s]
 
+    if not samples:
+        logger.info("No samples to process after filtering.")
+        sys.exit(0)
+
     # Sort samples by tokenized length (shortest → longest)
     samples.sort(key=lambda x: x["seq_len"])
+
+    os.makedirs(args.cache_dir, exist_ok=True)
 
     #################################################################################
     ### Save audio embeddings in bucketed .pt files #################################
@@ -190,7 +187,7 @@ if __name__ == "__main__":
         json.dump({
             "info": {
                 "json_path": args.json_path, 
-                "cache_dir": args.cache_dir, 
+                "cache_dir": args.cache_dir,
                 "embedder_path": args.embedder_path,
                 "tokenizer_path": args.tokenizer_path,
                 "dtype": args.dtype,
