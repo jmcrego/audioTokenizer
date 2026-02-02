@@ -60,9 +60,9 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
         
             entry = json.loads(line)
 
-            audio_path = entry.get("audio_path")
-            if audio_path is None:
-                logger.warning(f"{path}:{line_no} missing audio_path")
+            audio_file = entry.get("audio_file")
+            if audio_file is None:
+                logger.warning(f"{path}:{line_no} missing audio_file")
                 continue
 
             transcription = entry.get("transcription")
@@ -100,7 +100,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
             #     tgt_text = None
 
             try:
-                info = sf.info(audio_path)
+                info = sf.info(audio_file)
                 if not info.duration:
                     logger.warning(f"{path}:{line_no} invalid duration in audio file")
                     continue
@@ -116,7 +116,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
             samples.append(entry)
 
             # sample = {
-            #     "audio_path": audio_path,
+            #     "audio_file": audio_file,
             #     "src_lang": src_lang,
             #     "src_text": src_text,
             #     "tgt_lang": tgt_lang,
@@ -146,8 +146,8 @@ def read_samples_from_tsv(path: str, max_duration: float = 30.0, sep: str = "\t"
     Read ASR and STT samples from a TSV file and build training examples.
 
     Each line in the file must contain either:
-    - 3 fields: audio_path, source_language, transcription (ASR)
-    - 5 fields: audio_path, source_language, transcription, target_language, translation (STT)
+    - 3 fields: audio_file, source_language, transcription (ASR)
+    - 5 fields: audio_file, source_language, transcription, target_language, translation (STT)
 
     The function validates audio files, constructs prompts and targets,
     and returns a list of samples suitable for training chat-based LLMs.
