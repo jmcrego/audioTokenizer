@@ -33,7 +33,7 @@ code2lang={
 }
 
 
-def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", splits=[], use_tqdm=True):
+def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", split=None, slang=None, tlang=None, use_tqdm=True):
     """
     Read samples from a JSONL file and build training examples.
     """    
@@ -54,8 +54,8 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
         
             entry = json.loads(line)
 
-            if len(splits):
-                if entry.get("split", "") not in splits:
+            if split is not None:
+                if entry.get("split", "") != split:
                     continue
 
             audio_path = entry.get("audio_file", None)
@@ -72,6 +72,8 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 src_lang = transcription.get("lang", "").strip()
                 if not src_lang:
                     empty_src_lang += 1
+                    continue
+                if slang is not None and src_lang != slang:
                     continue
 
                 src_text = transcription.get("text", "").strip()
@@ -90,7 +92,9 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 if not tgt_lang:
                     empty_tgt_lang += 1
                     continue
-
+                if tlang is not None and tgt_lang != tlang:
+                    continue
+                
                 tgt_text = translation.get("text", "").strip()
                 if not tgt_text:
                     empty_tgt_text += 1
