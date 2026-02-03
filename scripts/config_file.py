@@ -9,6 +9,11 @@ config = {
         "rmsnorm_pre": True, #False to discard it
         "conv_kernel": 15,
         "conv_stride": 15,
+        "n_transformer_layers": 2, #0 to discard it
+        "n_heads": 8,
+        "ff_mult": 4,
+        "ff_dropout": 0.0,
+        "positional_encoding": True, #False to discard it
         "act": "silu",       #None to discard it
         "rmsnorm_pos": True, #False to discard it
         "scale": 0,          #0 to discard it

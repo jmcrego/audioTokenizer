@@ -17,11 +17,24 @@ class Projector(nn.Module):
         self.llm_embedding_dim = llm_embedding_dim
 
         path = config.get('path', None)
+
+        # Convolution parameters
         conv_kernel = config.get('conv_kernel', 30)
         conv_stride = config.get('conv_stride', 30)
+
+        # Norm / activation
         rmsnorm_pre = config.get('rmsnorm_pre', True)
         act = (config.get('act', None) or '').lower()
         rmsnorm_pos = config.get('rmsnorm_pos', True)
+
+        # Transformer params
+        n_layers = config.get('n_transformer_layers', 2)
+        n_heads = config.get('n_heads', 8)
+        ff_mult = config.get('ff_mult', 4)
+        ff_dropout = config.get('ff_dropout', 0.0)
+        use_positional_encoding = config.get('positional_encoding', True)
+
+        # Optional scale and bias
         scale = config.get('scale', 0.0)
         use_bias = config.get('use_bias', False)
 
@@ -31,7 +44,9 @@ class Projector(nn.Module):
         self.ln_pre = nn.RMSNorm(audio_embedding_dim) if rmsnorm_pre else nn.Identity() #(B, T, A) → (B, T, A)
 
         # Depthwise Conv1d
-        self.dw_conv = nn.Conv1d(in_channels=audio_embedding_dim, out_channels=audio_embedding_dim,
+        self.dw_conv = nn.Conv1d(
+            in_channels=audio_embedding_dim, 
+            out_channels=audio_embedding_dim,
             kernel_size=conv_kernel,
             stride=conv_stride,
             groups=audio_embedding_dim, 
@@ -39,16 +54,50 @@ class Projector(nn.Module):
         ) #(B, T, A) → (B, A, T) → (B, A, T')    T' = [(T-k)/s] + 1   Groups = A, Each channel is convolved independently. Time dimension changes
 
         # Pointwise conv to mix channels
-        self.pw_conv = nn.Conv1d(in_channels=audio_embedding_dim, out_channels=audio_embedding_dim,
+        self.pw_conv = nn.Conv1d(
+            in_channels=audio_embedding_dim, 
+            out_channels=audio_embedding_dim,
             kernel_size=1,
             bias=False
         )# (B, A, T') → (B, A, T') → (B, T', A) Conv1d Mixes channels, do not change time length
+
+        # Optional positional encoding 
+        self.use_positional_encoding = use_positional_encoding
+        if use_positional_encoding:
+            self.pos_embedding = nn.Parameter(torch.zeros(1, 1024, audio_embedding_dim))  # (1, T', A)
+            nn.init.trunc_normal_(self.pos_embedding, std=0.02)
+
+        # Transformer encoder
+        if n_layers > 0:
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=audio_embedding_dim,
+                nhead=n_heads,
+                dim_feedforward=ff_mult * audio_embedding_dim,
+                dropout=ff_dropout,
+                activation="gelu",
+                batch_first=True,
+                norm_first=True,  # pre-norm
+            )
+            self.transformer = nn.TransformerEncoder(
+                encoder_layer,
+                num_layers=n_layers,
+            ) # (B, T', A) → (B, T', A)
+        else:
+            self.transformer = nn.Identity()
+
 
         # Linear projection to LLM embedding
         self.linear = nn.Linear(audio_embedding_dim, llm_embedding_dim, bias=False) #(B, T', A) → (B, T', L)
 
         # Activation
-        self.act = nn.Identity() if act is None else nn.SiLU() if act == 'silu' else nn.GELU() if act == 'gelu' else nn.ReLU() if act == 'relu' else nn.Identity()
+        if act == 'silu':
+            self.act = nn.SiLU()
+        elif act == 'gelu':
+            self.act = nn.GELU()
+        elif act == 'relu':
+            self.act = nn.ReLU()
+        else:
+            self.act = nn.Identity() 
 
         # Post-linear RMSNorm
         self.ln_post = nn.RMSNorm(llm_embedding_dim) if rmsnorm_pos else nn.Identity() #(B, T', L) → (B, T', L)
@@ -115,6 +164,12 @@ class Projector(nn.Module):
         x = self.dw_conv(x)   # [B, D_audio, T_out]
         x = self.pw_conv(x)   # [B, D_audio, T_out]
         x = x.transpose(1, 2) # [B, T_out, D_audio]
+        # --- Positional encoding ---
+        if self.use_positional_encoding:
+            T = x.size(1)
+            x = x + self.pos_embedding[:, :T, :]
+        # --- Transformer encoder (temporal modeling) ---
+        x = self.transformer(x)
         # --- Linear + Activation ---
         x = self.linear(x)    # [B, T_out, D_llm]
         x = self.act(x)
