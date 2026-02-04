@@ -46,7 +46,7 @@ class LLM(torch.nn.Module):
             assert ids[0] == token_id, f"Token '{token}' does not map to same token_id when encoded '{ids[0]}' than token_to_id '{token_id}'"
             logger.info(f"{token}: {token_id}")
 
-kk
+        kk
         ###### LLM  ############################
         self.model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
 
