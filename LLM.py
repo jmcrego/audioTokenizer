@@ -24,6 +24,7 @@ class LLM(torch.nn.Module):
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
         logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
+        logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
         # Set PAD token (id is automatically inferred)
         self.tokenizer.pad_token = config['pad_token']
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
@@ -136,7 +137,7 @@ class LLM(torch.nn.Module):
         # -----------------------------
         # Gradient hook: freeze old vocab rows in input/output embeddings
         # -----------------------------
-        def freeze_old_embeddings(grad):
+        def freeze_old_embeddings_hook(grad):
             # Freeze original rows, allow gradients only for new embeddings
             grad[:self.original_vocab_size] = 0
             return grad
@@ -155,27 +156,20 @@ class LLM(torch.nn.Module):
                 param.requires_grad = True
                 # Hook to freeze old rows, only once
                 if not hasattr(self, "_embedding_hook_registered"):
-                    param.register_hook(freeze_old_embeddings)
+                    param.register_hook(freeze_old_embeddings_hook)
                     self._embedding_hook_registered = True
 
             # Output embeddings
             elif "lm_head" in name:
                 param.requires_grad = True
                 if not hasattr(self, "_lm_head_hook_registered"):
-                    param.register_hook(freeze_old_embeddings)
+                    param.register_hook(freeze_old_embeddings_hook)
                     self._lm_head_hook_registered = True
-
 
             # Everything else → frozen
             else:
                 param.requires_grad = False
 
-        # -----------------------------
-        # Logging
-        # -----------------------------
-        # for n, p in self.model.named_parameters():
-        #     if p.requires_grad:
-        #         logger.info(f"TRAINABLE: {n} {tuple(p.shape)}")
 
         logger.info("llm_model unfrozen: LoRA adapters + special-token input/output embeddings trainable")
 

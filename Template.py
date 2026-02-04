@@ -7,8 +7,8 @@ def build_template(
         # ttt: text to text translation
         task="asr", 
         audio_token="<extra_id_0>", 
-        bos_token="<s>", 
-        eos_token="</s>", 
+        bos_token="<s>", #or <|start_audio|>
+        eos_token="</s>", #or <|end_audio|>
         src_lang=None, 
         tgt_lang=None, 
         src_text=None, 
@@ -18,8 +18,8 @@ def build_template(
     prompt = None
     target = None
     
-    if type not in {'instruct', 'declarative', 'oneline'}:
-        raise ValueError("unknown template type: use 'instruct' OR 'declarative' OR 'oneline'")
+    if type not in {'instruct', 'projector', 'oneline'}:
+        raise ValueError("unknown template type: use 'instruct' OR 'projector' OR 'oneline'")
 
     if task not in {'asr', 'ast', 'stt', 'ttt'}:
         raise ValueError("unknown template task: use 'asr' OR 'ast' OR 'stt' OR 'ttt'")
@@ -59,8 +59,13 @@ def build_template(
 
         return bos_token+prompt, target+eos_token if target is not None else None
 
-    elif type == "declarative":
-        raise NotImplementedError("declarative template not implemented yet")
+    elif type == "projector":
+        # ASR is not performed, only audio/text embeddings alignment, no inference required for this mode
+        prompt=f"{audio_token}" 
+        target=f"{bos_token}{src_text}{eos_token}"
+        return prompt, target
+
+
     elif type == "instruct":
         raise NotImplementedError("instruct template not implemented yet")
 

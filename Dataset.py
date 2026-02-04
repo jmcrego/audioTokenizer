@@ -94,7 +94,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                     continue
                 if tlang is not None and tgt_lang != tlang:
                     continue
-                
+
                 tgt_text = translation.get("text", "").strip()
                 if not tgt_text:
                     empty_tgt_text += 1
@@ -244,12 +244,7 @@ class Dataset(Dataset):
 
         else:
             self.info = None
-            if file_path.endswith(".tsv"):
-                self.data = read_samples_from_tsv(file_path)
-            elif file_path.endswith(".jsonl"):
-                self.data = read_samples_from_jsonl(file_path)
-            else:
-                raise ValueError("Unsupported file format. Use .tsv or .jsonl")
+            self.data = read_samples_from_jsonl(file_path)
             file_path_dir = Path(file_path).parent
 
         for idx in range(len(self.data)):

@@ -149,6 +149,8 @@ if __name__ == "__main__":
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         transcription = s.get("transcription", None)
         translation = s.get("translation", None)
+        # if translation is not None and args.tlang is None:
+        #     translation = None
         prompt, target = build_template(
             task=args.task, 
             audio_token=args.audio_token,
