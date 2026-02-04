@@ -28,7 +28,7 @@ class LLM(torch.nn.Module):
         # Set PAD token (id is automatically inferred)
         self.tokenizer.pad_token = config['pad_token']
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
-
+        kk
         ### ADD SPECIAL TOKENS
         self.special_tokens = config_embeddings.get("special_tokens", [])
         additional_tokens = {"additional_special_tokens": self.special_tokens}
