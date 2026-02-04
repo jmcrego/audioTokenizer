@@ -24,11 +24,10 @@ class LLM(torch.nn.Module):
         logger.info(f"Loaded Tokenizer from {llm_path} with size={self.original_vocab_size}")
         logger.info(f"bos_token = {self.tokenizer.bos_token} {self.tokenizer.bos_token_id}")
         logger.info(f"eos_token = {self.tokenizer.eos_token} {self.tokenizer.eos_token_id}")
+        if self.tokenizer.pad_token is None:
+            raise ValueError("""Tokenizer does not have a PAD token defined (use an LLM with defined pad_token).\nDuring pretraining, the model forces audio embeddings to match text embeddings. Due to length mismatch between audio frames and text tokens, PAD tokens are used to fill the remaining length of transcriptions. During inference, the LLM ignores PAD tokens without additional processing.""")
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
-        # Set PAD token (id is automatically inferred)
-        self.tokenizer.pad_token = config['pad_token']
-        logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
-        kk
+
         ### ADD SPECIAL TOKENS
         self.special_tokens = config_embeddings.get("special_tokens", [])
         additional_tokens = {"additional_special_tokens": self.special_tokens}
@@ -37,7 +36,7 @@ class LLM(torch.nn.Module):
         logger.info(f"Added {num_added} special tokens, new vocab size is {self.new_vocab_size}")
 
         ### VERIFY TOKENS
-        tokens_to_verify = self.special_tokens + [config['pad_token'], config['audio_token']]
+        tokens_to_verify = self.special_tokens + [config['audio_token']]
         for token in tokens_to_verify:
             token_id = self.tokenizer.convert_tokens_to_ids(token)
             assert isinstance(token_id, int), f"Token '{token}' does not map to a single token_id: {token_id}"
@@ -47,7 +46,7 @@ class LLM(torch.nn.Module):
             assert ids[0] == token_id, f"Token '{token}' does not map to same token_id when encoded '{ids[0]}' than token_to_id '{token_id}'"
             logger.info(f"{token}: {token_id}")
 
-
+kk
         ###### LLM  ############################
         self.model = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
 

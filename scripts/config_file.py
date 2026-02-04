@@ -22,7 +22,6 @@ config = {
     "llm": {
         "path": "/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct",
         "audio_token": "<extra_id_0>", #must exist (unused) in vocab
-        "pad_token" : "<|im_end|>",    #must be different to eos token
     },
     "embeddings": {
         "path": None,
